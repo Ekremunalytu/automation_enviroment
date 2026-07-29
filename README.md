@@ -324,10 +324,10 @@ are no longer the first thing a normal reader should open.
 
 **Repository pointers (machine- and agent-facing):**
 
-- `Last Updated: 2026-06-23`
+- `Last Updated: 2026-07-29`
 - `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
-- `Active stream: none currently open — operator-console-honesty (UI-only console-honesty stream) merged to main via PR #36 (week24 -> main, 1e3fba6) on 2026-06-23; it made decorative/dead Settings + System controls honest (no backend/DB/detection/executor). The phase.json active_stream pointer still names operator-console-honesty and repoints at the next stream's H0 (named-stream convention). Prior stream reliability-self-defense merged to main via PR #35 (week23 -> main, 653d807). Tracker: documents/active-work/W24-operator-console-honesty.md.`
-- `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
+- `Active stream: none currently open — phase.json.active_stream is null. Latest merged named stream: verdict-provenance-reproducibility (Stream 3 / W26), merged via PR #38 (week26 -> main, bfb2d2d) on 2026-07-27. It closed B5+B6; the next execution gate is containment safety. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
+- `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + optional active stream).`
 
 **Current status.** The weekly refactor line is closed through **W22**. W22 was
 merged to `main` through PR #31 (`week22 -> main`, `1399f82`) on 2026-05-28.
@@ -350,13 +350,17 @@ Weekly close-out ledger:
 
 Latest merged named stream:
 
-- `reliability-self-defense`, merged via PR #35 (`653d807`) on `2026-06-12`.
-- Closed v1.0 trust-floor bars B1/B3/B4 plus self-defense fixes F-2/F-3.
-- Tracker: `documents/active-work/W23-reliability-self-defense.md`.
+- `verdict-provenance-reproducibility` (Stream 3 / W26), merged via PR #38
+  (`bfb2d2d`) on `2026-07-27`.
+- Closed v1.0 bars B5/B6: verdicts are bound to VSIX bytes and run-quality
+  finalization is reproducible.
+- Tracker:
+  `documents/active-work/W26-verdict-provenance-reproducibility.md`.
 
 Earlier named streams include `podman-airgapped-deploy` (air-gapped deployment
 bundle + human-readable documentation), `security-development`,
-`extension-trigger-matrix`, and Static Analysis Pre-Check.
+`extension-trigger-matrix`, Static Analysis Pre-Check,
+`reliability-self-defense`, and `operator-console-honesty`.
 
 Detailed status is intentionally not duplicated here:
 
@@ -367,4 +371,4 @@ Detailed status is intentionally not duplicated here:
 - [documents/REFACTOR_OPTIMIZATION.md](documents/REFACTOR_OPTIMIZATION.md) —
   weekly planning record.
 - [documents/phase.json](documents/phase.json) — machine-readable weekly
-  pointer and active stream.
+  pointer and optional active stream (`null` when none is open).

@@ -6,7 +6,7 @@
 
 `Active stream: operator-console-honesty (UI-only console-honesty stream, sequenced ahead of Stream 2) — opened on week24 (off main 8250db0). Prior stream reliability-self-defense merged via PR #35 (week23 -> main, 653d807). Tracker: documents/active-work/W24-operator-console-honesty.md.`
 
-`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
+`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + optional active stream; null when none is open).`
 
 `Phase: W22 closed synthetically and merged via PR #31 1399f82; W18-W22 multi-iter roadmap window complete (W18+W19+W20+W21+W22 closed and merged).`
 

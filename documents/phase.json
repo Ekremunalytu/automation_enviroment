@@ -17,9 +17,6 @@
     { "id": "W20", "pr": 29, "branch": "week20 -> main", "sha": "64a3c3d" },
     { "id": "W21", "pr": 30, "branch": "week21 -> main", "sha": "5dc18aa" }
   ],
-  "active_stream": {
-    "id": "verdict-provenance-reproducibility",
-    "tracker": "documents/active-work/W26-verdict-provenance-reproducibility.md"
-  },
-  "updated": "2026-07-27"
+  "active_stream": null,
+  "updated": "2026-07-29"
 }

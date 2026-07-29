@@ -1,10 +1,11 @@
 # Documentation Maintenance Lane
 
-**Last Updated:** 2026-06-08. W22 remains the last merged weekly close-out;
-post-W22 named streams are tracked through `documents/phase.json`.
+**Last Updated:** 2026-07-29. W22 remains the last merged weekly close-out;
+post-W22 named streams are tracked through `documents/phase.json`, whose
+`active_stream` is `null` when no stream is open.
 Current docs truth anchors: `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`,
-`REFACTOR_OPTIMIZATION.md` §20, and the active stream tracker named by
-`phase.json.active_stream`.
+`REFACTOR_OPTIMIZATION.md` §20, and—when present—the active stream tracker
+named by `phase.json.active_stream`.
 
 Use this lane for README, ADR, runbook, roadmap, testing-guide, and
 agent-doc updates. The human-readable reader guides (`human-guide.md`,

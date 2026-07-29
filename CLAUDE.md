@@ -1,12 +1,12 @@
 # CLAUDE.md
 
-`Last Updated: 2026-07-27`
+`Last Updated: 2026-07-29`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
 `Latest merged named stream: verdict-provenance-reproducibility (Stream 3 — B5+B6; week label W26) — merged to main via PR #38 (week26 -> main, bfb2d2d) on 2026-07-27. ADR 0017 is Accepted + Implemented; no successor stream is open. Next execution gate: containment safety from documents/active-work/v1-roadmap.md §4. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
 
-`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
+`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + optional active stream; null when none is open).`
 
 This file is intentionally a thin pointer. Do not duplicate phase summaries or
 architecture maps here; that caused drift.

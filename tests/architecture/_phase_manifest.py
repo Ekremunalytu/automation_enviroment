@@ -2,8 +2,8 @@
 
 ``documents/phase.json`` is the machine-readable source of the phase
 "preamble" truth — the most-recently-merged weekly close-out (PR + SHA),
-the ``W13..`` close-out history chain, and the active named stream. The
-doc-preamble gates in this package read from here instead of
+the ``W13..`` close-out history chain, and the optional active named stream
+(``null`` when none is open). The doc-preamble gates read from here instead of
 hand-maintaining duplicate ``PR #NN`` / ``<sha>`` literals, so advancing a
 phase is a one-file edit (``phase.json``) plus the doc banners.
 

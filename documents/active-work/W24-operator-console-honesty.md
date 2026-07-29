@@ -1,12 +1,12 @@
 # W24 — operator-console-honesty (UI-only honesty stream, sequenced ahead of Stream 2)
 
-`Last Updated: 2026-06-23`
+`Last Updated: 2026-07-29`
 
-`Branch: week24 (single branch — all development lands here; no per-item feature branches). Based on main @ 8250db0. NOT yet merged. Named stream — last_merged_weekly stays W22; phase.json active_stream = operator-console-honesty.`
+`Branch: week24 (single branch — all development landed here; no per-item feature branches). Based on main @ 8250db0. MERGED to main via PR #36 (week24 -> main, 1e3fba6) on 2026-06-23. Named stream — last_merged_weekly stays W22.`
 
 `Owner: ekrem`
 
-`Status: CLOSE-OUT — all sub-items H0–H1b landed on week24 (272e9f8 H0 · 111bf6b H1 · fc57c59 H2 · 844df3d H3 · 200933c H1b). UI suite 155 green (+2 time-zone adapter integration tests added at close-out, see Verification); tsc/eslint/ui-boundaries/ui-types-check clean; doc-preamble parity/consistency/manifest/readme-pointer arch gates green; browser-verified via the ui-dev vite preview against the live API (Settings honesty + live theme/density/time-zone, light↔dark switch with no dark islands, System API card real "OK" healthy tone + MOCK markers). H4 close-out PR (week24 -> main) opened for review on 2026-06-23 with explicit user go-ahead; canonical-state flips (phase.json last_merged / POST_POC_BACKLOG resolution / CLAUDE.md merge banner) deferred to post-merge per the named-stream convention (recorded by the next stream's H0). Non-bar stream: closes no v1.0 bar; it removes operator-trust defects (decorative/dead console controls implying a backend effect that does not exist).`
+`Status: MERGED — all sub-items H0–H1b landed on week24 (272e9f8 H0 · 111bf6b H1 · fc57c59 H2 · 844df3d H3 · 200933c H1b), then PR #36 merged to main as 1e3fba6 on 2026-06-23. UI suite 155 green (+2 time-zone adapter integration tests added at close-out, see Verification); tsc/eslint/ui-boundaries/ui-types-check clean; doc-preamble parity/consistency/manifest/readme-pointer arch gates green; browser-verified via the ui-dev Vite preview against the live API (Settings honesty + live theme/density/time-zone, light↔dark switch with no dark islands, System API card real "OK" healthy tone + MOCK markers). Non-bar stream: closes no v1.0 bar; it removes operator-trust defects (decorative/dead console controls implying a backend effect that does not exist). phase.json.active_stream named operator-console-honesty while this stream was open; it is now null because no successor to closed W26 is open.`
 
 > Scope locked to **UI + docs only** (per the 2026-06-15 planning session):
 > **NO backend / DB / detection / executor. No Alembic migration. No
@@ -52,7 +52,7 @@ enforced"** — making them "work" client-side would be a new lie.
 | **H2** honest System + health case-bug | — | ✅ done (fc57c59) | `SystemPage.tsx`: `MOCK` markers on stub tiles + a "Mock data — not measured" panel note + mock log dot; `executor` card renamed `API` (`data-testid` `service-tile-api`); INVENTORY badged Mock; headline → "Appliance status.". Case-bug fixed via a pure, unit-tested `apiHealthTone` helper (`systemHealth.ts`) — `status.toLowerCase() === "ok"`; the test now mocks the real `"OK"`. Browser-verified: live API card shows "OK" healthy. |
 | **H3** real Dark/Light theme | — | ✅ done (844df3d) | `tokens.ts`: `V3` now references the **existing** `index.css` CSS vars (`var(--paper)` …) — repointed, not a new namespace — so 40 consumers are untouched. `index.css` gains `:root[data-palette="parchment"\|"terminal"]` blocks (default shift5 = bare `:root`, so dark is pixel-identical). `lib/theme/theme.ts` (`useSyncExternalStore`) persists + paints `<html data-palette>`; `main.tsx` `initTheme()`. Theme control live. Two `#000` islands (AppShell, System log) → `var(--paper)`. **Caveat:** ECharts canvas configs keep hex (cannot read CSS vars) — dark; deferred. Theme + token unit tests. Browser-verified light↔dark. |
 | **H1b** wire timeZone + density | — | ✅ done (200933c) | `lib/settings/presentation.ts` (store + `useDensity`/`useTimeZone` + `resolveTimeZone`); `main.tsx` `initPresentation()`. **timeZone:** `resolveTimeZone()` ("local" → undefined, so the default is identical to prior behavior) injected into all 4 timestamp formatters (`adapters/report.ts`, `adapters/job.ts`, `ReportsPage` modified-stamp, System log); control re-enabled as a curated IANA `<select>`. **density:** a `--v3-row-pad-y` CSS var driven by `<html data-density>` sets the `EvidenceLedger` row height; control re-enabled. Descriptions narrowed to exactly what is wired. Presentation-store unit tests. |
-| **H4** close-out PR | — | ✅ verification re-confirmed; PR opened | Close-out gate green (UI **155** tests · tsc · eslint · ui-boundaries · ui-types-check · doc-preamble arch gates · markdownlint); browser-verified. At close-out, 2 time-zone adapter integration tests were added (`job.test.ts`/`report.test.ts`) to guard the `resolveTimeZone()` wiring that the per-store unit tests left uncovered. **PR `week24 -> main` opened for review 2026-06-23 with explicit user go-ahead.** |
+| **H4** close-out PR | — | ✅ merged via PR #36 (`1e3fba6`) | Close-out gate green (UI **155** tests · tsc · eslint · ui-boundaries · ui-types-check · doc-preamble arch gates · markdownlint); browser-verified. At close-out, 2 time-zone adapter integration tests were added (`job.test.ts`/`report.test.ts`) to guard the `resolveTimeZone()` wiring that the per-store unit tests left uncovered. |
 
 ## Out of scope / deferred
 
@@ -123,7 +123,8 @@ Bucketed, evidence-cited, blocking flags noted. Resolve/waive before close-out.
 
 ## Operational notes
 
-- `last_merged_weekly` stays **W22**; `active_stream = operator-console-honesty`.
+- `last_merged_weekly` stays **W22**. While this stream was open,
+  `active_stream = operator-console-honesty`; it is now `null`.
   Named stream — W24 is a stream label, not a weekly close-out.
 - No backend rebuild needed — UI-only; the `automation_ui` static build serves
   the changes (browser-verify via the `ui-dev` vite preview, not the :3000

@@ -1,6 +1,6 @@
 # Documents Guide
 
-`Last Updated: 2026-07-27 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82). Latest merged named stream: verdict-provenance-reproducibility (Stream 3 — B5+B6; week label W26), merged via PR #38 (bfb2d2d). No successor stream is open; next gate is containment safety. Tracker: active-work/W26-verdict-provenance-reproducibility.md.`
+`Last Updated: 2026-07-29 — Last merged weekly: W22 (PR #31 week22 -> main 1399f82). Latest merged named stream: verdict-provenance-reproducibility (Stream 3 — B5+B6; week label W26), merged via PR #38 (bfb2d2d). No successor stream is open; phase.json.active_stream is null; next gate is containment safety. Tracker: active-work/W26-verdict-provenance-reproducibility.md.`
 
 This folder is split into a small canonical core, specialized reference docs,
 and a frozen archive. **Do not preload the entire folder.** Open subsystem
@@ -20,7 +20,7 @@ W18-W22 roadmap:
 [`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md).
 Closed stable-ID trackers live under [`active-work/`](active-work/).
 
-Security posture is fixed by ADRs 0002-0005 plus ADRs 0007-0016. ADR 0007
+Security posture is fixed by ADRs 0002-0005 plus ADRs 0007-0017. ADR 0007
 loopback defaults are pinned by
 [`tests/architecture/test_default_bindings.py`](../tests/architecture/test_default_bindings.py);
 status is owned by [`REFACTOR_STATUS.md`](REFACTOR_STATUS.md).
@@ -75,12 +75,13 @@ Short and intentionally not on the default read path.
   [`REFACTOR_EXECUTION_PLAN.md`](REFACTOR_EXECUTION_PLAN.md) and
   [`REFACTOR_EXPANSION_NOTES.md`](REFACTOR_EXPANSION_NOTES.md) are
   read-only/off-path unless retracing that earlier plan.
-- ADRs (`adrs/0001`-`0016`) — binding decisions on appliance model,
+- ADRs (`adrs/0001`-`0017`) — binding decisions on appliance model,
   threat model, detection taxonomy, malicious-fixture policy,
   packages charter, local network binding, container package-mode
   invocation, heartbeat relocation, container-isolation baseline,
-  chat/LM-tool policy, sandbox-evasion defense, and the static
-  pre-check stage. Read the ADR only when the task touches the boundary it governs.
+  chat/LM-tool policy, sandbox-evasion defense, the static pre-check stage,
+  and verdict provenance/reproducibility. Read the ADR only when the task
+  touches the boundary it governs.
 
 ## Active Work And Archive
 

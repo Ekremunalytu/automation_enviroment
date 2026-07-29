@@ -80,10 +80,13 @@ def test_phase_manifest_history_is_ordered_and_unique() -> None:
     )
 
 
-def test_phase_manifest_active_stream_tracker_exists() -> None:
+def test_phase_manifest_active_stream_is_null_or_has_existing_tracker() -> None:
     manifest = load_manifest()
     stream = manifest["active_stream"]
-    assert isinstance(stream, dict), "active_stream must be an object"
+    if stream is None:
+        return
+
+    assert isinstance(stream, dict), "active_stream must be null or an object"
     assert stream.get("id"), "active_stream.id required"
     tracker = stream.get("tracker")
     assert tracker, "active_stream.tracker required"

@@ -1,24 +1,25 @@
 # Active Work
 
-`Last Updated: 2026-07-27`
+`Last Updated: 2026-07-29`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
 `Latest merged named stream: verdict-provenance-reproducibility (Stream 3 — B5+B6; week label W26) — merged to main via PR #38 (week26 -> main, bfb2d2d) on 2026-07-27. No successor stream is open; next execution gate is containment safety. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
 
-`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
+`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + optional active stream; null when none is open).`
 
-Slim canonical files for **active engineering work tracking**. Each file is
-a stable contract: code comments and tests reference items here by stable
-ID. Do not renumber or restructure items without updating inbound code/test
-references.
+Slim canonical files for the forward roadmap, currently active engineering
+work (when a stream is open), and recently closed trackers retained as stable
+contracts. Code comments and tests reference items here by stable ID. Do not
+renumber or restructure items without updating inbound code/test references.
 
 ## Distinction From Other Doc Types
 
 - `archive/` — frozen historical content; not on default read path.
 - `documents/REFACTOR_OPTIMIZATION.md` — planning narrative (slim canonical).
 - `documents/POST_POC_BACKLOG.md` — deferred + pull-next list (open items).
-- **`active-work/` — currently-in-flight work tracker with stable item IDs.**
+- **`active-work/` — forward roadmap plus open or stable-ID-retained stream
+  trackers.**
 
 Open a file here only when the lane doc or AGENT_CONTEXT.md decision tree
 points to it.
@@ -30,13 +31,13 @@ points to it.
     daily-usable single-operator defensive tool.** User direction
     `2026-06-08` after the project report was delivered. Supersedes the
     completed `W18-W22-roadmap.md` window. Carries the v1.0 bar (B1-B10),
-    the 11 named streams plus a non-bar ★ operator-console-honesty
-    stream (Streams 1-6 = v1.0; 7-11 = post-v1.0; ★ = UI-only honesty,
-    sequenced ahead of Stream 2), the first stream
-    (`reliability-self-defense`) in detail, and the fresh-audit
-    pre-close checklist. **Stream 1 (`reliability-self-defense`) shipped —
-    merged to main via PR #35 (`653d807`) on `2026-06-12`**;
-    `podman-airgapped-deploy` is the prior stream. New stable IDs recorded in
+    the 11 stable stream IDs plus a non-bar ★ operator-console-honesty
+    stream, the completed reliability/provenance spine, the containment-first
+    execution-order revision, and the fresh-audit pre-close checklist.
+    **Streams 1-3 and operator-console-honesty have shipped; Stream 3
+    (`verdict-provenance-reproducibility`) is latest, merged via PR #38
+    (`bfb2d2d`) on `2026-07-27`. No successor is open; containment safety is
+    the next gate.** New stable IDs are recorded in
     [`POST_POC_BACKLOG.md`](../POST_POC_BACKLOG.md) "Newly Captured
     (v1.0 roadmap intake 2026-06-08)".
 - `W22-coverage-promotion-hard-tier.md`

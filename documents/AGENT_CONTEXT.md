@@ -1,12 +1,12 @@
 # Agent Context
 
-`Last Updated: 2026-07-27`
+`Last Updated: 2026-07-29`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
 `Latest merged named stream: verdict-provenance-reproducibility (Stream 3 — B5+B6; week label W26) — merged to main via PR #38 (week26 -> main, bfb2d2d) on 2026-07-27. ADR 0017 is Accepted + Implemented; no successor stream is open. Next execution gate: containment safety from documents/active-work/v1-roadmap.md §4. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
 
-`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
+`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + optional active stream; null when none is open).`
 
 Thin routing map for coding agents after `AGENTS.md`. **Stays short.**
 Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
@@ -27,13 +27,12 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
   `Last Updated:` banner. Past `active-work/W{8,11,12,13,14,15,16,17,18,19,20,21,22}-*.md`
   trackers stay on the read path only for stable IDs referenced by
   code/tests — do not renumber.
-- Active named stream:
-  `reliability-self-defense` (`documents/phase.json` -> `active_stream`),
-  merged to main via PR #35 (`653d807`) `2026-06-12`, tracked by
-  `active-work/W23-reliability-self-defense.md`. Named streams after W22 do
-  not advance the weekly `last_merged_weekly` pointer (still W22). The
-  earlier `podman-airgapped-deploy` and custom detection-rule streams remain
-  under `../deploy/podman/README.md` and `detection-design/README.md`.
+- **No named stream is currently open** (`documents/phase.json` ->
+  `active_stream: null`). The latest merged stream is
+  `verdict-provenance-reproducibility` (Stream 3 / W26), merged via PR #38
+  (`bfb2d2d`) on `2026-07-27`; the next execution gate is containment safety
+  from `active-work/v1-roadmap.md` §4. Named streams after W22 do not advance
+  the weekly `last_merged_weekly` pointer (still W22).
 - Architecture: `ARCHITECTURE.md` (slim) + `architecture/` splits.
 - Placement rules: `PROJECT_STRUCTURE.md` (slim) + `structure/` splits.
 - Test lanes: `TESTING.md` (slim) + `testing/` splits.

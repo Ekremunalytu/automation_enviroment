@@ -1,12 +1,12 @@
 # ExTrace v1.0 Roadmap — From Finished Prototype To A Tool An Analyst Trusts Daily
 
-`Last Updated: 2026-07-27`
+`Last Updated: 2026-07-29`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
 `Latest merged named stream: verdict-provenance-reproducibility (Stream 3 — B5+B6, the spine) — merged to main via PR #38 (week26 -> main, bfb2d2d) on 2026-07-27. It binds the verdict to vsix_sha256 and makes run_quality reproducible (ADR 0017 Accepted + Implemented; ADR 0016 additive --vsix-sha256 flag accepted). No successor stream is open. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
 
-`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
+`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + optional active stream; null when none is open).`
 
 `Phase: Stream 1 (reliability-self-defense) MERGED to main via PR #35 (week23 -> main, 653d807) 2026-06-12. operator-console-honesty MERGED via PR #36 (week24 -> main, 1e3fba6) 2026-06-23. Stream 2 (reliability-multi-analyze / B2) landed direct-to-main as reliability hardening (4437d1e + A/B fixes). Stream 3 (verdict-provenance-reproducibility, B5+B6, the spine) MERGED via PR #38 (week26 -> main, bfb2d2d) 2026-07-27. The 2026-07-27 strategy revision preserves frozen stream numbers as cross-reference IDs but supersedes their execution order: containment and measured detection now precede export/release operations.`
 
