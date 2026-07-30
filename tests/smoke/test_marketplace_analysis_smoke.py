@@ -4,6 +4,7 @@ import json
 import shutil
 import subprocess
 import time
+from collections.abc import Generator
 from pathlib import Path
 from unittest.mock import patch
 
@@ -21,10 +22,20 @@ _CHAT_PUBLISHER = "extrace"
 _CHAT_NAME = "fixture-chat"
 _CHAT_VERSION = "0.0.1"
 _SMOKE_SCENARIO = "coding_session"
-_POLL_TIMEOUT_S = 420
+# The host-side monitored automation ceiling is 1800s. Leave bounded headroom
+# for reset/install/report-finalization so the smoke harness does not abandon a
+# healthy layered run while the executor still owns the single-active slot.
+_POLL_TIMEOUT_S = 2100
 _POLL_INTERVAL_S = 5
 _STAGNATION_TIMEOUT_S = 120
+_CANCEL_DRAIN_TIMEOUT_S = 45
 _DIAGNOSTIC_LOG_LINES = 120
+_TERMINAL_JOB_STATUSES = {
+    "cancelled",
+    "completed",
+    "failed",
+    "rejected_static",
+}
 
 
 def _require_executor_container() -> None:
@@ -146,6 +157,28 @@ def _smoke_diagnostics(job_id: str, payload: dict[str, object] | None) -> str:
     )
 
 
+def _cancel_and_drain_job(
+    client: TestClient,
+    job_id: str,
+) -> dict[str, object] | None:
+    """Release the single-active slot before a timed-out smoke test fails."""
+    cancel_response = client.post(f"/api/marketplace/analyze/{job_id}/cancel")
+    assert cancel_response.status_code in {200, 409}
+
+    deadline = time.time() + _CANCEL_DRAIN_TIMEOUT_S
+    last_payload: dict[str, object] | None = None
+    while time.time() < deadline:
+        response = client.get(f"/api/marketplace/analyze/{job_id}")
+        assert response.status_code == 200
+        payload = response.json()
+        assert isinstance(payload, dict)
+        last_payload = payload
+        if payload.get("status") in _TERMINAL_JOB_STATUSES:
+            return payload
+        time.sleep(_POLL_INTERVAL_S)
+    return last_payload
+
+
 def _poll_job(client: TestClient, job_id: str) -> dict[str, object]:
     deadline = time.time() + _POLL_TIMEOUT_S
     last_payload: dict[str, object] | None = None
@@ -157,7 +190,7 @@ def _poll_job(client: TestClient, job_id: str) -> dict[str, object]:
         payload = response.json()
         assert isinstance(payload, dict)
         last_payload = payload
-        if payload.get("status") in {"completed", "failed"}:
+        if payload.get("status") in _TERMINAL_JOB_STATUSES:
             return payload
 
         progress_key = (
@@ -173,12 +206,14 @@ def _poll_job(client: TestClient, job_id: str) -> dict[str, object]:
             stagnant_for_s = 0
 
         if stagnant_for_s >= _STAGNATION_TIMEOUT_S:
-            pytest.fail(_smoke_diagnostics(job_id, payload))
+            drained_payload = _cancel_and_drain_job(client, job_id)
+            pytest.fail(_smoke_diagnostics(job_id, drained_payload or payload))
         time.sleep(_POLL_INTERVAL_S)
 
+    drained_payload = _cancel_and_drain_job(client, job_id)
     pytest.fail(
         f"analysis job {job_id} timed out after {_POLL_TIMEOUT_S}s.\n\n"
-        f"{_smoke_diagnostics(job_id, last_payload)}"
+        f"{_smoke_diagnostics(job_id, drained_payload or last_payload)}"
     )
 
 
@@ -196,6 +231,38 @@ def _skip_if_executor_reset_failed(payload: dict[str, object]) -> None:
         "executor reset failed before the smoke scenario could run; "
         "skipping behavior-specific validation."
     )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_dynamic_executor_smoke(
+    monkeypatch: pytest.MonkeyPatch,
+    runtime_client: TestClient,
+) -> Generator[None, None, None]:
+    """Run this dynamic-executor lane independently from the static gate."""
+    previous_response = runtime_client.get("/api/settings/executor/preferences")
+    assert previous_response.status_code == 200
+    previous_enabled = bool(
+        previous_response.json().get("dynamic_analysis_enabled", False)
+    )
+
+    monkeypatch.setattr(settings.static_analysis, "ENABLED", False)
+    enabled_response = runtime_client.put(
+        "/api/settings/executor/preferences",
+        json={
+            "dynamic_analysis_enabled": True,
+            "updated_by": "dynamic-smoke",
+        },
+    )
+    assert enabled_response.status_code == 200
+    yield
+    restored_response = runtime_client.put(
+        "/api/settings/executor/preferences",
+        json={
+            "dynamic_analysis_enabled": previous_enabled,
+            "updated_by": "dynamic-smoke-restore",
+        },
+    )
+    assert restored_response.status_code == 200
 
 
 @pytest.mark.smoke

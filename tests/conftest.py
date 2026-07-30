@@ -22,8 +22,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 # Import application components
-from appcore.storage.models import Base
 from appcore.api.deps import get_db
+from appcore.storage.models import Base
+from executor import binary_paths
 
 # S2 (W23 B3): never spawn the background stale-running-job reaper daemon during
 # the test session. ``load_test_app`` imports ``main`` (which builds the app at
@@ -31,6 +32,15 @@ from appcore.api.deps import get_db
 # would otherwise start a real daemon thread ticking against the DB. Set before
 # any ``main`` import so the gate in ``create_app`` sees it.
 os.environ.setdefault("EXTRACE_SKIP_STALE_REAPER", "1")
+
+
+@pytest.fixture(autouse=True)
+def reset_host_binary_path_cache() -> Generator[None, None, None]:
+    """Keep monkeypatched host-binary paths isolated to the owning test."""
+    binary_paths._reset_docker_path_cache()
+    yield
+    binary_paths._reset_docker_path_cache()
+
 
 # =============================================================================
 # DATABASE FIXTURES

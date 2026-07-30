@@ -209,6 +209,41 @@ def test_apply_extra_triggers_returns_zero_when_payload_has_stimulus_passes() ->
     assert result.extra_trigger_failures == []
 
 
+def test_layered_dispatch_marks_plan_before_stimulus_execution() -> None:
+    """A partial report remains truthful when stimulus execution is interrupted."""
+    mon = _StubMonitor()
+    payload = SimpleNamespace(
+        event_attempts=["attempt"],
+        stimulus_passes=["pass"],
+    )
+
+    def interrupted_plan(*_args, **_kwargs):
+        assert mon.report.trigger_plan_applied is True
+        raise RuntimeError("interrupted after a finalized pass")
+
+    deps = SimpleNamespace(
+        stimulus=SimpleNamespace(
+            AutomationExecutionResult=lambda **kwargs: SimpleNamespace(**kwargs),
+            run_stimulus_plan=interrupted_plan,
+        )
+    )
+
+    with pytest.raises(RuntimeError, match="interrupted after a finalized pass"):
+        dispatch_mod.dispatch_execution(
+            PageRef(object()),
+            object(),
+            SimpleNamespace(demo=False, triggers="/results/triggers.json"),
+            mon,
+            payload,
+            ["coding_session"],
+            "layered_passes",
+            deps=deps,
+        )
+
+    assert mon.applied_plans == [(["coding_session"], "/results/triggers.json")]
+    assert any(event[0] == "trigger_plan_applied" for event in mon.recorded_events)
+
+
 def test_apply_extra_triggers_records_plan_and_runs_when_no_stimulus_passes(
     monkeypatch,
 ) -> None:

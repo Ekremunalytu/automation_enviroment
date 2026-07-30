@@ -19,6 +19,7 @@ a real ``ActivationReport`` and ``tmp_path`` writer.
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -374,8 +375,6 @@ def test_persist_writes_when_force_is_true(tmp_path, monkeypatch) -> None:
 
 def test_persist_throttles_back_to_back_unforced_calls(tmp_path, monkeypatch) -> None:
     report = ActivationReport(target_extension_id="publisher.tool")
-    # Single-element counts so modulo guards do not trip (1 % 5 != 0,
-    # 1 % 2 != 0); only the time-window guard governs the second call.
     report.network_events = [object()]
     report.file_events = [object()]
     report.scenario_traces = [ScenarioTrace(name="s1", started_at=0.0)]
@@ -390,19 +389,16 @@ def test_persist_throttles_back_to_back_unforced_calls(tmp_path, monkeypatch) ->
 
     # First call (force=True) writes and bumps _last_persist_at.
     assembler.persist(force=True)
-    # Second call (force=False) must short-circuit: counts are all
-    # non-modulo and the throttle window is < 1s.
+    # Second call (force=False) must short-circuit inside the time window.
     assembler.persist(force=False)
 
     assert len(saves) == 1
 
 
-def test_persist_writes_when_network_events_count_is_modulo_5(
+def test_persist_throttles_network_checkpoint_inside_time_window(
     tmp_path, monkeypatch
 ) -> None:
     report = ActivationReport(target_extension_id="publisher.tool")
-    # Five network events trips the modulo-5 path even when the throttle
-    # window has not elapsed.
     report.network_events = [object()] * 5
     target = tmp_path / "report.json"
     saves: list[int] = []
@@ -413,18 +409,16 @@ def test_persist_writes_when_network_events_count_is_modulo_5(
     monkeypatch.setattr(ActivationReport, "save", _fake_save)
     assembler = ReportAssembler(report=report, report_path=target)
 
-    # Pre-bump _last_persist_at so the time-window guard would otherwise
-    # short-circuit; modulo-5 must override.
     import time
 
     assembler._last_persist_at = time.time()
 
     assembler.persist(force=False)
 
-    assert saves == [5]
+    assert saves == []
 
 
-def test_persist_writes_when_file_events_count_is_modulo_5(
+def test_persist_throttles_file_checkpoint_inside_time_window(
     tmp_path, monkeypatch
 ) -> None:
     report = ActivationReport(target_extension_id="publisher.tool")
@@ -444,10 +438,10 @@ def test_persist_writes_when_file_events_count_is_modulo_5(
 
     assembler.persist(force=False)
 
-    assert saves == [5]
+    assert saves == []
 
 
-def test_persist_writes_when_scenario_traces_count_is_modulo_2(
+def test_persist_throttles_scenario_checkpoint_inside_time_window(
     tmp_path, monkeypatch
 ) -> None:
     report = ActivationReport(target_extension_id="publisher.tool")
@@ -470,7 +464,55 @@ def test_persist_writes_when_scenario_traces_count_is_modulo_2(
 
     assembler.persist(force=False)
 
-    assert saves == [2]
+    assert saves == []
+
+
+def test_persist_writes_after_live_interval_elapses(tmp_path, monkeypatch) -> None:
+    report = ActivationReport(target_extension_id="publisher.tool")
+    target = tmp_path / "report.json"
+    saves: list[Path] = []
+
+    def _fake_save(self, path, *, announce: bool = False) -> None:
+        saves.append(Path(path))
+
+    monkeypatch.setattr(ActivationReport, "save", _fake_save)
+    monkeypatch.setattr(monitor_report_assembler.time, "time", lambda: 2.0)
+    assembler = ReportAssembler(report=report, report_path=target)
+    assembler._last_persist_at = -4.0
+
+    assembler.persist(force=False)
+
+    assert saves == [target]
+    assert assembler._last_persist_at == 2.0
+
+
+def test_persist_serializes_concurrent_capture_writers(tmp_path, monkeypatch) -> None:
+    report = ActivationReport(target_extension_id="publisher.tool")
+    target = tmp_path / "report.json"
+    first_save_started = threading.Event()
+    release_first_save = threading.Event()
+    saves: list[Path] = []
+
+    def _blocking_save(self, path, *, announce: bool = False) -> None:
+        saves.append(Path(path))
+        first_save_started.set()
+        assert release_first_save.wait(timeout=2)
+
+    monkeypatch.setattr(ActivationReport, "save", _blocking_save)
+    assembler = ReportAssembler(report=report, report_path=target)
+    first = threading.Thread(target=assembler.persist, args=(False,))
+    second = threading.Thread(target=assembler.persist, args=(False,))
+
+    first.start()
+    assert first_save_started.wait(timeout=2)
+    second.start()
+    release_first_save.set()
+    first.join(timeout=2)
+    second.join(timeout=2)
+
+    assert not first.is_alive()
+    assert not second.is_alive()
+    assert saves == [target]
 
 
 def test_persist_swallows_oserror_and_does_not_advance_throttle(
