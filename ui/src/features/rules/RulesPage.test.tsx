@@ -109,31 +109,53 @@ describe("RulesPage", () => {
     });
   });
 
-  it("renders the header while loading", () => {
-    vi.mocked(apiClient.getLatestReportBundle).mockReturnValue(new Promise<AnalysisBundleDto>(() => undefined));
-
+  it("renders the complete catalog without requesting the latest scan", () => {
     renderPage();
 
     expect(screen.getByText("Detection registry")).toBeInTheDocument();
-    expect(screen.queryByText("Rules")).not.toBeInTheDocument();
-    expect(screen.queryByText(/^Findings ·/u)).not.toBeInTheDocument();
-    expect(screen.queryByText(/^Fired ·/u)).not.toBeInTheDocument();
-    expect(screen.queryByText(/^Errored ·/u)).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/Review rule execution/u),
-    ).not.toBeInTheDocument();
-    expect(screen.getByText("Loading rules")).toBeInTheDocument();
+    expect(screen.getByText("35 / 35 visible")).toBeInTheDocument();
+    expect(screen.getByText("Wildcard activation")).toBeInTheDocument();
+    expect(screen.getByText("Credential read → network")).toBeInTheDocument();
+    expect(screen.queryByText("Not evaluated")).not.toBeInTheDocument();
+    expect(screen.queryByText("No scan")).not.toBeInTheDocument();
+    expect(screen.queryByText(/scan overlay/iu)).not.toBeInTheDocument();
+    expect(apiClient.getLatestReportBundle).not.toHaveBeenCalled();
   });
 
-  it("renders an empty state when the bundle has no rulesExecuted", async () => {
-    vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(bundleWithRules([]));
+  it("ignores legacy execution status parameters in the catalog view", () => {
+    renderPage("/rules?status=fired");
 
-    renderPage();
-
-    expect(await screen.findByText("No rules executed")).toBeInTheDocument();
+    expect(screen.getByText("35 / 35 visible")).toBeInTheDocument();
+    expect(screen.getByText("Wildcard activation")).toBeInTheDocument();
+    expect(screen.getByText("Credential read → network")).toBeInTheDocument();
+    expect(screen.queryByRole("tablist", { name: "Status filter" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Execution")).not.toBeInTheDocument();
   });
 
-  it("renders rule rows when the bundle includes rules", async () => {
+  it("lists the static catalog independently from static reports", () => {
+    renderPage("/rules?stream=static");
+
+    expect(screen.getByText("26 / 35 visible")).toBeInTheDocument();
+    expect(screen.getByText("Wildcard activation")).toBeInTheDocument();
+    expect(screen.getByText("RMM-as-RAT (BYOSC)")).toBeInTheDocument();
+    expect(screen.queryByText("No rules match")).not.toBeInTheDocument();
+    expect(apiClient.getLatestReportBundle).not.toHaveBeenCalled();
+  });
+
+  it("does not expose latest-report failures in the registry", () => {
+    vi.mocked(apiClient.getLatestReportBundle).mockRejectedValue(
+      new Error("latest bundle unavailable"),
+    );
+
+    renderPage("/rules?stream=static");
+
+    expect(screen.getByText("26 / 35 visible")).toBeInTheDocument();
+    expect(screen.getByText("Wildcard activation")).toBeInTheDocument();
+    expect(screen.queryByText(/unavailable/iu)).not.toBeInTheDocument();
+    expect(apiClient.getLatestReportBundle).not.toHaveBeenCalled();
+  });
+
+  it("renders catalog metadata instead of execution results", () => {
     vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(
       bundleWithRules([
         {
@@ -155,56 +177,34 @@ describe("RulesPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Credential file read")).toBeInTheDocument();
-    expect(screen.getAllByText(/extrace.audit.noop/u).length).toBeGreaterThan(0);
+    expect(screen.getByText("Credential read → network")).toBeInTheDocument();
+    expect(screen.queryByText("Credential file read")).not.toBeInTheDocument();
+    expect(screen.queryByText(/extrace.audit.noop/u)).not.toBeInTheDocument();
     expect(screen.getByText("Registry controls")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Rule id or title")).toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "Stream filter" })).toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "Severity filter" })).toBeInTheDocument();
-    expect(screen.getByRole("tablist", { name: "Status filter" })).toBeInTheDocument();
+    expect(screen.queryByRole("tablist", { name: "Status filter" })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /credential file read/iu }));
-    expect(screen.getByText("Mitigation hint")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open evidence file-1" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /credential read → network/iu }));
+    expect(screen.getByText("Threat family")).toBeInTheDocument();
+    expect(screen.getAllByText("Credential Access").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Mitigation hint")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open evidence file-1" })).not.toBeInTheDocument();
+    expect(apiClient.getLatestReportBundle).not.toHaveBeenCalled();
   });
 
   it("lists static pre-check rules with a Static stream label", async () => {
-    const bundle = bundleWithRules([]);
-    (bundle as unknown as { static_report: unknown }).static_report = {
-      detection_report: {
-        findings: [
-          {
-            rule_id: "extrace.s8.exfil_webhook",
-            rule_version: "1.0.0",
-            rule_lifecycle: "production",
-            categories: ["attack.T1567"],
-            severity: "high",
-            confidence: "high",
-            title: "Exfiltration webhook",
-            description: "Hardcoded Discord webhook ingestion endpoint.",
-          },
-        ],
-        tool_executions: [
-          { tool: "inhouse", version: "1.0.0", rules_loaded: 12, findings_emitted: 1, duration_ms: 5, status: "ok" },
-        ],
-      },
-      gate_outcome: { decision: "warn", warned_by: ["extrace.s8.exfil_webhook"] },
-    };
-    vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(bundle);
-
     renderPage();
 
-    // The fired static rule renders by title even though there are no dynamic rules…
-    expect(await screen.findByText("Exfiltration webhook")).toBeInTheDocument();
-    // …a silent static catalog rule (no finding) is enumerated too…
+    expect(screen.getByText("Exfiltration webhook")).toBeInTheDocument();
     expect(screen.getByText("Crypto address awareness")).toBeInTheDocument();
-    // …and static rows carry a stream label (rendered uppercase via CSS; DOM text is lowercase).
     expect(screen.getAllByText("static").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Fired")).not.toBeInTheDocument();
+    expect(apiClient.getLatestReportBundle).not.toHaveBeenCalled();
   });
 
   it("renders the editable blacklist panel in its own tab", async () => {
-    vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(bundleWithRules([]));
-
     renderPage("/rules?tab=blacklist");
 
     expect(await screen.findByRole("tab", { name: "Blacklist" })).toHaveAttribute(
@@ -219,12 +219,11 @@ describe("RulesPage", () => {
     // Operator chips are removable; seed chips are not.
     expect(screen.getByRole("button", { name: "Remove custom.test" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remove evil.example" })).not.toBeInTheDocument();
-    // The default bundle has no blacklist finding -> no "observed" badge.
     expect(screen.queryByText("Observed in latest report")).not.toBeInTheDocument();
+    expect(apiClient.getLatestReportBundle).not.toHaveBeenCalled();
   });
 
   it("adds an operator blacklist domain via the panel input", async () => {
-    vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(bundleWithRules([]));
     vi.mocked(apiClient.addBlacklistDomain).mockResolvedValue({
       seed: ["evil.example"],
       operator: ["custom.test", "mal.test"],
@@ -246,7 +245,6 @@ describe("RulesPage", () => {
   });
 
   it("removes an operator blacklist domain via its chip", async () => {
-    vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(bundleWithRules([]));
     vi.mocked(apiClient.removeBlacklistDomain).mockResolvedValue({
       seed: ["evil.example"],
       operator: [],
@@ -264,7 +262,7 @@ describe("RulesPage", () => {
     );
   });
 
-  it("names the observed blacklisted domains when a finding fires", async () => {
+  it("keeps blacklist configuration independent from report findings", async () => {
     const bundle = bundleWithRules([
       {
         rule_id: "extrace.a7.blacklisted_domain",
@@ -295,9 +293,10 @@ describe("RulesPage", () => {
 
     renderPage("/rules?tab=blacklist");
 
-    expect(await screen.findByText("Observed in latest report")).toBeInTheDocument();
-    // custom.test is named both in the observed section and the operator chip list.
-    expect(screen.getAllByText("custom.test").length).toBeGreaterThan(1);
+    expect(await screen.findByText("Blacklist domains")).toBeInTheDocument();
+    expect(screen.queryByText("Observed in latest report")).not.toBeInTheDocument();
+    expect(await screen.findAllByText("custom.test")).toHaveLength(1);
+    expect(apiClient.getLatestReportBundle).not.toHaveBeenCalled();
   });
 
   it("renders Registry/Draft mode tabs and shows the empty draft state without ?from", async () => {

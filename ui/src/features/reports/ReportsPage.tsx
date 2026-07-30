@@ -40,6 +40,7 @@ import {
   buildRiskRadarAxes,
   getInspectorView,
 } from "../../lib/adapters/report";
+import { adaptStaticReport } from "../../lib/adapters/job";
 import { FindingCard } from "./FindingCard";
 import { verdictTone, verdictAction, VERDICT_LEGEND } from "./verdictColors";
 import { RuleMatrixSection } from "./RuleMatrixSection";
@@ -127,6 +128,32 @@ export function ReportsPage() {
       return adaptBundle(dto, reportParam);
     },
   });
+
+  const executorPreferencesQuery = useQuery({
+    queryKey: ["settings", "executor-preferences"],
+    queryFn: ({ signal }) => apiClient.getExecutorPreferences(signal),
+    refetchInterval: 4000,
+  });
+  const dynamicAnalysisEnabled =
+    executorPreferencesQuery.data?.dynamic_analysis_enabled ?? true;
+  const useLatestStaticArtifact =
+    selectedTab === "matrix" &&
+    reportParam === "latest" &&
+    executorPreferencesQuery.isSuccess &&
+    !dynamicAnalysisEnabled;
+  const latestStaticQuery = useQuery({
+    queryKey: ["reports", "static", "latest"],
+    queryFn: ({ signal }) => apiClient.getLatestStaticReport(signal),
+    enabled: useLatestStaticArtifact,
+    refetchInterval: 4000,
+  });
+  const latestStaticReport = useMemo(
+    () =>
+      latestStaticQuery.data
+        ? adaptStaticReport(latestStaticQuery.data.static_report)
+        : undefined,
+    [latestStaticQuery.data],
+  );
 
   const report = reportQuery.data;
   const filteredEvents = useMemo(
@@ -360,7 +387,18 @@ export function ReportsPage() {
       ) : !report ? null : selectedTab === "overview" ? (
         <OverviewSection report={report} />
       ) : selectedTab === "matrix" ? (
-        <RuleMatrixSection report={report} />
+        <RuleMatrixSection
+          report={report}
+          dynamicAnalysisEnabled={dynamicAnalysisEnabled}
+          staticReportOverride={
+            useLatestStaticArtifact ? (latestStaticReport ?? null) : undefined
+          }
+          staticReportLoading={useLatestStaticArtifact && latestStaticQuery.isLoading}
+          staticReportError={useLatestStaticArtifact && latestStaticQuery.isError}
+          latestStaticArtifact={
+            useLatestStaticArtifact && latestStaticQuery.isSuccess
+          }
+        />
       ) : selectedTab === "interactions" ? (
         <InteractionsSection graph={interactionGraph} report={report} onSelectEvent={setSelectedEvent} />
       ) : selectedTab === "timeline" ? (

@@ -10,7 +10,10 @@ import {
   V3,
   type V3Tone,
 } from "../../components/v3";
-import type { ActivationReportView } from "../../lib/types/view-models";
+import type {
+  ActivationReportView,
+  StaticReportView,
+} from "../../lib/types/view-models";
 import {
   buildRuleMatrix,
   type FamilyGroup,
@@ -383,31 +386,81 @@ function RuleDetailDialog({ cell, onClose }: { cell: MatrixCell | null; onClose:
   );
 }
 
-export function RuleMatrixSection({ report }: { report: ActivationReportView }) {
-  const matrix = useMemo(() => buildRuleMatrix(report), [report]);
+export function RuleMatrixSection({
+  report,
+  dynamicAnalysisEnabled = true,
+  staticReportOverride,
+  staticReportLoading = false,
+  staticReportError = false,
+  latestStaticArtifact = false,
+}: {
+  report: ActivationReportView;
+  dynamicAnalysisEnabled?: boolean;
+  staticReportOverride?: StaticReportView | null;
+  staticReportLoading?: boolean;
+  staticReportError?: boolean;
+  latestStaticArtifact?: boolean;
+}) {
+  const effectiveReport = useMemo(
+    () =>
+      staticReportOverride === undefined
+        ? report
+        : { ...report, staticReport: staticReportOverride },
+    [report, staticReportOverride],
+  );
+  const matrix = useMemo(() => buildRuleMatrix(effectiveReport), [effectiveReport]);
   const [selected, setSelected] = useState<MatrixCell | null>(null);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <Legend />
 
-      <MatrixBand
-        title="Dynamic · behavioral"
-        right={
-          <Eyebrow>
-            {matrix.counts.dynamicFired}/{matrix.counts.dynamicTotal} fired
-          </Eyebrow>
-        }
-        groups={matrix.dynamic}
-        emptyTitle="No dynamic rules were executed for this report"
-        onSelect={setSelected}
-      />
+      {dynamicAnalysisEnabled ? (
+        <MatrixBand
+          title="Dynamic · behavioral"
+          right={
+            <Eyebrow>
+              {matrix.counts.dynamicFired}/{matrix.counts.dynamicTotal} fired
+            </Eyebrow>
+          }
+          groups={matrix.dynamic}
+          emptyTitle="No dynamic rules were executed for this report"
+          onSelect={setSelected}
+        />
+      ) : (
+        <Panel label="Dynamic · behavioral">
+          <EmptyState
+            eyebrow="Dynamic"
+            title="Dynamic analysis is disabled"
+            body="Sandbox execution is turned off in Settings. Dynamic rule results are intentionally hidden; enable dynamic analysis to produce behavioral findings."
+          />
+        </Panel>
+      )}
 
-      {matrix.hasStatic ? (
+      {staticReportLoading ? (
+        <Panel label="Static · pre-check">
+          <EmptyState
+            eyebrow="Static"
+            title="Loading latest static pre-check"
+            body="Reading the newest completed static analysis artifact."
+          />
+        </Panel>
+      ) : staticReportError ? (
+        <Panel label="Static · pre-check">
+          <EmptyState
+            eyebrow="Static"
+            title="Latest static pre-check unavailable"
+            body="Static analysis ran, but no readable latest artifact could be loaded."
+          />
+        </Panel>
+      ) : matrix.hasStatic ? (
         <MatrixBand
           title="Static · pre-check"
           right={
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              {latestStaticArtifact ? (
+                <Badge tone="neutral">Latest static artifact</Badge>
+              ) : null}
               <Eyebrow>
                 {matrix.counts.staticFired}/{matrix.counts.staticTotal} fired
               </Eyebrow>

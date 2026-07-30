@@ -11,6 +11,8 @@ vi.mock("../../lib/api/client", () => ({
     getLatestReportBundle: vi.fn(),
     getReportBundleByName: vi.fn(),
     getReportByName: vi.fn(),
+    getExecutorPreferences: vi.fn(),
+    getLatestStaticReport: vi.fn(),
   },
 }));
 
@@ -322,6 +324,59 @@ describe("ReportsPage", () => {
     ]);
     vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(latestBundle);
     vi.mocked(apiClient.getReportBundleByName).mockResolvedValue(latestBundle);
+    vi.mocked(apiClient.getExecutorPreferences).mockResolvedValue({
+      dynamic_analysis_enabled: true,
+    });
+  });
+
+  it("shows the disabled dynamic state and the latest static-only artifact", async () => {
+    vi.mocked(apiClient.getExecutorPreferences).mockResolvedValue({
+      dynamic_analysis_enabled: false,
+    });
+    vi.mocked(apiClient.getLatestStaticReport).mockResolvedValue({
+      filename: "static_report_22222222222222222222222222222222.json",
+      modified: 1713002510,
+      static_report: {
+        detection_report: {
+          findings: [
+            {
+              rule_id: "extrace.s3.embedded_native_binary",
+              rule_version: "1.0.0",
+              rule_lifecycle: "production",
+              categories: ["attack.T1105"],
+              severity: "medium",
+              confidence: "high",
+              title: "Embedded native binary",
+              description: "Ships native binaries.",
+            },
+          ],
+          tool_executions: [
+            {
+              tool: "inhouse",
+              version: "1.0.0",
+              rules_loaded: 26,
+              findings_emitted: 1,
+              duration_ms: 10,
+              status: "ok",
+            },
+          ],
+        },
+        gate_outcome: {
+          decision: "warn",
+          warned_by: ["extrace.s3.embedded_native_binary"],
+        },
+      },
+    });
+
+    renderPage("/reports?report=latest&tab=matrix");
+
+    expect(await screen.findByText("Dynamic analysis is disabled")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Credential read.*Fired/i })).not.toBeInTheDocument();
+    expect(await screen.findByText("Latest static artifact")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Embedded native binary.*Fired/i }),
+    ).toBeInTheDocument();
+    expect(apiClient.getLatestStaticReport).toHaveBeenCalled();
   });
 
   it("renders overview, canonical tabs, and supports opening the filter drawer", async () => {

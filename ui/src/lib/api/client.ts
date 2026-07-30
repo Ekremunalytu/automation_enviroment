@@ -8,6 +8,7 @@ import type {
   MarketplaceExtensionDto,
   OfflineExtensionDto,
   ReportListItemDto,
+  StaticReportArtifactDto,
   SystemHealthResponseDto,
   VsixThresholdsResponseDto,
   VsixThresholdsUpdateRequestDto,
@@ -46,6 +47,11 @@ export const apiClient = {
       throw new Error("Latest activation report did not include a filename.");
     }
     return requestJson<ReportBundleDto>(`/api/activations/${filename}/bundle`, {
+      signal,
+    });
+  },
+  getLatestStaticReport(signal?: AbortSignal) {
+    return requestJson<StaticReportArtifactDto>("/api/activations/static/latest", {
       signal,
     });
   },

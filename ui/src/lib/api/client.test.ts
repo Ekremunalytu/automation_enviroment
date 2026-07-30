@@ -80,4 +80,19 @@ describe("apiClient URL discipline (W15-5 I2)", () => {
       }),
     );
   });
+
+  it("reads the latest static-only artifact through the reports API", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        jsonResponse({ filename: "static_report_demo.json", modified: 1 }),
+      );
+
+    await apiClient.getLatestStaticReport();
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/api/activations/static/latest",
+      expect.objectContaining({ signal: undefined }),
+    );
+  });
 });

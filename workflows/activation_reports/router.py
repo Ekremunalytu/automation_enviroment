@@ -12,7 +12,10 @@ from fastapi import Path as PathParam
 from pydantic import ValidationError
 
 from appcore.api.config import settings
-from appcore.contracts.schema_defs.activation_reports import ActivationReportResponse
+from appcore.contracts.schema_defs.activation_reports import (
+    ActivationReportResponse,
+    StaticReportArtifactResponse,
+)
 from appcore.contracts.schema_defs.report_bundle import ReportBundle
 from appcore.contracts.schema_defs.static_analysis_bundle import (
     CombinedAnalysisBundle,
@@ -30,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["activations"])
 _REPORT_PATTERNS = ("activation_report*.json",)
+_STATIC_REPORT_NAME_RE = re.compile(r"^static_report_[0-9a-f]{32}\.json$")
 # The marketplace flow names an activation report
 # ``activation_report_{slug}-{job_id[:12]}.json`` (job_service.build_report_name)
 # and persists its static pre-check next to it as ``static_report_{job_id}.json``.
@@ -70,6 +74,18 @@ def _list_report_files() -> list[Path]:
             seen.add(resolved)
             files.append(file_path)
     return sorted(files, key=lambda f: f.stat().st_mtime, reverse=True)
+
+
+def _list_static_report_files() -> list[Path]:
+    output_dir = _get_output_dir()
+    if not output_dir.exists():
+        return []
+    files = [
+        path
+        for path in output_dir.glob("static_report_*.json")
+        if _STATIC_REPORT_NAME_RE.fullmatch(path.name)
+    ]
+    return sorted(files, key=lambda path: path.stat().st_mtime, reverse=True)
 
 
 def _read_report_payload(path: Path, *, _retries: int = 3) -> dict[str, Any]:
@@ -210,6 +226,17 @@ def _resolve_static_sibling(name: str) -> StaticAnalysisReport | None:
     return bundle.static_report
 
 
+def _read_static_artifact(path: Path) -> StaticAnalysisReport:
+    payload = _read_report_payload(path)
+    try:
+        return CombinedAnalysisBundle.model_validate(payload).static_report
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Static report failed contract validation: {path.name}",
+        ) from exc
+
+
 # =============================================================================
 # Endpoints
 # =============================================================================
@@ -270,6 +297,39 @@ def get_latest_activation() -> dict[str, Any]:
     raise HTTPException(
         status_code=404,
         detail="No valid activation reports found in output directory.",
+    )
+
+
+@router.get(
+    "/activations/static/latest",
+    response_model=StaticReportArtifactResponse,
+)
+def get_latest_static_report() -> StaticReportArtifactResponse:
+    files = _list_static_report_files()
+    if not files:
+        raise HTTPException(
+            status_code=404,
+            detail="No static analysis reports found in output directory.",
+        )
+
+    last_error: HTTPException | None = None
+    for report_file in files:
+        try:
+            static_report = _read_static_artifact(report_file)
+        except HTTPException as exc:
+            last_error = exc
+            continue
+        return StaticReportArtifactResponse(
+            filename=report_file.name,
+            modified=report_file.stat().st_mtime,
+            static_report=static_report,
+        )
+
+    if last_error is not None:
+        raise last_error
+    raise HTTPException(
+        status_code=404,
+        detail="No valid static analysis reports found in output directory.",
     )
 
 

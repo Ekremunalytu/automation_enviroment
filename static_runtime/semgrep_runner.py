@@ -18,6 +18,7 @@ findings (which drive the gate) are always still written.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess  # nosec B404
 import sys
@@ -92,6 +93,18 @@ class _SemgrepRuleMeta:
     title: str
     description: str
     mitigation_hint: str
+
+
+@dataclass(frozen=True, slots=True)
+class SemgrepRuleInventoryEntry:
+    """Stable rule metadata used by the measurement-foundation inventory."""
+
+    rule_id: str
+    rule_version: str
+    rule_lifecycle: str
+    severity: str
+    confidence: str
+    categories: tuple[str, ...]
 
 
 # Keyed by the Semgrep rule's bare ``id`` (the trailing dotted segment of the
@@ -605,6 +618,45 @@ def _count_rules() -> int:
     return len(_RULE_META)
 
 
+def get_semgrep_rule_inventory() -> tuple[SemgrepRuleInventoryEntry, ...]:
+    """Return deterministic metadata for every mappable Semgrep rule.
+
+    The inventory deliberately comes from the same mapping table used to build
+    production findings. This prevents the measurement baseline from silently
+    drifting away from the rules the runner can actually emit.
+    """
+
+    return tuple(
+        SemgrepRuleInventoryEntry(
+            rule_id=meta.rule_id,
+            rule_version=_RULE_VERSION,
+            rule_lifecycle=RuleLifecycle.PRODUCTION.value,
+            severity=Severity.MEDIUM.value,
+            confidence=Confidence.MEDIUM.value,
+            categories=meta.categories,
+        )
+        for meta in sorted(_RULE_META.values(), key=lambda item: item.rule_id)
+    )
+
+
+def get_semgrep_rule_source_digests() -> tuple[tuple[str, str], ...]:
+    """Return relative names and SHA-256 digests of the exact shipped YAML bytes."""
+
+    return tuple(
+        (
+            rule_path.relative_to(_RULES_DIR).as_posix(),
+            hashlib.sha256(rule_path.read_bytes()).hexdigest(),
+        )
+        for rule_path in sorted(_RULES_DIR.rglob("*.yml"))
+    )
+
+
+def get_semgrep_version() -> str:
+    """Return the exact pinned Semgrep version recorded by production runs."""
+
+    return _SEMGREP_VERSION
+
+
 def _failure_result(
     *, version: str, rules_loaded: int, start: float, status: _ToolStatus
 ) -> SemgrepRunResult:
@@ -625,4 +677,11 @@ def _failure_result(
     )
 
 
-__all__ = ["SemgrepRunResult", "run_semgrep"]
+__all__ = [
+    "SemgrepRuleInventoryEntry",
+    "SemgrepRunResult",
+    "get_semgrep_rule_inventory",
+    "get_semgrep_rule_source_digests",
+    "get_semgrep_version",
+    "run_semgrep",
+]

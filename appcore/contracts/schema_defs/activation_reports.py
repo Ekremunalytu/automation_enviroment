@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from appcore.contracts.schema_defs.static_analysis_bundle import StaticAnalysisReport
 from packages.analysis_contracts import ActivationReport
 
 
@@ -19,4 +20,16 @@ class ActivationReportResponse(ActivationReport):
     metadata: ActivationReportMetadata | None = Field(default=None, alias="_metadata")
 
 
-__all__ = ["ActivationReportMetadata", "ActivationReportResponse"]
+class StaticReportArtifactResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    filename: str
+    modified: float
+    static_report: StaticAnalysisReport
+
+
+__all__ = [
+    "ActivationReportMetadata",
+    "ActivationReportResponse",
+    "StaticReportArtifactResponse",
+]

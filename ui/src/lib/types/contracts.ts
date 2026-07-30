@@ -545,6 +545,12 @@ export interface ActivationReportDto {
   _metadata?: ActivationReportMetadataDto | null;
 }
 
+export interface StaticReportArtifactDto {
+  filename: string;
+  modified: number;
+  static_report: StaticAnalysisReportDto;
+}
+
 export interface MarketplaceExtensionDto {
   publisher: string;
   name: string;

@@ -120,4 +120,38 @@ describe("RuleMatrixSection", () => {
     // Dynamic band still renders.
     expect(screen.getByRole("button", { name: /Credential read.*Fired/i })).toBeTruthy();
   });
+
+  it("replaces dynamic cells with an explicit disabled state", () => {
+    render(
+      <RuleMatrixSection
+        report={makeReport({ detection: DETECTION, staticReport: STATIC_REPORT })}
+        dynamicAnalysisEnabled={false}
+      />,
+    );
+
+    expect(screen.getByText("Dynamic analysis is disabled")).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: /Credential read.*Fired/i }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /Embedded native binary.*Fired/i }),
+    ).toBeTruthy();
+  });
+
+  it("renders a latest static artifact independently from the activation report", () => {
+    render(
+      <RuleMatrixSection
+        report={makeReport({ detection: DETECTION })}
+        dynamicAnalysisEnabled={false}
+        staticReportOverride={STATIC_REPORT}
+        latestStaticArtifact
+      />,
+    );
+
+    expect(screen.getByText("Latest static artifact")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /Embedded native binary.*Fired/i }),
+    ).toBeTruthy();
+    expect(screen.queryByText(/No static pre-check for this run/i)).toBeNull();
+  });
 });
