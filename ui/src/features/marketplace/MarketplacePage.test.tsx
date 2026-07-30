@@ -90,7 +90,9 @@ describe("MarketplacePage", () => {
     expect(await screen.findByText("Find, download, analyze.")).toBeInTheDocument();
     expect(await screen.findByDisplayValue("python")).toBeInTheDocument();
     expect(await screen.findByText("Python")).toBeInTheDocument();
-    expect(await screen.findByText(/Results for/u)).toBeInTheDocument();
+    expect(screen.queryByText(/Results for/u)).not.toBeInTheDocument();
+    expect(screen.queryByText("Results")).not.toBeInTheDocument();
+    expect(screen.queryByText("sorted by installs")).not.toBeInTheDocument();
     expect(screen.queryByText("Extension intake")).not.toBeInTheDocument();
     expect(
       screen.queryByText(/Search the VS Code marketplace/u),

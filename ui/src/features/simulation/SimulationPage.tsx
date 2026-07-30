@@ -167,7 +167,7 @@ export function SimulationPage() {
   const inspector = report ? getInspectorView(report, eventId) : null;
   const options = buildEvidenceFilterOptions(report?.evidence || []);
   const activeFilterCount = countEvidenceFilters(filters);
-  const [runTitle, runVersion] = (model?.title || "").split("@", 2);
+  const [runTitle] = (model?.title || "").split("@", 2);
 
   const setSelectedEvent = (nextEventId: string) => {
     startTransition(() => {
@@ -202,73 +202,28 @@ export function SimulationPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
       <header style={{ paddingBottom: 24, borderBottom: `1px solid ${V3.rule}` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <Eyebrow>Simulation</Eyebrow>
-        </div>
-        <PageTitle style={{ marginTop: 14, fontSize: 26, lineHeight: 1.08, overflowWrap: "anywhere" }}>
-          {runTitle ? renderRunTitle(runTitle) : "Live run"}
-        </PageTitle>
-        <p style={{ fontSize: 14, color: V3.ink3, marginTop: 14, maxWidth: 640, lineHeight: 1.6 }}>
-          {job?.message ||
-            "Track sandbox progress, then inspect live evidence and attribution without leaving the simulation surface."}
-        </p>
-
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
             gap: 16,
             flexWrap: "wrap",
-            marginTop: 18,
           }}
         >
-          <span
-            style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 11,
-              color: V3.ink3,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-            }}
-          >
-            Job · {jobId || "pending"}
-          </span>
-          {runVersion ? (
-            <span
+          <div>
+            <Eyebrow>Simulation</Eyebrow>
+            <PageTitle
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 11,
-                color: V3.ink3,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
+                marginTop: 14,
+                fontSize: 26,
+                lineHeight: 1.08,
+                overflowWrap: "anywhere",
               }}
             >
-              Version · {runVersion}
-            </span>
-          ) : null}
-          <span
-            style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 11,
-              color: V3.ink3,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-            }}
-          >
-            Status · {job?.status || "pending"}
-          </span>
-          <span
-            style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 11,
-              color: V3.ink3,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-            }}
-          >
-            Visible · {filteredEvents.length} events
-          </span>
-          <div style={{ flex: 1 }} />
+              {runTitle ? renderRunTitle(runTitle) : "Live run"}
+            </PageTitle>
+          </div>
           {isJobActive ? (
             <GhostButton
               ariaLabel="Stop simulation"
@@ -279,9 +234,6 @@ export function SimulationPage() {
               {cancelMutation.isPending ? "Stopping…" : "Stop simulation"}
             </GhostButton>
           ) : null}
-          <GhostButton ariaLabel="Filters" onClick={() => setFiltersOpen(true)}>
-            Filters {activeFilterCount ? `(${activeFilterCount})` : ""}
-          </GhostButton>
         </div>
 
         {cancelMutation.isError ? (
@@ -522,6 +474,8 @@ export function SimulationPage() {
         inspectorTab={inspectorTab}
         model={model}
         staticOnly={isStaticOnly}
+        activeFilterCount={activeFilterCount}
+        onOpenFilters={() => setFiltersOpen(true)}
         onInspectorTabChange={(next) => {
           startTransition(() => {
             const params = new URLSearchParams(searchParams);
@@ -595,20 +549,58 @@ function staticSeverityTone(severity: StaticFindingView["severity"]): V3Tone {
   return "neutral";
 }
 
-function StaticFindingRow({ finding }: { finding: StaticFindingView }) {
+type GroupedStaticFinding = StaticFindingView;
+
+const STATIC_SEVERITY_RANK: Record<StaticFindingView["severity"], number> = {
+  critical: 5,
+  high: 4,
+  medium: 3,
+  low: 2,
+  info: 1,
+};
+
+function groupStaticFindings(findings: StaticFindingView[]): GroupedStaticFinding[] {
+  const grouped = new Map<string, GroupedStaticFinding>();
+  for (const finding of findings) {
+    const existing = grouped.get(finding.ruleId);
+    if (!existing) {
+      grouped.set(finding.ruleId, finding);
+      continue;
+    }
+
+    const strongest =
+      STATIC_SEVERITY_RANK[finding.severity] > STATIC_SEVERITY_RANK[existing.severity]
+        ? finding
+        : existing;
+    grouped.set(finding.ruleId, {
+      ...strongest,
+      evidenceCount: existing.evidenceCount + finding.evidenceCount,
+    });
+  }
+  return Array.from(grouped.values());
+}
+
+function pluralize(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function StaticFindingRow({ finding }: { finding: GroupedStaticFinding }) {
   return (
     <div
       style={{
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        gap: 12,
-        padding: "10px 0",
+        gap: 16,
+        padding: "14px 20px",
         borderTop: `1px solid ${V3.rule}`,
+        flexWrap: "wrap",
       }}
     >
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 14, color: V3.ink }}>{finding.title}</div>
+      <div style={{ minWidth: 0, flex: "1 1 320px" }}>
+        <div style={{ fontSize: 14, color: V3.ink, fontWeight: 600 }}>
+          {finding.title}
+        </div>
         <div
           style={{
             marginTop: 4,
@@ -617,12 +609,24 @@ function StaticFindingRow({ finding }: { finding: StaticFindingView }) {
             color: V3.ink3,
           }}
         >
-          {finding.ruleId} · {finding.evidenceCount} evidence
+          {finding.ruleId}
         </div>
       </div>
-      <Badge tone={staticSeverityTone(finding.severity)}>
-        {finding.severityLabel}
-      </Badge>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span
+          style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 11,
+            color: V3.ink3,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {pluralize(finding.evidenceCount, "evidence location")}
+        </span>
+        <Badge tone={staticSeverityTone(finding.severity)}>
+          {finding.severityLabel}
+        </Badge>
+      </div>
     </div>
   );
 }
@@ -630,42 +634,87 @@ function StaticFindingRow({ finding }: { finding: StaticFindingView }) {
 function StaticPreCheckPanel({ report }: { report: StaticReportView }) {
   const degraded =
     report.partial || report.toolStatuses.some((tool) => tool.status !== "ok");
+  const findings = groupStaticFindings(report.findings);
+  const evidenceCount = findings.reduce(
+    (total, finding) => total + finding.evidenceCount,
+    0,
+  );
+  const gateRuleCount = new Set([...report.blockedBy, ...report.warnedBy]).size;
+  const ruleCount = Math.max(gateRuleCount, findings.length);
+  const summary =
+    report.decision === "allow"
+      ? report.allowReason || "No rule crossed the static gate threshold."
+      : `${pluralize(ruleCount, "rule")} ${
+          report.decision === "block"
+            ? "blocked this run"
+            : ruleCount === 1
+              ? "requires review"
+              : "require review"
+        }${
+          evidenceCount
+            ? ` across ${pluralize(evidenceCount, "evidence location")}`
+            : ""
+        }.`;
+
   return (
-    <Panel>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-        <Eyebrow>Static pre-check</Eyebrow>
+    <Panel padded={false}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 18,
+          padding: "18px 20px",
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <Eyebrow>Static pre-check</Eyebrow>
+          <p
+            style={{
+              marginTop: 10,
+              color: V3.ink2,
+              fontSize: 13.5,
+              lineHeight: 1.55,
+            }}
+          >
+            {summary}
+          </p>
+        </div>
         <Badge tone={gateDecisionTone(report.decision)}>
           {report.decisionLabel}
         </Badge>
-        {degraded ? (
-          <span style={{ fontSize: 12, color: V3.warn }}>
-            Partial coverage — a static tool degraded; results may be incomplete.
-          </span>
-        ) : null}
       </div>
-      {report.blockedBy.length ? (
-        <div style={{ fontSize: 13, color: V3.ink2, marginBottom: 6 }}>
-          Blocked by: {report.blockedBy.join(", ")}
+      {degraded ? (
+        <div
+          role="status"
+          style={{
+            borderTop: `1px solid ${V3.rule}`,
+            padding: "10px 20px",
+            fontSize: 12,
+            color: V3.warn,
+            background: V3.warnBg,
+          }}
+        >
+          Partial coverage — a static tool degraded; results may be incomplete.
         </div>
       ) : null}
-      {report.warnedBy.length ? (
-        <div style={{ fontSize: 13, color: V3.ink2, marginBottom: 6 }}>
-          Warnings: {report.warnedBy.join(", ")}
-        </div>
-      ) : null}
-      {report.decision === "allow" && report.allowReason ? (
-        <div style={{ fontSize: 13, color: V3.ink3, marginBottom: 6 }}>
-          {report.allowReason}
-        </div>
-      ) : null}
-      {report.findings.length ? (
+      {findings.length ? (
         <div>
-          {report.findings.map((finding) => (
-            <StaticFindingRow key={finding.id} finding={finding} />
+          {findings.map((finding) => (
+            <StaticFindingRow key={finding.ruleId} finding={finding} />
           ))}
         </div>
       ) : (
-        <div style={{ fontSize: 13, color: V3.ink3 }}>No static findings.</div>
+        <div
+          style={{
+            borderTop: `1px solid ${V3.rule}`,
+            padding: "14px 20px",
+            fontSize: 13,
+            color: V3.ink3,
+          }}
+        >
+          No static findings.
+        </div>
       )}
     </Panel>
   );

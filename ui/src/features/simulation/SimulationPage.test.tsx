@@ -75,7 +75,8 @@ describe("SimulationPage", () => {
     renderPage("/simulation?job=job-1&tab=live");
 
     expect(await screen.findByRole("heading", { name: /ms\s*\.lint/u })).toBeInTheDocument();
-    expect(screen.getByText("Version · 1.0.0")).toBeInTheDocument();
+    expect(screen.queryByText("Version · 1.0.0")).not.toBeInTheDocument();
+    expect(screen.queryByText("Status · running")).not.toBeInTheDocument();
     expect(await screen.findByText("Run is warming up")).toBeInTheDocument();
     expect(screen.queryByText("Automation health")).not.toBeInTheDocument();
     expect(screen.queryByText("Covered")).not.toBeInTheDocument();
@@ -116,6 +117,78 @@ describe("SimulationPage", () => {
     expect(screen.getByText("0 visible events · dynamic sandbox skipped")).toBeInTheDocument();
     expect(screen.getByText("Complete")).toBeInTheDocument();
     expect(screen.queryByText("Run is warming up")).not.toBeInTheDocument();
+    expect(screen.queryByText("Static analysis completed.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Job · job-static-only")).not.toBeInTheDocument();
+  });
+
+  it("groups repeated static findings into a compact rule summary", async () => {
+    const duplicateFinding = {
+      rule_id: "extrace.sg.child_process",
+      rule_version: "1.0.0",
+      rule_lifecycle: "production" as const,
+      categories: ["execution"],
+      severity: "medium" as const,
+      confidence: "high" as const,
+      title: "OS process execution via child_process",
+      description: "The extension imports child_process.",
+    };
+    vi.mocked(apiClient.getAnalysisJob).mockResolvedValueOnce({
+      job_id: "job-static-grouped",
+      status: "completed",
+      publisher: "ms",
+      name: "lint",
+      version: "1.0.0",
+      message: "Static analysis completed.",
+      steps: [],
+      created_at: 1713002400,
+      updated_at: 1713002410,
+      report_path: null,
+      static_report: {
+        detection_report: {
+          findings: [
+            {
+              ...duplicateFinding,
+              id: "finding-1",
+              evidence: [
+                {
+                  type: "source_file",
+                  relative_path: "extension.js",
+                  line_number: 10,
+                  tool: "inhouse",
+                },
+              ],
+            },
+            {
+              ...duplicateFinding,
+              id: "finding-2",
+              evidence: [
+                {
+                  type: "source_file",
+                  relative_path: "worker.js",
+                  line_number: 22,
+                  tool: "semgrep",
+                },
+              ],
+            },
+          ],
+        },
+        gate_outcome: {
+          decision: "warn",
+          warned_by: ["extrace.sg.child_process"],
+        },
+      },
+    });
+
+    renderPage("/simulation?job=job-static-grouped&tab=live");
+
+    expect(
+      await screen.findByText("1 rule requires review across 2 evidence locations."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText("OS process execution via child_process"),
+    ).toHaveLength(1);
+    expect(screen.getByText("2 evidence locations")).toBeInTheDocument();
+    expect(screen.queryByText(/^Warnings:/u)).not.toBeInTheDocument();
   });
 
   it("renders the live strip, filter drawer, and keeps tab state in the URL", async () => {
@@ -453,7 +526,7 @@ describe("SimulationPage", () => {
     renderPage("/simulation?job=job-done-1&tab=live");
 
     await screen.findByRole("heading", { name: /ms\s*\.lint/u });
-    expect(screen.getByText("Version · 1.0.0")).toBeInTheDocument();
+    expect(screen.queryByText("Version · 1.0.0")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Stop simulation" })).toBeNull();
   });
 

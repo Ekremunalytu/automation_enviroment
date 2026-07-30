@@ -5,9 +5,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
   Badge,
-  Eyebrow,
   EmptyState,
-  SectionTitle,
   SolidButton,
   V3,
 } from "../../components/v3";
@@ -165,13 +163,6 @@ export function OnlineIntakePanel({
 
   const results = searchQuery.data ?? [];
   const matchCount = results.length;
-  const sectionTitle = !queryParam
-    ? "Awaiting query"
-    : searchQuery.isLoading
-      ? `Searching “${queryParam}”…`
-      : matchCount === 0
-        ? `No matches for “${queryParam}”`
-        : `Results for “${queryParam}” · ${matchCount} match${matchCount === 1 ? "" : "es"}`;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
@@ -287,33 +278,6 @@ export function OnlineIntakePanel({
       </section>
 
       <section>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-end",
-            marginBottom: 16,
-            gap: 16,
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <Eyebrow>Results</Eyebrow>
-            <SectionTitle style={{ marginTop: 10 }}>{sectionTitle}</SectionTitle>
-          </div>
-          {queryParam && matchCount > 0 ? (
-            <span
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 12,
-                color: V3.ink3,
-              }}
-            >
-              sorted by installs
-            </span>
-          ) : null}
-        </div>
-
         {actionError ? (
           <div
             style={{
