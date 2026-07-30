@@ -1,6 +1,6 @@
 # Active Work
 
-`Last Updated: 2026-07-29`
+`Last Updated: 2026-07-30`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
@@ -45,9 +45,19 @@ points to it.
     stable `SAR-0`–`SAR-7` sequence: baseline and labeled-corpus measurement,
     artifact-context precision, AST/taint, manifest/dependency/version diff,
     native/WASM/archive inspection, bounded threat-directed dynamic hints,
-    and measured policy calibration. It does not open a successor stream;
-    `phase.json.active_stream` remains `null`, and containment safety remains
-    the next product execution gate.
+    measured policy calibration, research-derived detection priorities,
+    tool-admission gates, and an optional gate-external `AI-0`–`AI-2` analyst
+    track. It does not open a successor stream; `phase.json.active_stream`
+    remains `null`, and containment safety remains the next product execution
+    gate.
+- `static-analysis-measurement-foundation.md`
+  - **PROPOSED next static-analysis iteration; not yet active.** Turns Increment
+    A into the SMF-0–SMF-8 execution slate: rule/ruleset baseline, schema-first
+    evaluation contracts, 10-15 declawed tuning/holdout fixtures, a
+    container-only evaluator, explicit file/byte/parser/cap coverage,
+    partial-conclusion honesty, metrics, validation, and the Increment B
+    handoff. Merging the tracker does not change
+    `phase.json.active_stream=null` or the containment-first product gate.
 - `W22-coverage-promotion-hard-tier.md`
   - **Closed phase — closed synthetically on the `week22` branch
     `2026-05-28` and merged to main via PR #31 `week22 -> main` `1399f82`.** W22
