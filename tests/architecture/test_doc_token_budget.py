@@ -1,26 +1,4 @@
-"""Slim-canonical token-budget ratchet gate.
-
-The doc-preamble gates pin *consistency*; this gate pins *size*. The
-``2026-06-15`` reconciliation found two "slim canonical" docs had grown to
-6.6x / 5.7x their documented budgets because the snapshot-then-retrim cadence
-(``documents/agent-lanes/docs-maintenance.md`` §Archive + Active-Work
-Discipline) had stalled at W14. This gate fails loudly if a canonical regrows
-past its hard ceiling, so the next bloat is caught in CI instead of by an audit.
-
-Token estimate matches docs-maintenance.md: ``wc -w`` x 1.3.
-
-Ceilings are a **regrowth ratchet** (at or above the aspirational budget in
-docs-maintenance.md), not the budget itself:
-
-- ``REFACTOR_OPTIMIZATION.md`` / ``REFACTOR_STATUS.md`` are genuine slim
-  summaries — closed-phase detail lives in the dated ``archive/`` snapshots and
-  the per-week ``active-work/W*.md`` trackers. They sit under their 2,500-token
-  budget after the retrim; the ceiling adds headroom for the live tail.
-- ``POST_POC_BACKLOG.md`` is the stable-ID **contract registry** plus the live
-  open-item list; its size is contract/work driven, so its ceiling is set above
-  the 3,000 "slim" target. When it approaches the ceiling, snapshot the closed
-  acceptance bars to ``archive/backlog/`` and re-trim (do NOT drop stable IDs).
-"""
+"""Prevent canonical and default agent-context documents from regrowing."""
 
 from __future__ import annotations
 
@@ -36,6 +14,19 @@ _CEILINGS: dict[str, int] = {
     "documents/REFACTOR_STATUS.md": 2500,
     "documents/POST_POC_BACKLOG.md": 18500,
 }
+
+_ENTRY_BASE_PATHS = (
+    REPO_ROOT / "AGENTS.md",
+    REPO_ROOT / "CLAUDE.md",
+    REPO_ROOT / "documents" / "AGENT_CONTEXT.md",
+    REPO_ROOT / "documents" / "README.md",
+)
+_ENTRY_LANES = tuple(
+    path
+    for path in sorted((REPO_ROOT / "documents" / "agent-lanes").glob("*.md"))
+    if path.name != "README.md"
+)
+_ENTRY_PATH_CEILING = 3000
 
 
 def _estimated_tokens(path: Path) -> int:
@@ -53,4 +44,18 @@ def test_slim_canonical_under_token_ceiling(rel_path: str, ceiling: int) -> None
         f"dated `archive/` file and re-trim to a pointer (see "
         f"`documents/agent-lanes/docs-maintenance.md` §Archive + Active-Work "
         f"Discipline). Do not drop stable-ID tokens from POST_POC_BACKLOG.md."
+    )
+
+
+@pytest.mark.parametrize("lane", _ENTRY_LANES, ids=lambda path: path.stem)
+def test_default_agent_entry_path_under_token_ceiling(lane: Path) -> None:
+    """AGENTS + pointers + one lane must stay within the documented budget."""
+    paths = (*_ENTRY_BASE_PATHS, lane)
+    tokens = int(
+        sum(len(path.read_text(encoding="utf-8").split()) for path in paths) * 1.3
+    )
+    assert tokens <= _ENTRY_PATH_CEILING, (
+        f"Default entry path through {lane.name} is ~{tokens} tokens, over the "
+        f"{_ENTRY_PATH_CEILING}-token ceiling. Remove duplicated state or move "
+        "detail behind a task-specific pointer."
     )

@@ -1,17 +1,10 @@
 # Documentation Maintenance Lane
 
-**Last Updated:** 2026-07-29. W22 remains the last merged weekly close-out;
-post-W22 named streams are tracked through `documents/phase.json`, whose
-`active_stream` is `null` when no stream is open.
-Current docs truth anchors: `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`,
-`REFACTOR_OPTIMIZATION.md` §20, and—when present—the active stream tracker
-named by `phase.json.active_stream`.
+**Last Updated:** 2026-07-30. Current state is owned by `phase.json` and
+`REFACTOR_STATUS.md`.
 
-Use this lane for README, ADR, runbook, roadmap, testing-guide, and
-agent-doc updates. The human-readable reader guides (`human-guide.md`,
-`how-it-works.md`, `operator-quickstart.md`, `api-and-flows.md`, `risks.md`)
-live under `documents/` alongside the canonical docs and should link to, not
-duplicate, the canonical state.
+Use this lane for README, ADR, runbook, roadmap, and agent-doc changes.
+Human guides link to canonical state instead of copying it.
 
 ## Start Here
 
@@ -23,33 +16,23 @@ target doc, and the code/tests/config proving each claim.
 ### Canonical Discipline
 
 - `AGENTS.md` stays short and authoritative.
-- `documents/AGENT_CONTEXT.md` stays a thin routing map; never copy
-  phase history or weekly detail into preload files.
-- `REFACTOR_STATUS.md` (slim canonical) owns current phase state.
-- `POST_POC_BACKLOG.md` (slim canonical) owns deferred and pull-next
-  work; **stable item IDs** (`[FOLLOWUP <id>]`) are a contract — code
-  comments and tests reference them. Do not rename.
-- `REFACTOR_OPTIMIZATION.md` section 11 owns closed W8-W13 planning;
-  sections 12-20 own closed W14-W22 planning. Past
-  W8/W11/W12/W13/W14/W15/W16/W17/W18/W19/W20/W21/W22 trackers remain only for
-  stable IDs.
-- ADR 0007 enforcement landed `2026-04-29` via W8-7 — loopback
-  defaults plus `EXTRACE_ALLOW_LAN` opt-in are pinned by
-  `tests/architecture/test_default_bindings.py`. Do not regress to
-  wildcard binds or wildcard CORS without an updated ADR.
+- `CLAUDE.md` is only a compatibility pointer.
+- `AGENT_CONTEXT.md` is only a routing map.
+- `REFACTOR_STATUS.md` owns state; `POST_POC_BACKLOG.md` owns deferred work.
+- Stable IDs such as `[FOLLOWUP <id>]` and `W<N>-<id>` are contracts; do not
+  rename them.
+- Reader guides and README link to canonical detail instead of copying it.
 
 ### Archive + Active-Work Discipline
 
 - Historical content goes under `documents/archive/` and stays off the
   default read path. Active work goes under `documents/active-work/<file>.md`.
-  Review snapshots live directly under `documents/archive/reviews/`.
 - If a slim canonical grows past budget, add a dated full snapshot under
   `documents/archive/<area>/`, then re-trim the canonical.
 
 ### Token Budget Targets
 
-Slim canonical doc word counts (×1.3 ≈ tokens). Verify with
-`wc -w <file> | awk '{ print $1 * 13 / 10 }'`.
+Word count ×1.3 approximates tokens.
 
 | Doc | Target tokens |
 |---|---|
@@ -71,26 +54,20 @@ Slim canonical doc word counts (×1.3 ≈ tokens). Verify with
   `W8-N`).
 - Do not add line-number references to canonical docs — line numbers
   drift on every trim.
-- Any new doc added under `documents/` root must justify itself
-  against the split structure (does it belong as a slim canonical, an
-  active-work file, an archive snapshot, or a subdir split?).
+- New root docs must justify why they are not a split, tracker, or snapshot.
 
 ## Validation
 
 - `git diff --check -- AGENTS.md CLAUDE.md README.md documents docs`
 - `pre-commit run markdownlint --files <changed markdown files>`
 - `pre-commit run markdown-link-check --files <changed markdown files>`
-- Legacy drift grep: search old status tokens such as `PR345-blocked`,
-  `PR5-ADR-blocked`, `ADR-0007-Proposed`, and
-  `ADR-0006-as-container-packaging` outside this lane.
-- Anchor guard: `POST_POC_BACKLOG.md` line-number links must be empty outside
-  archive snapshots; legacy review links must point under `archive/reviews/`.
-- Budget sanity: run `wc -w` on changed slim canonicals and multiply by 1.3.
+- `pytest tests/architecture/test_doc_token_budget.py -q`
+- Run the relevant drift/anchor guards for touched canonical docs.
 
 ## Avoid
 
-- Broad rewrites or copied phase summaries that do not reduce drift/context cost.
+- Copied phase summaries or implementation detail in preload files.
 - New root docs when a slim canonical, split, active-work file, or archive
   snapshot is the right home.
-- Reverting the README "Read First" lazy-load pattern.
+- Turning README into a phase ledger, API reference, or architecture spec.
 - Changing runtime code during a docs-only pass.

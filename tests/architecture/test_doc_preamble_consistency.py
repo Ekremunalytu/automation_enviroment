@@ -1,38 +1,4 @@
-"""Architecture gate: canonical doc preambles must report a consistent current phase.
-
-After a close-out PR merges to ``main``, every canonical doc preamble must
-be bumped to reflect the new active phase. The W14 -> W15 transition
-surfaced the drift this gate prevents: six canonical docs (``CLAUDE.md``,
-``AGENTS.md``, ``documents/AGENT_CONTEXT.md``,
-``documents/REFACTOR_STATUS.md``, ``documents/POST_POC_BACKLOG.md``,
-``documents/REFACTOR_OPTIMIZATION.md``) all still claimed "W14 active" /
-"close-out PR week14 -> main next" two days after PR #21
-(``week14 -> main``) merged on ``2026-05-14``, because the preamble
-refresh was tracked under W15-7 and had not yet been pulled. The W15
-mid-iter hygiene pass on ``2026-05-16`` refreshed all six preambles
-together and added this gate to lock the invariant.
-
-The gate parses each doc's preamble (the first ten lines, covering the
-backtick-quoted ``Last Updated: ...`` block) and asserts:
-
-  1. Every preamble carries at least one current-phase signal (a ``W<N>``
-     phase, or the active named stream from ``documents/phase.json`` when
-     one is open).
-  2. No single preamble reports two different current phases internally
-     (e.g., "W14 active" and "W15 active" both present).
-  3. Every doc agrees on the same ``W<N>`` as the current phase.
-  4. The agreed ``W<N>`` matches ``documents/phase.json`` ->
-     ``last_merged_weekly`` (the single source).
-
-Patterns matched: ``W<N> active``, ``W<N> [fully] closed synthetically``
-(W19-6-followup-2 added the closed-but-not-merged lifecycle state for the
-pre-merge hygiene window between W<N>-final close-out and the
-``weekN -> main`` PR merge), ``Last merged weekly: W<N>``,
-``Active phase: W<N>``,
-``Active phase: **W<N>**``, ``Active phase is W<N>``,
-``Active phase is **W<N>**``. The check is read-only and does not
-require Docker or a running test environment.
-"""
+"""Require canonical preambles to agree with ``documents/phase.json``."""
 
 from __future__ import annotations
 
@@ -97,13 +63,7 @@ def _extract_active_phases(preamble: str) -> set[int]:
 
 
 def test_canonical_doc_preambles_agree_on_active_phase() -> None:
-    """Every canonical doc preamble must claim the same W<N> as active.
-
-    Drift class: after a close-out PR merges to ``main``, all six
-    preambles must be refreshed together. If any doc lags (still
-    claiming the previous phase), this gate fails before the next
-    iteration's work builds on a misleading truth-state.
-    """
+    """Every canonical preamble must carry one consistent phase signal."""
     missing_files = [
         str(p.relative_to(REPO_ROOT)) for p in CANONICAL_DOCS if not p.exists()
     ]
@@ -117,10 +77,6 @@ def test_canonical_doc_preambles_agree_on_active_phase() -> None:
         path: _extract_active_phases(text) for path, text in preambles.items()
     }
 
-    # A doc with no ``W<N>`` signal is tolerated only when a named stream is
-    # open and the doc names it (``phase.json`` -> ``active_stream.id``).
-    # When ``active_stream`` is null, every preamble must carry the weekly
-    # pointer instead.
     missing_signal = [
         str(p.relative_to(REPO_ROOT))
         for p, phases in per_doc_phases.items()
@@ -149,8 +105,6 @@ def test_canonical_doc_preambles_agree_on_active_phase() -> None:
         "internal conflict means the doc itself is inconsistent."
     )
 
-    # Weekly-phase agreement: every doc that carries a ``W<N>`` signal must
-    # claim the same one (stream-only docs are skipped — tolerated above).
     distinct: dict[int, list[str]] = {}
     for path, phases in per_doc_phases.items():
         if len(phases) != 1:
@@ -171,9 +125,6 @@ def test_canonical_doc_preambles_agree_on_active_phase() -> None:
             "hygiene pass `2026-05-16` for the precedent."
         )
 
-    # Cross-check the docs' agreed weekly phase against the single source
-    # (``documents/phase.json`` -> ``last_merged_weekly``), so a phase.json
-    # bump without a doc refresh (or vice-versa) fails here.
     if len(distinct) == 1:
         (agreed_phase,) = distinct
         assert agreed_phase == _EXPECTED_WEEKLY_PHASE, (

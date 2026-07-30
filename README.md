@@ -1,173 +1,68 @@
 # ExTrace
 
-**ExTrace is a sandboxed analysis platform for suspicious VS Code extensions.**
-It downloads or ingests an extension, inspects its manifest and source tree,
-runs it inside an isolated VS Code environment, and produces evidence that an
-analyst can review.
+`Last Updated: 2026-07-30 — Last merged weekly: W22 via PR #31 (week22 -> main, 1399f82). Frozen tracker: documents/active-work/W22-coverage-promotion-hard-tier.md.`
 
-The project is intentionally shaped as a **single-operator security appliance**,
-not a public multi-tenant web service. The default setup binds to loopback,
-keeps extension samples and reports on the operator machine, and runs sandbox
-execution in containers.
+ExTrace is a sandboxed analysis platform for suspicious VS Code extensions. It
+combines manifest inspection, static rules, isolated runtime observation, and
+structured reports for a human analyst.
 
-> **New here?** Read [What ExTrace Is](#what-extrace-is) for the mental model,
-> then jump to the [Quick Start](#quick-start) to run it locally. For a fuller
-> human-readable walkthrough, see
-> [documents/how-it-works.md](documents/how-it-works.md).
+It is a single-operator security appliance, not a public multi-tenant scanner.
+Reports are evidence to review, not proof that an extension is safe or
+malicious.
 
----
-
-## Table of Contents
-
-- [What ExTrace Is](#what-extrace-is)
-- [What It Does](#what-it-does)
-- [How It Works](#how-it-works)
-- [A Typical Analysis, Step by Step](#a-typical-analysis-step-by-step)
-- [Quick Start](#quick-start)
-- [Safety Model](#safety-model)
-- [Project Layout](#project-layout)
-- [API Surface](#api-surface)
-- [Air-Gapped Podman Deployment](#air-gapped-podman-deployment)
-- [Documentation Map](#documentation-map)
-- [Project Status & Governance](#project-status--governance)
-
----
-
-## What ExTrace Is
-
-VS Code extensions run with broad access to your machine: they can read files,
-spawn processes, and reach the network. That makes a malicious extension a real
-threat — and makes it hard to judge one just by reading its description.
-
-ExTrace exists to help a security analyst answer a simple question — *"is this
-extension safe to trust?"* — with **evidence instead of guesswork**. It looks at
-what an extension *declares*, what its *source code* looks like, and what it
-*actually does when it runs*, then bundles all of that into a structured report.
-
-**Who it is for:** a single analyst running a local or lab appliance. It is
-*not* a public malware-scanning service, and it does not try to be one. The
-output is an **evidence bundle for a human to review**, not an automatic
-"safe / malware" verdict.
-
-Keep one principle in mind throughout: **every extension, report, log line, and
-VSIX payload is treated as adversarial.** See the [Safety Model](#safety-model)
-for how that assumption shapes the design.
-
-## What It Does
-
-ExTrace helps answer four practical questions:
-
-1. **What does this extension declare?**
-   It parses manifest metadata, activation events, contributed commands,
-   menus, scripts, and related VS Code extension surfaces.
-2. **What does the source tree look like before execution?**
-   Static rules scan the extracted VSIX tree for risky behavior such as
-   reverse shells, download cradles, native loaders, credential exfiltration,
-   path traversal surfaces, stylesheet execution, and RMM abuse.
-3. **What happens when it runs?**
-   The executor launches a real VS Code session under Xvfb/noVNC and drives it
-   with Playwright so runtime events can be observed.
-4. **What evidence should a reviewer trust?**
-   Reports separate static findings, runtime evidence, attempted stimuli,
-   health signals, verification gaps, and known blind spots.
-
-The result is not a magic malware verdict. It is an evidence bundle for a human
-analyst, with enough structure for regression tests and UI review.
-
-## How It Works
+## Analysis Flow
 
 ```text
 VSIX / extension folder
         |
         v
-Manifest + source extraction
+Manifest and source extraction
         |
-        +--> Static pre-check rules
+        +--> isolated static pre-check
         |
         v
 Trigger planning
         |
         v
-Dockerized VS Code executor
+Dockerized VS Code + Playwright execution
         |
         v
-Activation report + static report + job metadata
+Static report + activation report + job metadata
         |
         v
-React analyst console / API responses
+React analyst console / API
 ```
 
-Core services:
+ExTrace answers four questions:
 
-- **API**: FastAPI backend for catalog ingestion, marketplace search/download,
-  analysis jobs, reports, settings, and health.
-- **Executor**: Dockerized VS Code + Playwright runtime used to run and observe
-  extensions.
-- **Static analyzer**: isolated static pre-check container for VSIX-tree rules
-  and Semgrep-style checks.
-- **Database**: PostgreSQL stores catalog and job metadata.
-- **UI**: Vite + React analyst console for reports, rules, marketplace search,
-  and simulation status.
+1. What does the extension declare?
+2. What risky patterns appear before execution?
+3. What happens inside the sandbox?
+4. How complete and trustworthy was the observation?
 
-For a fuller human overview, read
-[documents/how-it-works.md](documents/how-it-works.md).
-
-## A Typical Analysis, Step by Step
-
-Here is what one analysis run looks like from start to finish:
-
-1. **Get the extension in.** Point ExTrace at an extension folder, a `.vsix`
-   file, or a Marketplace extension downloaded through the API. (Tests use
-   synthetic fixtures — real malicious samples are never committed to this
-   repo.)
-2. **Extract and inspect statically.** ExTrace unpacks the manifest and source
-   tree and runs the static pre-check rules. These can *warn* or *block* before
-   anything is ever executed.
-3. **Plan the triggers.** ExTrace works out how to provoke the extension —
-   which activation events and contributed commands to fire.
-4. **Run it in the sandbox.** A real VS Code session boots inside a container,
-   driven by Playwright. ExTrace attempts activation, runs commands, and records
-   what actually happened.
-5. **Read the evidence.** You get a **static report** (what the source
-   *suggested*), an **activation report** (what the runtime *observed*), and
-   **job metadata** (whether the run started, completed, failed, or was
-   cancelled) — reviewable in the UI or via the API.
-
-A key habit when reading results: **"the command ran" is not the same as
-"the behavior was verified."** Reports deliberately separate *attempted* stimuli
-from *verified* evidence, and surface health signals and verification gaps so
-you know how much to trust a given run.
+The last question matters: attempted stimuli, verified evidence, health
+signals, and observation gaps are reported separately.
 
 ## Quick Start
 
-This section gets ExTrace running on your own machine for local development.
-For a run-focused (not internals-focused) path, see
-[documents/operator-quickstart.md](documents/operator-quickstart.md).
-
-**Prerequisites:**
-
-- Python 3.11+
-- Docker / Docker Compose
-- PostgreSQL 16 compatible runtime
-- Node 20+ for UI work
-
-**Set up and run:**
+Prerequisites: Python 3.11+, Docker with Compose, a PostgreSQL 16-compatible
+runtime, and Node 20+ for UI work.
 
 ```bash
-make install-dev   # install dev dependencies
-make up            # start the service containers
-make migrate       # apply database migrations
-make dev           # run the development stack
+make install-dev
+make up
+make migrate
+make dev
 ```
 
-**Default local endpoints:**
+Default endpoints:
 
 - API: `http://127.0.0.1:8000`
 - Swagger: `http://127.0.0.1:8000/docs`
-- Web UI: `http://127.0.0.1:3000`
-- noVNC executor view: `http://127.0.0.1:6080/vnc.html`
+- UI: `http://127.0.0.1:3000`
+- noVNC: `http://127.0.0.1:6080/vnc.html`
 
-**Useful validation commands:**
+Useful checks:
 
 ```bash
 make test-local
@@ -177,198 +72,67 @@ make sim-target TARGET=publisher.name
 make demo-canary
 ```
 
-### Optional: code-intelligence tooling
-
-This workspace can use LSP-backed symbol navigation (go-to-definition,
-find-references, call hierarchy) through two local Claude Code plugins,
-`pyright-lsp` (Python) and `typescript-lsp` (UI). They are per-operator
-developer/agent conveniences — not required to build, test, or run ExTrace,
-and not provisioned by the repo.
-
-```bash
-claude plugin install pyright-lsp typescript-lsp
-# Python cross-file resolution also needs a repo-root pyrightconfig.json:
-#   {"venvPath": ".", "venv": ".venv"}
-```
-
-`mypy` remains the authoritative Python type-checker; pyright only powers
-navigation. Note: the first `find-references` of a session can return
-same-file-only results — retry it once.
+For an operator-focused setup, use
+[documents/operator-quickstart.md](documents/operator-quickstart.md).
 
 ## Safety Model
 
-Treat every extension, report, log line, and VSIX payload as adversarial.
-
 - Services bind to `127.0.0.1` by default.
-- LAN exposure is opt-in and must follow
+- LAN exposure is explicit and follows
   [documents/runbooks/lan-exposure.md](documents/runbooks/lan-exposure.md).
-- Sandbox execution stays containerized.
-- The static analyzer runs without network access.
-- Live malware samples must not be committed to this repository.
-- Synthetic fixtures and declawed canaries are allowed for tests.
-- Reports are evidence, not proof of safety.
+- Extension execution stays containerized.
+- The static analyzer has no network access.
+- Extension input, VSIX contents, reports, and logs are adversarial.
+- Real malware samples are not committed; tests use synthetic or declawed
+  fixtures.
 
 The binding decision is recorded in
-[documents/adrs/0007-local-network-binding.md](documents/adrs/0007-local-network-binding.md).
+[ADR 0007](documents/adrs/0007-local-network-binding.md).
 
 ## Project Layout
 
 ```text
-appcore/             Shared platform code: config, DB, storage, contracts
-packages/            Framework-agnostic analysis contracts and logic
-workflows/           Backend business workflows
-executor/            Sandbox control and Playwright runtime
-static_runtime/      Static pre-check rules and Semgrep-style rules
-ui/                  React + Vite analyst console
-tests/               Python and architecture tests
-documents/           Canonical architecture, status, ADR, agent docs, and human guides
-deploy/podman/       Air-gapped Podman deployment bundle
+appcore/        configuration, contracts, database, storage
+packages/       framework-agnostic analysis logic
+workflows/      backend workflows
+executor/       sandbox control and Playwright runtime
+static_runtime/ static pre-check runtime and rules
+ui/             React + Vite analyst console
+tests/          Python and architecture tests
+documents/      canonical docs, ADRs, runbooks, trackers
+deploy/podman/  air-gapped Podman deployment
 ```
 
-Boundary rules that matter:
+Hard architecture and security rules live in [AGENTS.md](AGENTS.md).
 
-- Database writes go through `appcore/storage/crud.py`.
-- Pydantic validation happens before insertion.
-- SQLAlchemy 2.0 and Pydantic v2 APIs are required.
-- `packages/` must stay framework-agnostic.
-- Workflows reach sandbox mechanics through `executor.control`.
-- Static and dynamic detection rules consume contracts, not app internals.
+## Deployment And Documentation
 
-The full agent-facing rules live in [AGENTS.md](AGENTS.md).
+For headless air-gapped Fedora deployments with rootful Podman, start at
+[deploy/podman/README.md](deploy/podman/README.md).
 
-## API Surface
+Choose documentation by task:
 
-Main routes:
+- Human overview: [documents/human-guide.md](documents/human-guide.md)
+- Architecture and data flow:
+  [documents/how-it-works.md](documents/how-it-works.md)
+- API and request flows:
+  [documents/api-and-flows.md](documents/api-and-flows.md)
+- Risks and accepted tradeoffs: [documents/risks.md](documents/risks.md)
+- Agent routing: [documents/AGENT_CONTEXT.md](documents/AGENT_CONTEXT.md)
+- Operational recovery: [documents/runbooks/](documents/runbooks/)
+- Architecture decisions: [documents/adrs/](documents/adrs/)
 
-- `GET /health`
-- `GET /searchExtension`
-- `POST /createExtension`
-- `POST /api/marketplace/download`
-- `POST /api/marketplace/analyze`
-- `POST /api/marketplace/analyze/start`
-- `GET /api/marketplace/analyze/{job_id}`
-- `POST /api/marketplace/analyze/{job_id}/cancel`
-- `GET /api/activations`
-- `GET /api/activations/latest`
-- `GET /api/settings/security/thresholds`
-- `PUT /api/settings/security/thresholds`
+## Project State
 
-The UI uses the background analysis route and then polls
-`GET /api/marketplace/analyze/{job_id}` for job status.
+W22 is the last merged weekly close-out. Later work uses named streams without
+advancing that pointer. The latest merged named stream is
+`verdict-provenance-reproducibility` (W26), merged via PR #38 at `bfb2d2d`;
+no successor stream is open. The next execution gate is containment safety in
+[documents/active-work/v1-roadmap.md](documents/active-work/v1-roadmap.md) §4.
 
-Full route and request-flow reference:
+Canonical state and history:
 
-- [documents/api-and-flows.md](documents/api-and-flows.md)
-
-## Air-Gapped Podman Deployment
-
-This branch adds a deployment path for a **headless, air-gapped x86 Fedora
-Server** running **rootful Podman** with no compose or internet access on the
-target.
-
-High-level flow:
-
-1. Build all images on an internet-connected machine.
-2. Export them into one bundle.
-3. Copy the bundle to the Fedora Server.
-4. Run the stack with plain `podman` through the included controller.
-
-Start here:
-
-- [deploy/podman/README.md](deploy/podman/README.md) — full air-gapped Podman
-  deployment guide.
-- [deploy/podman/build-bundle.sh](deploy/podman/build-bundle.sh) — build-box
-  bundle builder.
-- [deploy/podman/extrace-ctl.sh](deploy/podman/extrace-ctl.sh) — server-side
-  Podman controller.
-
-Prefer SSH tunnels for remote access to the headless server. Bind services on a
-LAN only after rotating secrets and applying the LAN exposure runbook.
-
-## Documentation Map
-
-The README is the front door. From here, follow the path that matches what you
-are trying to do.
-
-**For people running or learning the system:**
-
-- [documents/human-guide.md](documents/human-guide.md) — human documentation
-  index.
-- [documents/how-it-works.md](documents/how-it-works.md) — readable architecture
-  and data flow.
-- [documents/api-and-flows.md](documents/api-and-flows.md) — backend routes and
-  request flows.
-- [documents/operator-quickstart.md](documents/operator-quickstart.md) — local
-  and air-gapped operating paths.
-- [documents/risks.md](documents/risks.md) — risk register and accepted
-  tradeoffs.
-
-**For maintainers and agents changing the system:**
-
-- [AGENTS.md](AGENTS.md) — hard rules.
-- [documents/AGENT_CONTEXT.md](documents/AGENT_CONTEXT.md) — task routing.
-- [documents/agent-lanes/](documents/agent-lanes/) — lane-specific read paths.
-- [documents/README.md](documents/README.md) — canonical document guide.
-- [documents/adrs/](documents/adrs/) — architecture decisions.
-- [documents/runbooks/](documents/runbooks/) — operational recovery runbooks.
-
-The detailed historical trackers remain in `documents/active-work/` and
-`documents/archive/`. They are preserved for evidence and stable IDs, but they
-are no longer the first thing a normal reader should open.
-
-## Project Status & Governance
-
-> This section is maintainer/agent bookkeeping. If you are just getting
-> started, you can safely skip it — nothing here is needed to run or understand
-> ExTrace.
-
-**Repository pointers (machine- and agent-facing):**
-
-- `Last Updated: 2026-07-29`
-- `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
-- `Active stream: none currently open — phase.json.active_stream is null. Latest merged named stream: verdict-provenance-reproducibility (Stream 3 / W26), merged via PR #38 (week26 -> main, bfb2d2d) on 2026-07-27. It closed B5+B6; the next execution gate is containment safety. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
-- `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + optional active stream).`
-
-**Current status.** The weekly refactor line is closed through **W22**. W22 was
-merged to `main` through PR #31 (`week22 -> main`, `1399f82`) on 2026-05-28.
-Later work lands as named feature streams without advancing the weekly pointer.
-
-Weekly close-out ledger:
-
-| Phase | Merge fact | Frozen tracker |
-|---|---|---|
-| W13 | PR #20 `week13 -> main` `772deb3` | `active-work/W13-test-expansion-observability.md` |
-| W14 | PR #21 `week14 -> main` `4e03c8d` | `active-work/W14-codex-acceptance-observability.md` |
-| W15 | PR #22 `week15 -> main` `6161472` | `active-work/W15-codex-uclass-bounds-posture.md` |
-| W16 | PR #23 `week16 -> main` `1b6d43f` | `active-work/W16-regression-and-audit-closeout.md` |
-| W17 | PR #25 `week17 -> main` `bff565d` | `active-work/W17-carryover-and-lifecycle-harness.md` |
-| W18 | PR #26 `week18 -> main` `9874e79` | `active-work/W18-heartbeat-refactor.md` |
-| W19 | PR #28 `week19 -> main` `c879603` | `active-work/W19-live-run-root-cause.md` |
-| W20 | PR #29 `week20 -> main` `64a3c3d` | `active-work/W20-coverage-promotion-easy-wins.md` |
-| W21 | PR #30 `week21 -> main` `5dc18aa` | `active-work/W21-coverage-promotion-mid-tier.md` |
-| W22 | PR #31 `week22 -> main` `1399f82` | `active-work/W22-coverage-promotion-hard-tier.md` |
-
-Latest merged named stream:
-
-- `verdict-provenance-reproducibility` (Stream 3 / W26), merged via PR #38
-  (`bfb2d2d`) on `2026-07-27`.
-- Closed v1.0 bars B5/B6: verdicts are bound to VSIX bytes and run-quality
-  finalization is reproducible.
-- Tracker:
-  `documents/active-work/W26-verdict-provenance-reproducibility.md`.
-
-Earlier named streams include `podman-airgapped-deploy` (air-gapped deployment
-bundle + human-readable documentation), `security-development`,
-`extension-trigger-matrix`, Static Analysis Pre-Check,
-`reliability-self-defense`, and `operator-console-honesty`.
-
-Detailed status is intentionally not duplicated here:
-
-- [documents/REFACTOR_STATUS.md](documents/REFACTOR_STATUS.md) — current state
-  and merge history.
-- [documents/POST_POC_BACKLOG.md](documents/POST_POC_BACKLOG.md) — deferred
-  work and pull-next items.
-- [documents/REFACTOR_OPTIMIZATION.md](documents/REFACTOR_OPTIMIZATION.md) —
-  weekly planning record.
-- [documents/phase.json](documents/phase.json) — machine-readable weekly
-  pointer and optional active stream (`null` when none is open).
+- [documents/REFACTOR_STATUS.md](documents/REFACTOR_STATUS.md)
+- [documents/phase.json](documents/phase.json)
+- [documents/POST_POC_BACKLOG.md](documents/POST_POC_BACKLOG.md)
+- [documents/REFACTOR_OPTIMIZATION.md](documents/REFACTOR_OPTIMIZATION.md)

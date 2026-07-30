@@ -1,16 +1,4 @@
-"""Single-source loader for ``documents/phase.json``.
-
-``documents/phase.json`` is the machine-readable source of the phase
-"preamble" truth — the most-recently-merged weekly close-out (PR + SHA),
-the ``W13..`` close-out history chain, and the optional active named stream
-(``null`` when none is open). The doc-preamble gates read from here instead of
-hand-maintaining duplicate ``PR #NN`` / ``<sha>`` literals, so advancing a
-phase is a one-file edit (``phase.json``) plus the doc banners.
-
-This is a non-test helper module (``python_files`` only collects
-``test_*.py``), imported as ``tests.architecture._phase_manifest`` — the
-same shape as ``tests/security/helpers.py``.
-"""
+"""Load the machine-readable phase state used by documentation guards."""
 
 from __future__ import annotations
 
