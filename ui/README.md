@@ -1,6 +1,6 @@
 # ExTrace Web UI
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-07-28`
 
 `ui/` is the primary analyst-facing frontend for ExTrace.
 
@@ -18,19 +18,33 @@ Stack:
 
 Routes:
 
-- `/reports?report=latest&tab=overview`
+- `/reports?report=latest&tab=overview` — report selector, evidence search,
+  summary rail, Risk Radar, verdict decision band, and finding breakdowns
+- `/reports?report=latest&tab=matrix` — dynamic/static rule activation matrix;
+  static tool status is shown with the static band
 - `/simulation?job=<jobId>&tab=live`
-- `/marketplace?q=<query>`
-- `/rules` — rule library overview + draft preview (save endpoint pending,
-  see `[BACKLOG ui-v3-13]`)
-- `/settings` — operator preferences, persists to `localStorage` until the
-  settings API lands (see `[BACKLOG ui-v3-5]`)
-- `/system` — service health + telemetry tiles; only the executor `/health`
-  endpoint is wired today (see `[BACKLOG ui-v3-6]`)
+- `/marketplace?q=<query>` and `/marketplace?mode=offline` — online/offline
+  intake; download/ingest stays available while dynamic analysis is off
+- `/rules` — registry, rule-draft preview, and blacklist management (draft
+  save endpoint pending; see `[BACKLOG ui-v3-13]`)
+- `/settings` — appearance preferences are browser-local; security thresholds
+  and the dynamic-analysis executor preference are API-backed
+- `/system` — measured API, catalog, sandbox, and static-analyzer health plus
+  local runtime inventory from `GET /api/system/health`
 
 Key behavior:
 
 - report and simulation state are driven by URL search params
+- dynamic analysis defaults off and is operator-controlled through
+  `GET|PUT /api/settings/executor/preferences`; when disabled, synchronous and
+  background marketplace analysis still run the static pre-check and explicitly
+  skip the five dynamic sandbox stages
+- Marketplace download/ingest starts the applicable analysis pipeline; ready
+  packages expose `Run static scan` while dynamic analysis is off and `Analyze`
+  when both static and dynamic stages are available
+- System data is read-only and measured from the API process, PostgreSQL
+  catalog summary, and bounded Docker container inspection; the UI does not
+  synthesize mock service values
 - backend-owned TypeScript contracts are generated into
   `ui/src/lib/types/contracts.ts` via `scripts/generate_ui_contracts.py`
 - request logic lives in `ui/src/lib/api/client.ts`; adapters live under
@@ -77,6 +91,16 @@ make ui-boundaries
 
 ## Recent Changes
 
+- 2026-07-29: dynamic-analysis off no longer blocks marketplace analysis.
+  Static pre-checks run to completion, dynamic sandbox steps are marked skipped,
+  and the simulation view reports a truthful static-only completion.
+- 2026-07-28: operator-console general fixes added a persisted, default-off
+  dynamic-analysis preference; enforced the off-state in UI and both analysis
+  APIs; replaced System mock cards with aggregate measured health; added a
+  local readiness healthcheck for the static analyzer; and simplified the
+  Marketplace, Rules, Reports, Settings, and System layouts. Reports now keeps
+  verdict/action/scale inside Overview and places static tool statuses in the
+  Rule Matrix static-band header.
 - 2026-04-29: v3 redesign minimal-completion landed on
   `feat/ui-v3-design-extrace-console`. Inspector drawer + Rule Draft
   preview, Run health + Coverage summary panels, Ledger Scenario

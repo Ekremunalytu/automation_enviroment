@@ -100,7 +100,7 @@ every extension.
 | [`extrace.a5.workspace_file_tamper`](../../packages/analysis_engine/rules/a5_workspace_file_tamper.py) | dynamic | Workspace file **read then rewritten in place** at runtime — clipper/integrity | MEDIUM |
 | [`extrace.a8.reverse_shell`](../../packages/analysis_engine/rules/a8_reverse_shell.py) | dynamic | Runtime **shell spawn + outbound socket** co-occurrence (reverse shell) | HIGH |
 
-UI ([`ruleCatalog.ts`](../../ui/src/features/reports/ruleCatalog.ts) +
+UI ([`ruleCatalog.ts`](../../ui/src/lib/rules/ruleCatalog.ts) +
 [`RulesPage.tsx`](../../ui/src/features/rules/RulesPage.tsx)): the **Rules tab now
 lists static *and* dynamic rules** (was dynamic-only), each with a **Static /
 Dynamic** badge and a stream filter; every catalog rule carries a richer `detail`

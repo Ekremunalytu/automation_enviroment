@@ -8,6 +8,7 @@ import type { OfflineExtensionDto } from "../../lib/types/contracts";
 
 vi.mock("../../lib/api/client", () => ({
   apiClient: {
+    getExecutorPreferences: vi.fn(),
     searchMarketplace: vi.fn(),
     downloadMarketplaceExtension: vi.fn(),
     startAnalysisJob: vi.fn(),
@@ -71,6 +72,9 @@ const FRESH: OfflineExtensionDto = {
 describe("Offline intake tab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(apiClient.getExecutorPreferences).mockResolvedValue({
+      dynamic_analysis_enabled: false,
+    });
     vi.mocked(apiClient.searchMarketplace).mockResolvedValue([]);
     vi.mocked(apiClient.listOfflineExtensions).mockResolvedValue([STAGED, FRESH]);
     vi.mocked(apiClient.ingestOfflineExtension).mockResolvedValue({
@@ -94,15 +98,18 @@ describe("Offline intake tab", () => {
     });
   });
 
-  it("lists staged packages and exposes Ingest vs Analyze per state", async () => {
+  it("lists staged packages and keeps static analysis available while dynamic is off", async () => {
     renderPage("/marketplace?tab=offline");
 
     expect(await screen.findByText("Python (offline)")).toBeInTheDocument();
     expect(await screen.findByText("Prettier (offline)")).toBeInTheDocument();
     expect(screen.getByText(/2 packages staged/u)).toBeInTheDocument();
 
-    // The already-ingested package is analyzable; the fresh one needs ingest.
-    expect(screen.getByRole("button", { name: "Analyze" })).toBeInTheDocument();
+    // The already-ingested package can run the static-only pipeline; the fresh
+    // one can still ingest.
+    expect(
+      screen.getByRole("button", { name: "Run static scan" }),
+    ).toBeEnabled();
     expect(screen.getByRole("button", { name: "Ingest" })).toBeInTheDocument();
   });
 
@@ -118,9 +125,12 @@ describe("Offline intake tab", () => {
       );
     });
 
-    // Both rows are now analyzable (the staged one + the freshly ingested one).
     await waitFor(() => {
-      expect(screen.getAllByRole("button", { name: "Analyze" })).toHaveLength(2);
+      expect(apiClient.startAnalysisJob).toHaveBeenCalledWith(
+        "esbenp",
+        "prettier-vscode",
+        "10.1.0",
+      );
     });
   });
 
@@ -146,6 +156,10 @@ describe("Offline intake tab", () => {
   });
 
   it("navigates to the sandbox when analyzing a staged package", async () => {
+    vi.mocked(apiClient.getExecutorPreferences).mockResolvedValue({
+      dynamic_analysis_enabled: true,
+    });
+
     renderPage("/marketplace?tab=offline");
 
     fireEvent.click(await screen.findByRole("button", { name: "Analyze" }));
@@ -156,11 +170,34 @@ describe("Offline intake tab", () => {
     );
   });
 
+  it("starts dynamic analysis after a fresh ingest when the preference is on", async () => {
+    vi.mocked(apiClient.getExecutorPreferences).mockResolvedValue({
+      dynamic_analysis_enabled: true,
+    });
+
+    renderPage("/marketplace?tab=offline");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Ingest" }));
+
+    await waitFor(() => {
+      expect(apiClient.startAnalysisJob).toHaveBeenCalledWith(
+        "esbenp",
+        "prettier-vscode",
+        "10.1.0",
+      );
+    });
+    expect(await screen.findByText("Simulation route")).toBeInTheDocument();
+  });
+
   it("switches between the Marketplace and Offline tabs", async () => {
     renderPage("/marketplace");
 
     // Default tab is the online marketplace search.
-    expect(await screen.findByText("Search marketplace")).toBeInTheDocument();
+    expect(
+      await screen.findByPlaceholderText(
+        "python, eslint, prettier, github copilot…",
+      ),
+    ).toBeInTheDocument();
     expect(apiClient.listOfflineExtensions).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("tab", { name: "Offline" }));

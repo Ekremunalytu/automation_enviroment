@@ -416,7 +416,7 @@ universe + `staticReport.findings` (silent ones enumerated too) — and renders 
 with a **Static / Dynamic** badge, a **stream filter** (All / Dynamic / Static),
 and the `stream` field in the conditions table. Per-cell stream tags also landed
 in the report-page `RuleMatrixSection`. Every catalog entry
-([`ruleCatalog.ts`](../../ui/src/features/reports/ruleCatalog.ts)) gained a richer
+([`ruleCatalog.ts`](../../ui/src/lib/rules/ruleCatalog.ts)) gained a richer
 `detail` paragraph (rendered in the rule dialog / expanded row); `s8`, `s9`, `a5`
 were added to the catalog.
 

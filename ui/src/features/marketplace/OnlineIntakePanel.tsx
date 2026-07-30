@@ -5,9 +5,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
   Badge,
-  Eyebrow,
   EmptyState,
-  SectionTitle,
   SolidButton,
   V3,
 } from "../../components/v3";
@@ -37,7 +35,11 @@ function fmtInstalls(n: number): string {
 
 const QUICK_QUERIES = ["python", "copilot", "eslint", "prettier"];
 
-export function OnlineIntakePanel() {
+export function OnlineIntakePanel({
+  dynamicAnalysisEnabled = false,
+}: {
+  dynamicAnalysisEnabled?: boolean;
+}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryParam = searchParams.get("q") || "";
@@ -132,6 +134,11 @@ export function OnlineIntakePanel() {
               metrics: result.vsix_metrics,
             });
           }
+          analyzeMutation.mutate({
+            publisher: result.publisher,
+            name: result.name,
+            version: result.version,
+          });
         },
         onError: (error) => {
           // Threshold-breach 422 → render the dedicated popup instead of
@@ -156,18 +163,10 @@ export function OnlineIntakePanel() {
 
   const results = searchQuery.data ?? [];
   const matchCount = results.length;
-  const sectionTitle = !queryParam
-    ? "Awaiting query"
-    : searchQuery.isLoading
-      ? `Searching “${queryParam}”…`
-      : matchCount === 0
-        ? `No matches for “${queryParam}”`
-        : `Results for “${queryParam}” · ${matchCount} match${matchCount === 1 ? "" : "es"}`;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
       <section>
-        <Eyebrow style={{ marginBottom: 12 }}>Search marketplace</Eyebrow>
         <form
           onSubmit={onSubmit}
           style={{
@@ -279,33 +278,6 @@ export function OnlineIntakePanel() {
       </section>
 
       <section>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-end",
-            marginBottom: 16,
-            gap: 16,
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <Eyebrow>Results</Eyebrow>
-            <SectionTitle style={{ marginTop: 10 }}>{sectionTitle}</SectionTitle>
-          </div>
-          {queryParam && matchCount > 0 ? (
-            <span
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 12,
-                color: V3.ink3,
-              }}
-            >
-              sorted by installs
-            </span>
-          ) : null}
-        </div>
-
         {actionError ? (
           <div
             style={{
@@ -332,11 +304,7 @@ export function OnlineIntakePanel() {
         ) : null}
 
         {!queryParam ? (
-          <EmptyState
-            eyebrow="Ready"
-            title="No query yet"
-            body="Enter an extension name or keyword above to populate results from the marketplace catalog."
-          />
+          <EmptyState eyebrow="Ready" title="No query yet" />
         ) : searchQuery.isLoading ? (
           <EmptyState eyebrow="Searching" title="Fetching results" body="Marketplace metadata is loading." />
         ) : searchQuery.isError ? (
@@ -355,6 +323,7 @@ export function OnlineIntakePanel() {
                   extension={extension}
                   isReady={isReady}
                   busy={busy}
+                  dynamicAnalysisEnabled={dynamicAnalysisEnabled}
                   onDownload={() => onDownload(extension.publisher, extension.name, extension.version)}
                   onAnalyze={() =>
                     analyzeMutation.mutate({
@@ -382,11 +351,19 @@ type ResultCardProps = {
   extension: MarketplaceExtensionDto;
   isReady: boolean;
   busy: boolean;
+  dynamicAnalysisEnabled: boolean;
   onDownload: () => void;
   onAnalyze: () => void;
 };
 
-function ResultCard({ extension, isReady, busy, onDownload, onAnalyze }: ResultCardProps) {
+function ResultCard({
+  extension,
+  isReady,
+  busy,
+  dynamicAnalysisEnabled,
+  onDownload,
+  onAnalyze,
+}: ResultCardProps) {
   const [hover, setHover] = useState(false);
 
   return (
@@ -458,8 +435,15 @@ function ResultCard({ extension, isReady, busy, onDownload, onAnalyze }: ResultC
             {busy ? "Downloading…" : "Download"}
           </SolidButton>
         ) : (
-          <SolidButton disabled={busy} onClick={onAnalyze}>
-            {busy ? "Starting…" : "Analyze"}
+          <SolidButton
+            disabled={busy}
+            onClick={onAnalyze}
+          >
+            {busy
+              ? "Starting…"
+              : dynamicAnalysisEnabled
+                ? "Analyze"
+                : "Run static scan"}
           </SolidButton>
         )}
         {isReady ? (

@@ -13,6 +13,7 @@ from appcore.storage.crud import (
     get_extension_capabilities,
     get_extension_contributes_all,
     get_extension_contributes_commands,
+    get_extension_inventory_summary,
     get_extension_scripts,
     get_extensions_all_info,
     search_extension_by_name,
@@ -483,6 +484,34 @@ def test_get_db_extensions_base_info_returns_data(db_session: Session):
 
     rows = get_db_extensions_base_info(db_session)
     assert any(row.name == "base-ext" for row in rows)
+
+
+def test_get_extension_inventory_summary_returns_count_and_latest_write(
+    db_session: Session,
+) -> None:
+    create_extension(
+        db_session,
+        ExtensionSchema(
+            name="inventory-one",
+            publisher="inventory-pub",
+            version="1.0.0",
+            engines={"vscode": "^1.0.0"},
+        ),
+    )
+    create_extension(
+        db_session,
+        ExtensionSchema(
+            name="inventory-two",
+            publisher="inventory-pub",
+            version="2.0.0",
+            engines={"vscode": "^1.0.0"},
+        ),
+    )
+
+    count, latest_write = get_extension_inventory_summary(db_session)
+
+    assert count == 2
+    assert latest_write is not None
 
 
 def test_delete_extension_with_filters_and_ambiguous_result(db_session: Session):

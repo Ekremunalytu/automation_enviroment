@@ -16,6 +16,7 @@ from appcore.logging import (
 )
 from executor.runtime_fingerprint import executor_fingerprint_short
 from workflows.activation_reports.router import router as activation_reports_router
+from workflows.executor_settings.router import router as executor_settings_router
 from workflows.extension_catalog.router import router as extension_catalog_router
 from workflows.marketplace.job_service import (
     recover_interrupted_jobs,
@@ -23,6 +24,7 @@ from workflows.marketplace.job_service import (
 )
 from workflows.marketplace.router import router as marketplace_router
 from workflows.security_settings.router import router as security_settings_router
+from workflows.system_health.router import router as system_health_router
 
 
 def validate_runtime_settings() -> None:
@@ -118,9 +120,11 @@ def create_app(*, recover_jobs: bool = True) -> FastAPI:
     application.include_router(extension_catalog_router)
     application.include_router(activation_reports_router)
     application.include_router(marketplace_router)
+    application.include_router(executor_settings_router)
     application.include_router(security_settings_router)
     application.include_router(rules_router)
     application.include_router(health_router)
+    application.include_router(system_health_router)
 
     if recover_jobs:
         try:

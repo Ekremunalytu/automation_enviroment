@@ -29,7 +29,11 @@ import {
   VsixIntegrityBanner,
 } from "./shared";
 
-export function OfflineIntakePanel() {
+export function OfflineIntakePanel({
+  dynamicAnalysisEnabled = false,
+}: {
+  dynamicAnalysisEnabled?: boolean;
+}) {
   const navigate = useNavigate();
   const [ingested, setIngested] = useState<Record<string, boolean>>({});
   const [ingestsInFlight, setIngestsInFlight] = useState<Record<string, boolean>>({});
@@ -100,6 +104,11 @@ export function OfflineIntakePanel() {
         // Refresh so the server-side already_ingested flag reconciles with
         // the optimistic local flip.
         void listQuery.refetch();
+        analyzeMutation.mutate({
+          publisher: result.publisher,
+          name: result.name,
+          version: result.version,
+        });
       },
       onError: (error) => {
         if (error instanceof ApiError && isThresholdBreach(error.detail)) {
@@ -222,6 +231,7 @@ export function OfflineIntakePanel() {
                   record={record}
                   isReady={isReady}
                   busy={busy}
+                  dynamicAnalysisEnabled={dynamicAnalysisEnabled}
                   onIngest={() => onIngest(record.filename)}
                   onAnalyze={() =>
                     analyzeMutation.mutate({
@@ -249,11 +259,19 @@ type OfflineCardProps = {
   record: OfflineExtensionDto;
   isReady: boolean;
   busy: boolean;
+  dynamicAnalysisEnabled: boolean;
   onIngest: () => void;
   onAnalyze: () => void;
 };
 
-function OfflineCard({ record, isReady, busy, onIngest, onAnalyze }: OfflineCardProps) {
+function OfflineCard({
+  record,
+  isReady,
+  busy,
+  dynamicAnalysisEnabled,
+  onIngest,
+  onAnalyze,
+}: OfflineCardProps) {
   const [hover, setHover] = useState(false);
 
   return (
@@ -338,8 +356,15 @@ function OfflineCard({ record, isReady, busy, onIngest, onAnalyze }: OfflineCard
             {busy ? "Ingesting…" : "Ingest"}
           </SolidButton>
         ) : (
-          <SolidButton disabled={busy} onClick={onAnalyze}>
-            {busy ? "Starting…" : "Analyze"}
+          <SolidButton
+            disabled={busy}
+            onClick={onAnalyze}
+          >
+            {busy
+              ? "Starting…"
+              : dynamicAnalysisEnabled
+                ? "Analyze"
+                : "Run static scan"}
           </SolidButton>
         )}
         {isReady ? (

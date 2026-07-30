@@ -38,6 +38,7 @@ so the two views cannot drift.
 
 from __future__ import annotations
 
+import threading
 import time
 from pathlib import Path
 
@@ -56,6 +57,8 @@ from ..health import (
 from ..runtime_capture._shared import _log
 from .runtime import _reconcile_coverage_verification
 from .types import ActivationReport
+
+_LIVE_PERSIST_INTERVAL_S = 5.0
 
 
 class ReportAssembler:
@@ -76,6 +79,7 @@ class ReportAssembler:
         self._report = report
         self._report_path = report_path
         self._last_persist_at: float = 0.0
+        self._persist_lock = threading.Lock()
 
     def refresh_derived_state(self) -> None:
         """Recompute every derived field on the report from raw events.
@@ -186,34 +190,30 @@ class ReportAssembler:
         self._report.activation_discovery_strategy_outcomes = dict(outcomes)
 
     def persist(self, force: bool) -> None:
-        """Write the report if forced or if a debounce threshold tripped.
+        """Write forced checkpoints immediately and live state at most every 5s.
 
-        Throttle (matches the pre-W11-2 lifecycle behavior bit-for-bit):
-        skip when none of the following are true — ``force=True``, the
-        network-event count is divisible by 5, the file-event count is
-        divisible by 5, the scenario-trace count is divisible by 2, or
-        the last successful save was more than one second ago.
+        Raw capture callbacks can arrive hundreds of times per second. Rewriting
+        a multi-megabyte report on count-modulo boundaries starves the stimulus
+        thread under the GIL, especially while the scenario count is even.
+        Forced lifecycle checkpoints remain immediate; unforced event-stream
+        updates are time-debounced.
         """
         if self._report_path is None:
             return
 
-        now = time.time()
-        file_count = len(self._report.file_events)
-        scenario_count = len(self._report.scenario_traces)
-        if (
-            not force
-            and (len(self._report.network_events) % 5 != 0)
-            and (file_count % 5 != 0)
-            and (scenario_count % 2 != 0)
-            and (now - self._last_persist_at < 1.0)
-        ):
-            return
+        with self._persist_lock:
+            now = time.time()
+            if not force and now - self._last_persist_at < _LIVE_PERSIST_INTERVAL_S:
+                return
 
-        try:
-            self._report.save(self._report_path, announce=False)
-            self._last_persist_at = now
-        except OSError as exc:
-            _log(f"Live report persistence failed: {exc}")
+            try:
+                self._report.save(self._report_path, announce=False)
+                # Timestamp completion, not entry. Large reports can take
+                # seconds to serialize; an entry timestamp lets waiting capture
+                # threads immediately start another expensive write.
+                self._last_persist_at = time.time()
+            except OSError as exc:
+                _log(f"Live report persistence failed: {exc}")
 
 
 __all__ = ["ReportAssembler"]

@@ -218,6 +218,18 @@ new container capability, network, or boundary import is introduced. Design +
 rationale: ADR 0017. The amendment is Accepted + Implemented with ADR 0017 after
 Stream 3 merged via PR #38 (`bfb2d2d`) on 2026-07-27.
 
+### A2 — static-only execution when dynamic analysis is disabled
+
+The operator preference `dynamic_analysis_enabled=false` disables only the
+dynamic sandbox stage; it does not disable or reject the analysis pipeline.
+Both marketplace analysis entry points still validate the VSIX and run the
+network-isolated static pre-check. A static BLOCK retains the terminal
+`rejected_static` behavior. An ALLOW/WARN completes the job with the static
+report, marks all five dynamic steps `skipped`, and does not create or advertise
+a dynamic activation report. The preference is snapshotted when the request is
+accepted so a mid-run setting change cannot silently alter the selected
+pipeline. Implemented 2026-07-29.
+
 ## References
 
 - `documents/active-work/extrace-static-stream-handoff.md` — frozen

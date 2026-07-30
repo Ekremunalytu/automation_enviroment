@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import threading
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -143,6 +144,59 @@ def test_apply_gate_decision_allow_completes(tmp_path: Path) -> None:
     )
     assert bundle.dynamic_bundle is None
     assert bundle.static_report.gate_outcome.decision is StaticGateDecision.ALLOW
+
+
+def test_dynamic_off_returns_static_only_and_skips_sandbox_steps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(analysis_service.settings.static_analysis, "ENABLED", True)
+    report = _report(
+        StaticGateOutcome(
+            decision=StaticGateDecision.ALLOW,
+            allow_reason="No blocking static findings.",
+        )
+    )
+    events: list[tuple[str, str, str]] = []
+
+    def progress(step, status, message, error_code=None, progress=None):
+        events.append((step, status, message))
+
+    with (
+        patch.object(analysis_service, "ensure_vsix_exists"),
+        patch.object(analysis_service, "_run_static_gate", return_value=report),
+        patch.object(analysis_service, "_reset_sandbox") as reset,
+        patch.object(analysis_service, "_install_extension") as install,
+        patch.object(analysis_service, "_build_triggers") as build,
+        patch.object(analysis_service, "_run_monitoring") as monitor,
+    ):
+        response = analysis_service.execute_analysis_request(
+            AnalyzeRequest(
+                publisher="ms-python",
+                name="python",
+                version="2025.0.0",
+            ),
+            db=object(),  # type: ignore[arg-type]
+            progress_callback=progress,
+            dynamic_analysis_enabled=False,
+        )
+
+    assert response.status == "success"
+    assert response.static_report is report
+    assert response.report_path is None
+    assert response.install_output is None
+    assert response.automation_output is None
+    assert "Dynamic sandbox analysis was skipped" in response.message
+    assert [step for step, status, _ in events if status == "skipped"] == [
+        "reset_sandbox",
+        "install_extension",
+        "build_triggers",
+        "run_monitoring",
+        "finalize_report",
+    ]
+    reset.assert_not_called()
+    install.assert_not_called()
+    build.assert_not_called()
+    monitor.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

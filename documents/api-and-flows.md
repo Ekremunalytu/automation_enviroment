@@ -65,6 +65,13 @@ Notes:
 
 - `POST /api/marketplace/analyze` is the direct request/response path.
 - `POST /api/marketplace/analyze/start` is the background path used by the UI.
+- Dynamic analysis defaults off. Both routes read
+  `dynamic_analysis_enabled` at request time. While off, the static pre-check
+  still runs and the five dynamic sandbox steps are recorded as `skipped`;
+  enabling it through `PUT /api/settings/executor/preferences` selects the full
+  static + dynamic pipeline for subsequent requests.
+- Marketplace search, download, catalog ingest, and static pre-check remain
+  available regardless of this preference.
 - Only one background analysis should run at a time in the intended sandbox
   deployment.
 - Startup fails fast if the `analysis_jobs` storage path is unavailable or the
@@ -106,6 +113,27 @@ Notes:
 
 - `GET /api/settings/security/thresholds`
 - `PUT /api/settings/security/thresholds`
+- `GET /api/settings/executor/preferences`
+- `PUT /api/settings/executor/preferences`
+
+`dynamic_analysis_enabled` is a strict boolean persisted as an integer-backed
+operator setting. Its default is `false`; malformed non-boolean updates are
+rejected without changing the effective value.
+
+## Appliance Health Route
+
+- `GET /api/system/health`
+
+This read-only aggregate returns:
+
+- API status, version, process uptime, and process start time;
+- catalog record count, database dialect, and latest catalog write;
+- bounded Docker state for the dynamic sandbox and static analyzer; and
+- hostname, platform, kernel, Python version, disk usage, and observation time.
+
+The endpoint normalizes container state instead of returning raw Docker daemon
+output. Individual service failures degrade only that service entry so the
+remaining measured facts stay available.
 
 ## Reading A Job
 

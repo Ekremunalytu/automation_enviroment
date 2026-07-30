@@ -1,16 +1,4 @@
-"""Canonical preamble parity gate.
-
-The 10 current canonical preamble docs all carry a ``Last Updated: ...``
-backtick banner summarizing the most recently merged phase. This gate pins
-the current most-recent-merge fingerprint across every current canonical
-preamble and follows the active weekly tracker as the phase changes.
-
-To advance the fingerprint after the next merge:
-  - Update ``documents/phase.json`` -> ``last_merged_weekly`` (PR + SHA).
-  - Update the canonical docs' headlines in the same commit set.
-  - Update ``_CANONICAL_PREAMBLE_DOCS`` if the active weekly tracker changes.
-  - The test should pass green only after the docs and phase.json align.
-"""
+"""Pin canonical preambles to the merge fingerprint in ``phase.json``."""
 
 from __future__ import annotations
 
@@ -33,35 +21,16 @@ _CANONICAL_PREAMBLE_DOCS: tuple[str, ...] = (
     "documents/active-work/W22-coverage-promotion-hard-tier.md",
 )
 
-# Most-recent-merge fingerprint, sourced from the single manifest
-# (``documents/phase.json`` -> ``last_merged_weekly``). No literal lives
-# in this gate anymore — advancing a phase is a one-file edit to
-# phase.json plus the canonical doc headlines in the same commit.
 _LAST_MERGED_WEEKLY = load_manifest()["last_merged_weekly"]
 _EXPECTED_MERGE_FINGERPRINT = merge_fingerprint(_LAST_MERGED_WEEKLY)
 _EXPECTED_MERGE_SHA = _LAST_MERGED_WEEKLY["sha"]
 
-# Drift markers — phrases that mean the preamble is stale relative to
-# the current merge fingerprint. If any of these reappear in the
-# *headline region* of a canonical doc, the next-phase merge happened
-# without a corresponding preamble refresh. Body-level audit-trail
-# mentions of these phrases (e.g., describing what W21-0 doc-reconcile
-# flipped) are historical narrative and not flagged here.
-#
-# Lowercase ``pending user approval`` catches stale in-banner "PR pending"
-# claims authored before a merge. Current pre-merge W22 PR-readiness uses
-# uppercase ``PENDING USER APPROVAL`` deliberately; the case-sensitive match
-# avoids flagging that forward-looking W22 state.
 _STALE_MARKERS: tuple[str, ...] = (
     "pending user approval",
     "Active phase: W19",
     "Active phase: W20",
 )
 
-# Number of lines from the top of each doc to scan for the stale markers.
-# This covers the ``Last Updated: ...`` backtick banner plus the
-# top-of-file Operating Rules / Status block where the present-tense
-# phase claim lives. Audit-trail mentions appear deeper in the body.
 _HEADLINE_SCAN_LINES = 200
 
 

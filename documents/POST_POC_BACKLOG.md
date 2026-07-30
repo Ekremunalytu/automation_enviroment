@@ -1,12 +1,12 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-07-27`
+`Last Updated: 2026-07-29`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
 `Latest merged named stream: verdict-provenance-reproducibility (Stream 3 — B5+B6; week label W26) — merged to main via PR #38 (week26 -> main, bfb2d2d) on 2026-07-27. ADR 0017 is Accepted + Implemented; no successor stream is open. Next execution gate: containment safety from documents/active-work/v1-roadmap.md §4. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
 
-`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
+`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + optional active stream; null when none is open).`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose closure rationales, evidence paragraphs, and per-iter Note columns
@@ -872,7 +872,8 @@ Closed: `[FOLLOWUP evidence-event-kind-raw-context-invariant]` — W14-4
 - `[FOLLOWUP vsix-integrity-in-activation-report]`
 - `[FOLLOWUP vsix-thresholds-extra-keys]`
 - `[BACKLOG ui-v3-5]` — Settings persistence API partially closed for
-  Security thresholds; other localStorage sections client-only.
+  Security thresholds and the executor `dynamic_analysis_enabled` preference;
+  appearance sections remain browser-local.
 - `[CLEANUP ui-v3-9]`
 - `[CLEANUP ui-v3-14]`
 
@@ -1138,9 +1139,12 @@ direction `2026-06-08`, after the project report was delivered). Built from a
 `main` @ `441cb72`. Stream 1 (`reliability-self-defense`) **merged to main** via PR #35
 (`week23 -> main`, `653d807`) `2026-06-12` (S0 + S1 + S2 + S3 + S4 + S5 + S7) — see
 [`active-work/W23-reliability-self-defense.md`](active-work/W23-reliability-self-defense.md).
-The active-stream pointer flip (S0) landed `2026-06-12` — `phase.json` +
-canonical doc preambles/bodies now name `reliability-self-defense`
-(`last_merged_weekly` stays W22 — a named feature stream does not advance the `phase.json` weekly pointer; see REFACTOR_STATUS.md "Post-W22 Feature Streams").
+The Stream 1 active-stream pointer flip (S0) landed `2026-06-12` — at that
+time `phase.json` + canonical doc preambles/bodies named
+`reliability-self-defense`. This is historical transition evidence:
+`last_merged_weekly` remains W22, while `active_stream` is now `null` because
+W26 is closed and no successor is open (see REFACTOR_STATUS.md "Post-W22
+Feature Streams").
 
 Detailed evidence and dispositions are archived at
 [`archive/backlog/v1-roadmap-intake-2026-06-08.md`](archive/backlog/v1-roadmap-intake-2026-06-08.md).
@@ -1151,7 +1155,7 @@ Stable IDs below map to the roadmap streams (see `v1-roadmap.md` §7).
 - **Stream 3 — verdict-provenance-reproducibility (merged via PR #38 `bfb2d2d`):** `[GOAL vsix-content-sha256-provenance]` ✅, `[GOAL verdict-reproducibility-anchor]` ✅; `[FOLLOWUP attribution-tiebreak-determinism]` remains open (equal-delta attribution iteration order can change the B5 signal/correlation grouping; coordinate with the signal owner and rerun golden/verdict fixtures).
 - **Stream 4 — operator-report-export:** `[GOAL report-export-artifact]`, `[FOLLOWUP vsix-entry-log-sanitization]` (existing; do not duplicate), offline skip-reason UX.
 - **Stream 5 — release-identity-ops:** `[CLEANUP version-identity-coherence]`, `[GOAL api-health-db-probe]`, `[GOAL podman-backup-restore]` (live-on-Fedora acceptance deferred via `[FOLLOWUP fedora-host-live-validation]` below — code still lands on dev/CI).
-- **Stream 6 — measured-catch-rate:** `[GOAL measured-catch-rate-corpus]`, `[GOAL benign-false-positive-gate]`, `[GOAL platform-blind-verdict-annotation]`, `[GOAL adr-0015-e1-e2-evasion-detection]`, `[GOAL measured-layer-contribution]`, `[GOAL static-primary-threat-directed-dynamic]`.
+- **Stream 6 — measured-catch-rate:** `[GOAL measured-catch-rate-corpus]`, `[GOAL benign-false-positive-gate]`, `[GOAL platform-blind-verdict-annotation]`, `[GOAL adr-0015-e1-e2-evasion-detection]`, `[GOAL measured-layer-contribution]`, `[GOAL static-primary-threat-directed-dynamic]`. Detailed non-active execution packages (`SAR-0`–`SAR-7`): [`active-work/static-analysis-improvement-roadmap.md`](active-work/static-analysis-improvement-roadmap.md). The proposal does not set `phase.json.active_stream`.
 - **Stream 7 — sequential-batch-corpus (post-v1.0):** `[GOAL sequential-batch-corpus]`.
 - **Stream 8 — linux-host-hardening-evasion:** `[GOAL per-analysis-disposable-sandbox]` (pre-v1 safety slice), `[GOAL container-hardening-ratchet-down]`, `[GOAL adr-0015-e3-e5-evasion-detection]`, `[FOLLOWUP harness-secret-distribution-redesign]` (existing; do not duplicate).
 - **Operator-console-honesty (merged to main via PR #36 `1e3fba6`; non-bar):** `[CLEANUP settings-decorative-controls-honesty]` ✅ H1, `[CLEANUP system-mock-status-honesty]` ✅ H2 (+ `/api/health` tone case-bug fix), `[GOAL light-dark-theme]` ✅ H3 (delivered; ECharts canvas charts stay dark — deferred, see tracker). Also wired timeZone + density (H1b). Tracker: `active-work/W24-operator-console-honesty.md`.
@@ -1259,9 +1263,9 @@ pre-read size gate (`offline.py:172-194`); the extension-host log-parse ReDoS
 bounds (`{1,256}` + 16 KiB per-line cap); and the Makefile env auto-create
 (create-if-missing, no overwrite) + Windows/WSL guards.
 
-**Record-only (benign, no action):** `phase.json` `active_stream` still names the
-closed `operator-console-honesty` stream — the documented named-stream close-out
-convention (the next stream's H0 repoints it). The compose-isolation cap test's
+**Record-only follow-up (resolved 2026-07-29):** `phase.json.active_stream`
+now uses `null` when no named stream is open; closed streams are no longer
+left behind as misleading active pointers. The compose-isolation cap test's
 `NET_RAW`/`SYS_PTRACE` assertion removal was a **tightening** to exact-5-cap
 matching (W21 `5dc18aa` → ES-0 `70e4364`), not a weakening.
 

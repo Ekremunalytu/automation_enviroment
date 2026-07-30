@@ -1,52 +1,26 @@
 # AGENTS.md
 
-`Last Updated: 2026-07-27`
+`Last Updated: 2026-07-30`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Latest merged named stream: verdict-provenance-reproducibility (Stream 3 — B5+B6; week label W26) — merged to main via PR #38 (week26 -> main, bfb2d2d) on 2026-07-27. ADR 0017 is Accepted + Implemented; no successor stream is open. Next execution gate: containment safety from documents/active-work/v1-roadmap.md §4. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
-
-`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
+`Latest named stream: verdict-provenance-reproducibility (W26), merged via PR #38 at bfb2d2d; none is open. Next gate: containment safety in documents/active-work/v1-roadmap.md §4.`
 
 ## Authority
 
-- This file is the hard-rules entrypoint for agents.
-- It is intentionally short because it is frequently preloaded into context.
-- For task routing after these rules, read
+- This is the hard-rules entrypoint. Route tasks through
   `documents/AGENT_CONTEXT.md`.
-- For current phase state, trust `documents/REFACTOR_STATUS.md`.
+- Current state: `documents/phase.json` (machine-readable) and
+  `documents/REFACTOR_STATUS.md` (human-readable).
+- Deferred work: `documents/POST_POC_BACKLOG.md`; last weekly plan:
+  `documents/REFACTOR_OPTIMIZATION.md` §20.
 - If docs conflict with code or tests, trust code/tests and update the doc.
-- If a requested change violates these principles, stop and report instead of
-  implementing.
-
-## Current State
-
-- **W0-W22 all closed**; per-phase merge facts (PR # / SHA) live in
-  `documents/REFACTOR_STATUS.md`'s `Last Updated:` banner. Per-phase
-  mechanics are frozen under
-  `documents/active-work/W{8,11,12,13,14,15,16,17,18,19,20,21,22}-*.md`
-  — these stay on the read path **only** because code/tests reference
-  items by stable ID (e.g., `W11-1`, `W17-2`). Do not renumber.
-- **W22** is closed synthetically on the `week22` branch and merged
-  to main via PR #31 `week22 -> main` `1399f82`. Frozen tracker:
-  `documents/active-work/W22-coverage-promotion-hard-tier.md`. Plan:
-  `documents/REFACTOR_OPTIMIZATION.md §20`.
-- **Post-W22 named streams** do not advance the weekly pointer. Static
-  Analysis Pre-Check merged via PR #33; `extension-trigger-matrix` merged;
-  `security-development` merged via PR #34; `reliability-self-defense` merged
-  via PR #35; `operator-console-honesty` merged via PR #36; and
-  `verdict-provenance-reproducibility` merged via PR #38 (`bfb2d2d`). The
-  latest tracker is
-  `documents/active-work/W26-verdict-provenance-reproducibility.md`.
-- ADRs live in `documents/adrs/`. ADR 0007 local-network-binding is
-  Accepted and implemented (loopback defaults + `EXTRACE_ALLOW_LAN`
-  pinned by `test_default_bindings.py`).
+- Stop and report requests that violate these rules.
 
 ## Non-Negotiable Rules
 
 - Preserve the unique constraint `(publisher, name, version)`.
-- Route database writes through `appcore/storage/crud.py`; thin compatibility
-  wrappers may delegate immediately but must not own write logic.
+- Route writes through `appcore/storage/crud.py`; wrappers may only delegate.
 - Validate with Pydantic before database insertion.
 - Use SQLAlchemy 2.0 syntax only.
 - Use Pydantic v2 APIs only.
@@ -54,18 +28,15 @@
 - Keep sandbox execution isolated in Docker.
 - Do not introduce dependencies without explicit approval.
 - Do not add generic `try/except Exception` blocks.
-- Do not introduce unsafe behavior: no arbitrary exec, unsafe deserialization,
-  or uncontrolled network calls.
+- No arbitrary exec, unsafe deserialization, or uncontrolled network calls.
 - Treat extension input, reports, logs, and VSIX contents as adversarial.
-- Keep critical operations observable through logs, report fields, traces, or
-  metrics.
+- Keep critical operations observable.
 
 ## Architecture Boundaries
 
 - Runtime entrypoint: `main.py`.
-- Canonical backend code: `appcore/`, `workflows/`, `executor/`.
-- Canonical frontend code: `ui/`.
-- Framework-agnostic analysis code: `packages/`.
+- Backend: `appcore/`, `workflows/`, `executor/`; frontend: `ui/`;
+  framework-agnostic analysis: `packages/`.
 - Tests live under `tests/`; UI tests live under `ui/src/**/*.test.ts(x)`.
 - `packages/` must not import `workflows/`, `executor/`, `ui/`, or
   `appcore/`.
@@ -78,44 +49,22 @@
 
 ## Read Path
 
-1. Read this file.
-2. Read `documents/AGENT_CONTEXT.md`.
-3. Read exactly one matching lane doc under `documents/agent-lanes/`.
-4. **Read subsystem docs only when the lane doc explicitly points to
-   them. Default preload is forbidden.** Slim canonical subsystem
-   docs (`ARCHITECTURE.md`, `PROJECT_STRUCTURE.md`, `TESTING.md`,
-   `DETECTION_SEMANTICS.md`, `EXECUTOR_PLAYWRIGHT.md`) link out to
-   subdir splits — open the split, not the canonical, for detail.
-5. Read `documents/active-work/<file>.md` only when the lane doc
-   points to it (e.g. W8 work goes through `active-work/W8-security.md`).
-6. Read matching tests early; they usually reveal expected behavior faster
-   than broad source scans.
-7. Do **not** read `documents/archive/`. Archive is frozen historical
-   reference; open it only when a slim canonical doc explicitly says
-   "details: archive/...".
+1. Read `documents/AGENT_CONTEXT.md`.
+2. Read exactly one matching `documents/agent-lanes/*.md`.
+3. Open subsystem or `active-work` docs only when that lane points to them.
+4. Read matching tests early.
+5. Keep `documents/archive/` off-path unless a slim canonical explicitly
+   links to it.
 
 ## Context Budget
 
-- Do not scan the whole repository by default.
 - Start from one task lane and expand only when evidence requires it.
 - Ignore heavy/generated trees unless the task explicitly targets them:
   `extensions/`, `output/`, `node_modules/`, `ui/dist/`, `__pycache__/`,
   `.venv/`, `.mypy_cache/`, `.ruff_cache/`.
-- Do not preload all of `documents/`.
 - Prefer `rg` / `rg --files` for search.
-
-## Common Commands
-
-`make install-dev`, `make dev`, `make test-local`, `make check-all`,
-`make migrate`, `make test-security`, `make exec-up`, `make exec-run`,
-`make ui-up`, `make sim-target TARGET=publisher.name`, `make sim-all`,
-`make demo-canary`, `make demo-canary-offline`.
 
 ## Required Self-Review
 
-State briefly:
-
-- Files modified
-- DB schema changed: Yes/No
-- Tests added/updated: Yes/No
-- Risks or assumptions
+State files modified, DB schema change (Yes/No), tests changed (Yes/No), and
+risks/assumptions.

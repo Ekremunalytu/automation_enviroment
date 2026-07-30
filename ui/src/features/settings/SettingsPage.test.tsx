@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 
@@ -9,6 +9,8 @@ import { SettingsPage } from "./SettingsPage";
 
 vi.mock("../../lib/api/client", () => ({
   apiClient: {
+    getExecutorPreferences: vi.fn(),
+    updateExecutorPreferences: vi.fn(),
     getSecurityThresholds: vi.fn(),
     updateSecurityThresholds: vi.fn(),
   },
@@ -35,6 +37,14 @@ describe("SettingsPage", () => {
   beforeEach(() => {
     window.localStorage.clear();
     vi.clearAllMocks();
+    vi.mocked(apiClient.getExecutorPreferences).mockResolvedValue({
+      dynamic_analysis_enabled: false,
+    });
+    vi.mocked(apiClient.updateExecutorPreferences).mockImplementation(
+      async (payload) => ({
+        dynamic_analysis_enabled: payload.dynamic_analysis_enabled,
+      }),
+    );
     // Default: hang the threshold fetch so the Security tab stays in its
     // loading state. Tests that need a different terminal state override
     // this via `mockRejectedValueOnce` / `mockResolvedValueOnce`.
@@ -43,38 +53,55 @@ describe("SettingsPage", () => {
     );
   });
 
-  it("renders the v3 header and the five sections with the honest intro copy", () => {
+  it("renders the simplified header and the five settings sections", () => {
     renderPage();
 
-    expect(screen.getByText(/Configure/u)).toBeInTheDocument();
-    expect(screen.getByText(/the appliance/u)).toBeInTheDocument();
-    // Honest intro: appearance applies live in-browser; backend-effect controls
-    // are disabled; only the security thresholds are enforced server-side.
-    expect(screen.getByText(/theme, density, and time/u)).toBeInTheDocument();
-    expect(screen.getByText(/applies live in this browser/u)).toBeInTheDocument();
-    expect(screen.getByText(/not yet wired to a backend/u)).toBeInTheDocument();
+    expect(screen.getByText(/Tune the/u)).toBeInTheDocument();
+    expect(screen.getByText(/appliance\./u)).toBeInTheDocument();
+    expect(screen.queryByText("Settings")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Single-operator preferences/u)).not.toBeInTheDocument();
     expect(screen.queryByText(/Backend pending/u)).not.toBeInTheDocument();
     for (const label of ["General", "Executor", "Security", "Telemetry", "Danger"]) {
       expect(screen.getByRole("button", { name: new RegExp(`^${label}`, "i") })).toBeInTheDocument();
     }
   });
 
-  it("renders the executor enforcement controls disabled, with a 'Not yet enforced' affordance", () => {
+  it("enables only the persisted dynamic-scan toggle in executor settings", async () => {
     renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: /^Executor/u }));
 
-    // The enforcement toggles are non-interactive — they imply a backend
-    // effect that does not exist yet.
-    const autoAnalyze = screen.getByRole("button", { name: "Auto-analyze on download" });
-    expect(autoAnalyze).toBeDisabled();
-    const strictNet = screen.getByRole("button", { name: "Strict network mode" });
+    const dynamicScan = await screen.findByRole("button", {
+      name: "Dynamic scan after intake",
+    });
+    expect(dynamicScan).toBeEnabled();
+    expect(dynamicScan).toHaveAttribute("aria-pressed", "false");
+    const strictNet = screen.getByRole("button", {
+      name: "Strict network mode",
+    });
     expect(strictNet).toBeDisabled();
 
     expect(screen.getAllByText(/Not yet enforced/u).length).toBeGreaterThan(0);
+    expect(screen.getByText("Backend-persisted")).toBeInTheDocument();
   });
 
-  it("replaces the fictional pool-size control with the honest single-active queue fact", () => {
+  it("persists the dynamic-scan toggle immediately", async () => {
+    renderPage(["/settings?section=executor"]);
+
+    const dynamicScan = await screen.findByRole("button", {
+      name: "Dynamic scan after intake",
+    });
+    fireEvent.click(dynamicScan);
+
+    await waitFor(() => {
+      expect(apiClient.updateExecutorPreferences).toHaveBeenCalledWith({
+        dynamic_analysis_enabled: true,
+      });
+    });
+    expect(dynamicScan).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("replaces the fictional pool-size control with the honest single-active queue fact", async () => {
     renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: /^Executor/u }));
@@ -82,7 +109,9 @@ describe("SettingsPage", () => {
     // The old 2/4/8/16 "Pool size" segmented control contradicted the
     // single-active serial queue (Non-Goal: no parallel sandboxes / B3).
     expect(screen.queryByText("Pool size")).not.toBeInTheDocument();
-    expect(screen.getByText("Single active · serial")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Single active · serial"),
+    ).toBeInTheDocument();
   });
 
   it("has live appearance controls (theme, density, time zone)", () => {

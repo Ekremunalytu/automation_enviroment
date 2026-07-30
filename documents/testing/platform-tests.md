@@ -1,6 +1,6 @@
 # Platform Tests
 
-`Last Updated: 2026-05-10`
+`Last Updated: 2026-07-28`
 
 `tests/platform/` — shared platform contracts, API runtime, engine,
 storage. Lane shape: [`../TESTING.md`](../TESTING.md). Layer file map:
@@ -20,7 +20,8 @@ storage. Lane shape: [`../TESTING.md`](../TESTING.md). Layer file map:
 - `test_schemas.py` — Pydantic v2 contract round-trips. Includes
   `ThresholdsResponse` / `ThresholdsUpdateRequest` validation pinning
   the security-settings schema relocation
-  (`appcore/contracts/schema_defs/security_settings.py`).
+  (`appcore/contracts/schema_defs/security_settings.py`), strict executor
+  preference validation, and aggregate system-health contract shapes.
 - `test_analysis_fixture_baselines.py` — pinned fixture report shape plus
   local-artifact resolution for `ms-python.python@2026.5.2026050801`,
   `extrace.fixture-chat`, and `extrace.fixture-theme`.
@@ -37,7 +38,8 @@ storage. Lane shape: [`../TESTING.md`](../TESTING.md). Layer file map:
 ### `tests/platform/storage/`
 
 - `test_crud.py` — `appcore/storage/crud.py` write paths + uniqueness
-  protection on `(publisher, name, version)`.
+  protection on `(publisher, name, version)`; also pins the extension
+  inventory count/latest-write summary used by appliance health.
 - `test_analysis_jobs.py` — durable async job lifecycle, recovery,
   in-flight race gap (`[FOLLOWUP analysis-jobs-race]` referenced by
   test comment at line 183).

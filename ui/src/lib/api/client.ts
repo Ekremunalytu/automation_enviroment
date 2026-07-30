@@ -2,10 +2,13 @@ import type {
   ReportBundleDto,
   ActivationReportDto,
   AnalyzeJobStatusDto,
+  ExecutorPreferencesResponseDto,
+  ExecutorPreferencesUpdateRequestDto,
   MarketplaceDownloadResponseDto,
   MarketplaceExtensionDto,
   OfflineExtensionDto,
   ReportListItemDto,
+  SystemHealthResponseDto,
   VsixThresholdsResponseDto,
   VsixThresholdsUpdateRequestDto,
 } from "../types/contracts";
@@ -103,6 +106,9 @@ export const apiClient = {
   getHealth(signal?: AbortSignal) {
     return requestJson<{ status: string; service: string }>("/api/health", { signal });
   },
+  getSystemHealth(signal?: AbortSignal) {
+    return requestJson<SystemHealthResponseDto>("/api/system/health", { signal });
+  },
   getBlacklistDomains(signal?: AbortSignal) {
     return requestJson<BlacklistDomainsDto>("/api/rules/blacklist-domains", { signal });
   },
@@ -131,6 +137,25 @@ export const apiClient = {
   ) {
     return requestJson<VsixThresholdsResponseDto>(
       "/api/settings/security/thresholds",
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+        signal,
+      },
+    );
+  },
+  getExecutorPreferences(signal?: AbortSignal) {
+    return requestJson<ExecutorPreferencesResponseDto>(
+      "/api/settings/executor/preferences",
+      { signal },
+    );
+  },
+  updateExecutorPreferences(
+    payload: ExecutorPreferencesUpdateRequestDto,
+    signal?: AbortSignal,
+  ) {
+    return requestJson<ExecutorPreferencesResponseDto>(
+      "/api/settings/executor/preferences",
       {
         method: "PUT",
         body: JSON.stringify(payload),

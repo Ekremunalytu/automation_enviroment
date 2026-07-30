@@ -1,7 +1,7 @@
 """CRUD helpers for the operator_settings key-value table.
 
-The table is a thin store for runtime-tunable values that the analysis
-pipeline reads at request time (currently the VSIX hardening thresholds).
+The table is a thin store for runtime-tunable integer values that workflows
+read at request time (VSIX hardening thresholds and executor preferences).
 Callers should normally go through
 ``workflows.security_settings.service`` rather than touching this module
 directly — that layer adds default-fallback and validation.

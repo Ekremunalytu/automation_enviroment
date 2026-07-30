@@ -262,6 +262,20 @@ def dispatch_execution(
         print("[*] Skipping automation scenario execution by request...")
     elif execution_mode == "layered_passes":
         print("[*] Running layered stimulus plan...")
+        if mon is not None and trigger_payload is not None:
+            # Mark the plan at the point execution begins, not only after every
+            # pass returns. A SIGTERM/timeout can finalize a useful partial
+            # report; completed passes must not be mislabeled as "not applied".
+            mon.mark_trigger_plan_applied(
+                scenarios=planned_scenarios,
+                trigger_path=args.triggers,
+            )
+            mon.record_automation_event(
+                "trigger_plan_applied",
+                "Trigger plan started as layered passes with "
+                f"{len(trigger_payload.event_attempts)} event target(s).",
+                status="completed",
+            )
         execution_result = _normalize_execution_result(
             deps.stimulus.run_stimulus_plan(
                 page_ref.value, trigger_payload, monitor=mon
@@ -269,17 +283,6 @@ def dispatch_execution(
             deps=deps,
             requested_scenarios=planned_scenarios,
         )
-        if mon is not None and trigger_payload is not None:
-            mon.mark_trigger_plan_applied(
-                scenarios=execution_result.requested_scenarios,
-                trigger_path=args.triggers,
-            )
-            mon.record_automation_event(
-                "trigger_plan_applied",
-                "Trigger plan applied as layered passes with "
-                f"{len(trigger_payload.event_attempts)} event target(s).",
-                status="completed",
-            )
         if execution_result.extra_trigger_failures:
             print("[!] Layered extra trigger failures:")
             for item in execution_result.extra_trigger_failures:

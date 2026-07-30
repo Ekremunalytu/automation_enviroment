@@ -7,6 +7,7 @@ import type { MarketplaceDownloadResponseDto } from "../../lib/types/contracts";
 
 vi.mock("../../lib/api/client", () => ({
   apiClient: {
+    getExecutorPreferences: vi.fn(),
     searchMarketplace: vi.fn(),
     downloadMarketplaceExtension: vi.fn(),
     startAnalysisJob: vi.fn(),
@@ -48,6 +49,9 @@ function renderPage(entry: string) {
 describe("MarketplacePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(apiClient.getExecutorPreferences).mockResolvedValue({
+      dynamic_analysis_enabled: false,
+    });
     vi.mocked(apiClient.searchMarketplace).mockResolvedValue([
       {
         publisher: "ms",
@@ -80,24 +84,34 @@ describe("MarketplacePage", () => {
     });
   });
 
-  it("renders the v3 layout without placeholder badges and preserves the download/analyze flow", async () => {
+  it("renders the v3 layout and starts the static-only pipeline after download while off", async () => {
     renderPage("/marketplace?q=python");
 
-    expect(await screen.findByText("Extension intake")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("python")).toBeInTheDocument();
+    expect(await screen.findByText("Find, download, analyze.")).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("python")).toBeInTheDocument();
     expect(await screen.findByText("Python")).toBeInTheDocument();
-    expect(await screen.findByText(/Results for/u)).toBeInTheDocument();
+    expect(screen.queryByText(/Results for/u)).not.toBeInTheDocument();
+    expect(screen.queryByText("Results")).not.toBeInTheDocument();
+    expect(screen.queryByText("sorted by installs")).not.toBeInTheDocument();
+    expect(screen.queryByText("Extension intake")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Search the VS Code marketplace/u),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Dynamic scan after intake:/u),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("UNCATEGORIZED")).not.toBeInTheDocument();
     expect(screen.queryByText("RISK TBD")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Download" }));
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Analyze" })).toBeInTheDocument();
+      expect(apiClient.startAnalysisJob).toHaveBeenCalledWith(
+        "ms",
+        "python",
+        "1.0.0",
+      );
     });
-
-    fireEvent.click(screen.getByRole("button", { name: "Analyze" }));
     expect(await screen.findByText("Simulation route")).toBeInTheDocument();
-    expect(screen.getByTestId("location-path").textContent).toContain("/simulation?job=job-9&tab=live");
   });
 
   it("ignores a rapid second download click for the same artifact", async () => {
@@ -133,7 +147,57 @@ describe("MarketplacePage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Analyze" })).toBeInTheDocument();
+      expect(apiClient.startAnalysisJob).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("keeps a static scan action available if automatic job start fails", async () => {
+    vi.mocked(apiClient.startAnalysisJob).mockRejectedValue(
+      new Error("queue unavailable"),
+    );
+    renderPage("/marketplace?q=python");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Download" }));
+
+    const staticScan = await screen.findByRole("button", {
+      name: "Run static scan",
+    });
+    expect(staticScan).toBeEnabled();
+    expect(await screen.findByText("Analysis could not be started.")).toBeInTheDocument();
+  });
+
+  it("starts dynamic analysis after download when the preference is on", async () => {
+    vi.mocked(apiClient.getExecutorPreferences).mockResolvedValue({
+      dynamic_analysis_enabled: true,
+    });
+
+    renderPage("/marketplace?q=python");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Download" }));
+
+    await waitFor(() => {
+      expect(apiClient.startAnalysisJob).toHaveBeenCalledWith(
+        "ms",
+        "python",
+        "1.0.0",
+      );
+    });
+    expect(await screen.findByText("Simulation route")).toBeInTheDocument();
+  });
+
+  it("keeps the empty search controls while omitting the requested helper copy", async () => {
+    renderPage("/marketplace");
+
+    expect(
+      await screen.findByPlaceholderText(
+        "python, eslint, prettier, github copilot…",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Search ↵" })).toBeInTheDocument();
+    expect(screen.getByText("No query yet")).toBeInTheDocument();
+    expect(screen.queryByText("Search marketplace")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Enter an extension name or keyword above/u),
+    ).not.toBeInTheDocument();
   });
 });

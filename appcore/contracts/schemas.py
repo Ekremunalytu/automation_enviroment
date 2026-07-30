@@ -22,6 +22,10 @@ from appcore.contracts.schema_defs.catalog import (
     SearchRequest,
 )
 from appcore.contracts.schema_defs.common import CapabilitySupportState
+from appcore.contracts.schema_defs.executor_settings import (
+    ExecutorPreferencesResponse,
+    ExecutorPreferencesUpdateRequest,
+)
 from appcore.contracts.schema_defs.marketplace import (
     AnalyzeJobStatusResponse,
     AnalyzeJobStep,
@@ -44,6 +48,12 @@ from appcore.contracts.schema_defs.static_analysis_bundle import (
     CombinedAnalysisBundle,
     StaticAnalysisReport,
 )
+from appcore.contracts.schema_defs.system_health import (
+    SystemHealthResponse,
+    SystemInventoryItem,
+    SystemMetric,
+    SystemServiceHealth,
+)
 
 __all__ = [
     "ActivationReportMetadata",
@@ -55,6 +65,8 @@ __all__ = [
     "AnalyzeResponse",
     "CapabilitySupportState",
     "CombinedAnalysisBundle",
+    "ExecutorPreferencesResponse",
+    "ExecutorPreferencesUpdateRequest",
     "ExtensionActivationEventsSchema",
     "ExtensionCapabilitiesSchema",
     "ExtensionContributesAuthenticationSchema",
@@ -75,6 +87,10 @@ __all__ = [
     "SearchAllExtensionsInfo",
     "SearchRequest",
     "StaticAnalysisReport",
+    "SystemHealthResponse",
+    "SystemInventoryItem",
+    "SystemMetric",
+    "SystemServiceHealth",
     "ThresholdBoundsResponse",
     "ThresholdsResponse",
     "ThresholdsUpdateRequest",

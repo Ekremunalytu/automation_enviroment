@@ -354,7 +354,9 @@ Plus dict shape canonical pin update at line 284: `workspace_trust: "missing"` â
 
 Captured `2026-05-27` via UI-driven analyze API on `ms-python.python` @ `2026.5.2026052501` after `docker compose up -d --build executor` + `docker compose up -d --build api` (both containers required rebuild: executor bakes harness extension at image-build time; api bakes planner package). Job id `6fd7b959bd5a4536b2940f16aaaa15ed`.
 
-Live anchor JSON: [`output/activation_report_ms-python.python-2026.5.2026052501-6fd7b959bd5a.json`](../../output/activation_report_ms-python.python-2026.5.2026052501-6fd7b959bd5a.json) (sha256 `fa83017a4de25ea56c078da2bd7f65e2f54f10af5aa5c10e8ed000c92d6f7477`).
+Live anchor JSON (local, gitignored evidence):
+`output/activation_report_ms-python.python-2026.5.2026052501-6fd7b959bd5a.json`
+(sha256 `fa83017a4de25ea56c078da2bd7f65e2f54f10af5aa5c10e8ed000c92d6f7477`).
 
 W21-3 acceptance vs W21-0 baseline `600d9ecba5eb` (sha256 `1db1480551...c4477`):
 

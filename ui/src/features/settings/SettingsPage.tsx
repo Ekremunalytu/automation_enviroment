@@ -14,7 +14,10 @@ import {
 } from "../../components/v3";
 import { ApiError } from "../../lib/api/http";
 import { apiClient } from "../../lib/api/client";
-import type { VsixThresholdsUpdateRequestDto } from "../../lib/types/contracts";
+import type {
+  ExecutorPreferencesUpdateRequestDto,
+  VsixThresholdsUpdateRequestDto,
+} from "../../lib/types/contracts";
 import { THEMES, useTheme, type ThemeId } from "../../lib/theme/theme";
 import {
   DENSITIES,
@@ -25,6 +28,7 @@ import {
 } from "../../lib/settings/presentation";
 
 const VSIX_THRESHOLDS_QUERY_KEY = ["security-thresholds"] as const;
+const EXECUTOR_PREFERENCES_QUERY_KEY = ["executor-preferences"] as const;
 const VSIX_KEYS = {
   size: "vsix_max_uncompressed_size",
   ratio: "vsix_max_compression_ratio",
@@ -34,9 +38,9 @@ const VSIX_KEYS = {
 // Preview values for the console controls that are NOT yet enforced. They
 // render disabled behind a "Not yet enforced" affordance — previews of the
 // intended setting, not live state — so the console never implies a backend
-// effect it does not have. Backend enforcement (auto-analyze, strict net,
-// retention, …) is deferred to a later stream; server-side persistence of
-// the operator settings is Stream 9 (`operator-settings-ops`).
+// effect it does not have. The dynamic-analysis preference and VSIX thresholds
+// are the two server-persisted controls; strict network mode, retention, and
+// the remaining previews stay deferred.
 type RetentionId = "7" | "30" | "90" | "inf";
 
 const PREVIEW = {
@@ -96,21 +100,12 @@ export function SettingsPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 48 }}>
-      <header style={{ paddingBottom: 32, borderBottom: `1px solid ${V3.rule}` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Eyebrow>Settings</Eyebrow>
-        </div>
-        <PageTitle style={{ marginTop: 18 }}>
-          Configure
+      <header style={{ paddingBottom: 24, borderBottom: `1px solid ${V3.rule}` }}>
+        <PageTitle>
+          Tune the
           <br />
-          the appliance.
+          appliance.
         </PageTitle>
-        <p style={{ fontSize: 15, color: V3.ink3, marginTop: 18, maxWidth: 600, lineHeight: 1.6 }}>
-          Single-operator preferences. Appearance — theme, density, and time
-          zone — applies live in this browser. The executor, telemetry, and
-          profile controls are not yet wired to a backend and are shown
-          disabled; only the VSIX security thresholds are enforced server-side.
-        </p>
       </header>
 
       <section
@@ -233,45 +228,7 @@ export function SettingsPage() {
             </>
           ) : null}
 
-          {section === "executor" ? (
-            <>
-              <SectionTitle>Executor runtime</SectionTitle>
-              <Group label="Sandbox">
-                <ToggleRow
-                  k="Auto-analyze on download"
-                  desc="Pipe new catalog entries straight into a sandbox run."
-                  checked={false}
-                  disabled
-                  note={<NotEnforced />}
-                />
-                <ToggleRow
-                  k="Strict network mode"
-                  desc="Block all outbound requests except to whitelisted hosts."
-                  checked={false}
-                  disabled
-                  note={<NotEnforced />}
-                />
-                <ReadonlyRow
-                  k="Concurrency"
-                  desc="The appliance runs a single-active serial queue — one sandbox at a time (B3). Parallel sandbox pools are a non-goal."
-                  value="Single active · serial"
-                />
-                <FormRow
-                  k="Job timeout"
-                  desc="Auto-abort after this duration."
-                  note={<NotEnforced />}
-                  control={
-                    <Field
-                      mono
-                      value={PREVIEW.jobTimeout}
-                      inputProps={{ disabled: true }}
-                      inputStyle={{ maxWidth: 200, ...DISABLED_INPUT }}
-                    />
-                  }
-                />
-              </Group>
-            </>
-          ) : null}
+          {section === "executor" ? <ExecutorSection /> : null}
 
           {section === "security" ? <SecuritySection /> : null}
 
@@ -371,6 +328,99 @@ function bytesToMib(bytes: number): number {
 
 function mibToBytes(mib: number): number {
   return Math.round(mib * 1024 * 1024);
+}
+
+function ExecutorSection() {
+  const queryClient = useQueryClient();
+  const preferencesQuery = useQuery({
+    queryKey: EXECUTOR_PREFERENCES_QUERY_KEY,
+    queryFn: ({ signal }) => apiClient.getExecutorPreferences(signal),
+    staleTime: 30_000,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: ExecutorPreferencesUpdateRequestDto) =>
+      apiClient.updateExecutorPreferences(payload),
+    onSuccess: (next) => {
+      queryClient.setQueryData(EXECUTOR_PREFERENCES_QUERY_KEY, next);
+    },
+  });
+
+  if (preferencesQuery.isError) {
+    return (
+      <>
+        <SectionTitle>Executor runtime</SectionTitle>
+        <p role="alert" style={{ color: V3.coral, fontSize: 13 }}>
+          Could not load executor preferences: {String(preferencesQuery.error)}
+        </p>
+      </>
+    );
+  }
+
+  if (preferencesQuery.isLoading || !preferencesQuery.data) {
+    return (
+      <>
+        <SectionTitle>Executor runtime</SectionTitle>
+        <p style={{ color: V3.ink3, fontSize: 13 }}>
+          Loading executor preferences…
+        </p>
+      </>
+    );
+  }
+
+  const dynamicAnalysisEnabled =
+    preferencesQuery.data.dynamic_analysis_enabled;
+
+  return (
+    <>
+      <SectionTitle>Executor runtime</SectionTitle>
+      <Group label="Sandbox">
+        <ToggleRow
+          k="Dynamic scan after intake"
+          desc="Enable sandbox analysis. When on, a successful marketplace download or offline ingest starts it automatically; when off, all Analyze actions are blocked. Default: off."
+          checked={dynamicAnalysisEnabled}
+          disabled={updateMutation.isPending}
+          onChange={(enabled) =>
+            updateMutation.mutate({ dynamic_analysis_enabled: enabled })
+          }
+          note={<Badge tone="accent">Backend-persisted</Badge>}
+        />
+        <ToggleRow
+          k="Strict network mode"
+          desc="Block all outbound requests except to whitelisted hosts."
+          checked={false}
+          disabled
+          note={<NotEnforced />}
+        />
+        <ReadonlyRow
+          k="Concurrency"
+          desc="The appliance runs a single-active serial queue — one sandbox at a time (B3). Parallel sandbox pools are a non-goal."
+          value="Single active · serial"
+        />
+        <FormRow
+          k="Job timeout"
+          desc="Auto-abort after this duration."
+          note={<NotEnforced />}
+          control={
+            <Field
+              mono
+              value={PREVIEW.jobTimeout}
+              inputProps={{ disabled: true }}
+              inputStyle={{ maxWidth: 200, ...DISABLED_INPUT }}
+            />
+          }
+        />
+      </Group>
+      {updateMutation.isError ? (
+        <p role="alert" style={{ color: V3.coral, fontSize: 13 }}>
+          Could not update executor preferences:{" "}
+          {updateMutation.error instanceof ApiError
+            ? updateMutation.error.message
+            : "Update failed."}
+        </p>
+      ) : null}
+    </>
+  );
 }
 
 function SecuritySection() {

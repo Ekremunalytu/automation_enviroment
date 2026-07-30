@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from executor.config import settings
 from executor.host import (
     ExecutorError,
     cleanup_trigger_file,
@@ -17,6 +18,10 @@ from executor.host import (
 from executor.host import reload_vscode_window as _reload_vscode_window
 from executor.host import reset_executor_sandbox_state as _reset_executor_sandbox_state
 from executor.host import run_playwright_automation as _run_playwright_automation
+from executor.runtime_status import (
+    ContainerRuntimeStatus,
+    inspect_container_runtime,
+)
 
 
 @dataclass(slots=True)
@@ -70,11 +75,16 @@ class ExecutorControl:
     def cleanup_trigger(self, trigger_container_path: str | None) -> None:
         cleanup_trigger_file(trigger_container_path)
 
+    def runtime_status(self) -> ContainerRuntimeStatus:
+        """Return a bounded, read-only snapshot of the executor container."""
+        return inspect_container_runtime(settings.executor.CONTAINER_NAME)
+
 
 default_executor_control = ExecutorControl()
 
 
 __all__ = [
+    "ContainerRuntimeStatus",
     "ExecutorControl",
     "ExecutorError",
     "default_executor_control",

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import type {
   ActivationReportView,
@@ -68,7 +68,10 @@ const STATIC_REPORT: StaticReportView = {
   warnedBy: ["extrace.s3.embedded_native_binary"],
   allowReason: null,
   partial: false,
-  toolStatuses: [{ tool: "inhouse", status: "ok", errorCount: 0 }],
+  toolStatuses: [
+    { tool: "inhouse", status: "ok", errorCount: 0 },
+    { tool: "semgrep", status: "ok", errorCount: 0 },
+  ],
   findings: [
     {
       id: "s1",
@@ -91,6 +94,12 @@ describe("RuleMatrixSection", () => {
     // Both bands present.
     expect(screen.getByText(/Dynamic · behavioral/i)).toBeTruthy();
     expect(screen.getByText(/Static · pre-check/i)).toBeTruthy();
+    expect(screen.queryByText(/Behavioral rules the detection engine evaluated/i)).toBeNull();
+    expect(screen.queryByText(/Static pre-check rules from the manifest/i)).toBeNull();
+    expect(screen.queryByText("Tool coverage")).toBeNull();
+    const toolStatuses = screen.getByLabelText("Static analysis tools");
+    expect(within(toolStatuses).getByText("inhouse · ok")).toBeTruthy();
+    expect(within(toolStatuses).getByText("semgrep · ok")).toBeTruthy();
 
     // Dynamic fired + silent cells, and a fired static cell, render as buttons.
     expect(screen.getByRole("button", { name: /Credential read.*Fired/i })).toBeTruthy();

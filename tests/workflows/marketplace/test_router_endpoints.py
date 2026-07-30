@@ -451,6 +451,10 @@ def test_analyze_start_returns_job_snapshot(client: TestClient) -> None:
             "workflows.marketplace.router.job_service.get_job_snapshot",
             return_value=job_snapshot,
         ),
+        patch(
+            "workflows.marketplace.router.load_dynamic_analysis_enabled",
+            return_value=False,
+        ),
         patch("workflows.marketplace.router.threading.Thread") as mock_thread,
     ):
         response = client.post("/api/marketplace/analyze/start", json=ANALYZE_PAYLOAD)
@@ -464,6 +468,7 @@ def test_analyze_start_returns_job_snapshot(client: TestClient) -> None:
         "activation_report_ms-python.python-2025.0.0-"
     )
     mock_thread.return_value.start.assert_called_once()
+    assert mock_thread.call_args.kwargs["args"][3] is False
 
 
 def test_analyze_start_rejects_second_active_job(client: TestClient) -> None:
