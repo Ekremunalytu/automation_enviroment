@@ -8,6 +8,7 @@ import type { AnalysisBundleDto } from "../../lib/types/contracts";
 vi.mock("../../lib/api/client", () => ({
   apiClient: {
     getLatestReportBundle: vi.fn(),
+    getWhitelist: vi.fn(),
     getBlacklistDomains: vi.fn(),
     addBlacklistDomain: vi.fn(),
     removeBlacklistDomain: vi.fn(),
@@ -106,6 +107,53 @@ describe("RulesPage", () => {
       operator: ["custom.test"],
       effective: ["custom.test", "evil.example"],
       count: 2,
+    });
+    vi.mocked(apiClient.getWhitelist).mockResolvedValue({
+      domains: [
+        {
+          domain: "vscode-cdn.net",
+          organization_id: "microsoft-vscode",
+          organization: "Microsoft / Visual Studio Code",
+          organization_kind: "company",
+          purpose: "Visual Studio Code CDN",
+          source_url: "https://code.visualstudio.com/docs/setup/network",
+        },
+        {
+          domain: "registry.npmjs.org",
+          organization_id: "npm",
+          organization: "npm",
+          organization_kind: "company",
+          purpose: "Official npm public package registry",
+          source_url: "https://docs.npmjs.com/cli/v7/using-npm/registry/",
+        },
+      ],
+      organizations: [
+        {
+          id: "microsoft-vscode",
+          name: "Microsoft / Visual Studio Code",
+          kind: "company",
+          publishers: ["ms-python", "ms-vscode"],
+          extensions: ["ms-python.python"],
+        },
+        {
+          id: "npm",
+          name: "npm",
+          kind: "company",
+          publishers: [],
+          extensions: [],
+        },
+      ],
+      extension_identities: ["ms-python.python"],
+      domain_filtered_rule_ids: [
+        "extrace.a1.credential_read_then_network",
+        "extrace.a2.startup_network_beacon",
+        "extrace.a4.workspace_exfil",
+        "extrace.a8.reverse_shell",
+      ],
+      domain_count: 2,
+      organization_count: 2,
+      publisher_count: 2,
+      extension_count: 1,
     });
   });
 
@@ -220,6 +268,24 @@ describe("RulesPage", () => {
     expect(screen.getByRole("button", { name: "Remove custom.test" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remove evil.example" })).not.toBeInTheDocument();
     expect(screen.queryByText("Observed in latest report")).not.toBeInTheDocument();
+    expect(apiClient.getLatestReportBundle).not.toHaveBeenCalled();
+  });
+
+  it("renders the reviewed whitelist with domains, owners, and publisher scope", async () => {
+    renderPage("/rules?tab=whitelist");
+
+    expect(await screen.findByRole("tab", { name: "Whitelist" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(await screen.findByText("Whitelist scope")).toBeInTheDocument();
+    expect(screen.getByText("vscode-cdn.net")).toBeInTheDocument();
+    expect(screen.getAllByText("Microsoft / Visual Studio Code").length).toBeGreaterThan(0);
+    expect(screen.getByText("registry.npmjs.org")).toBeInTheDocument();
+    expect(screen.getByText("ms-python · ms-vscode")).toBeInTheDocument();
+    expect(screen.getByText("extrace.a8.reverse_shell")).toBeInTheDocument();
+    expect(screen.getByText(/provenance context only/iu)).toBeInTheDocument();
+    expect(apiClient.getBlacklistDomains).not.toHaveBeenCalled();
     expect(apiClient.getLatestReportBundle).not.toHaveBeenCalled();
   });
 

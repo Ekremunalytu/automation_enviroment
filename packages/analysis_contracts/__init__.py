@@ -73,6 +73,16 @@ from packages.analysis_contracts.report_invariants import (
     detection_report_invariant_issues,
     scenario_trace_names,
 )
+from packages.analysis_contracts.trusted_entities import (
+    TrustedDomain,
+    TrustedEntityCatalog,
+    TrustedOrganization,
+    is_trusted_domain,
+    match_trusted_domain,
+    normalize_observed_host,
+    trusted_domains,
+    trusted_entity_catalog,
+)
 
 __all__ = [
     "ACTIVATION_REPORT_SCHEMA_VERSION",
@@ -122,14 +132,22 @@ __all__ = [
     "TriggerPayload",
     "TriggerScenarioDetail",
     "TriggerStimulusPass",
+    "TrustedDomain",
+    "TrustedEntityCatalog",
+    "TrustedOrganization",
     "UiBlockerRawContext",
     "Verdict",
     "activation_report_invariant_issues",
     "compute_verdict",
     "detection_report_invariant_issues",
+    "is_trusted_domain",
+    "match_trusted_domain",
+    "normalize_observed_host",
     "quantize_confidence",
     "redact_multiline_secrets",
     "redact_secrets",
     "scenario_trace_names",
+    "trusted_domains",
+    "trusted_entity_catalog",
     "validate_executor_action",
 ]

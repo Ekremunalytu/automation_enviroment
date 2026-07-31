@@ -25,13 +25,14 @@ import {
 } from "../../lib/rules/ruleCatalog";
 import { RuleDraftSection } from "./RuleDraftSection";
 
-type RulesMode = "registry" | "draft" | "blacklist";
+type RulesMode = "registry" | "draft" | "whitelist" | "blacklist";
 type SeverityFilter = "all" | "critical" | "high" | "medium" | "low";
 type StreamFilter = "all" | "dynamic" | "static";
 
 const MODE_TABS: TabSpec<RulesMode>[] = [
   { value: "registry", label: "Registry" },
   { value: "draft", label: "Draft" },
+  { value: "whitelist", label: "Whitelist" },
   { value: "blacklist", label: "Blacklist" },
 ];
 
@@ -112,7 +113,13 @@ export function RulesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const mode: RulesMode =
-    tabParam === "draft" ? "draft" : tabParam === "blacklist" ? "blacklist" : "registry";
+    tabParam === "draft"
+      ? "draft"
+      : tabParam === "whitelist"
+        ? "whitelist"
+        : tabParam === "blacklist"
+          ? "blacklist"
+          : "registry";
   const fromEventId = searchParams.get("from");
   const search = searchParams.get("q") || "";
   const severity = normalizeSeverity(searchParams.get("severity"));
@@ -181,10 +188,13 @@ export function RulesPage() {
         tabs={MODE_TABS}
         value={mode}
         onChange={(next) => setParam("tab", next)}
+        style={{ overflowX: "auto" }}
       />
 
       {mode === "draft" ? (
         <RuleDraftSection fromEventId={fromEventId} report={report ?? null} />
+      ) : mode === "whitelist" ? (
+        <WhitelistPanel />
       ) : mode === "blacklist" ? (
         <BlacklistDomainsPanel />
       ) : (
@@ -199,6 +209,189 @@ export function RulesPage() {
           toggleRule={toggleRule}
         />
       )}
+    </div>
+  );
+}
+
+function WhitelistPanel() {
+  const query = useQuery({
+    queryKey: ["rules", "whitelist"],
+    queryFn: ({ signal }) => apiClient.getWhitelist(signal),
+  });
+  const data = query.data;
+
+  if (query.isLoading) {
+    return (
+      <Panel label="Whitelist">
+        <div style={{ color: V3.ink3, fontSize: 13 }}>Loading trust catalog…</div>
+      </Panel>
+    );
+  }
+  if (query.isError) {
+    return (
+      <Panel label="Whitelist">
+        <div style={{ color: V3.coral, fontSize: 13 }}>
+          Whitelist unavailable: {String(query.error)}
+        </div>
+      </Panel>
+    );
+  }
+  if (!data) return null;
+
+  return (
+    <>
+      <Panel
+        label="Whitelist scope"
+        right={<Badge tone="ok">reviewed seed</Badge>}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 150px), 1fr))",
+            gap: 10,
+          }}
+        >
+          <WhitelistStat label="Domains" value={data.domain_count} />
+          <WhitelistStat label="Organizations" value={data.organization_count} />
+          <WhitelistStat label="Publishers" value={data.publisher_count} />
+          <WhitelistStat label="Exact extensions" value={data.extension_count} />
+        </div>
+        <p style={{ margin: "14px 0 0", color: V3.ink2, fontSize: 13, lineHeight: 1.65 }}>
+          Trusted domains are excluded from the dynamic unknown-outbound correlations listed
+          below. Organization and publisher names are provenance context only; they never
+          suppress a behavioral finding by themselves. Changes remain code-reviewed and
+          read-only from this screen.
+        </p>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 6,
+            marginTop: 12,
+          }}
+        >
+          {data.domain_filtered_rule_ids.map((ruleId) => (
+            <Badge key={ruleId} tone="neutral">
+              {ruleId}
+            </Badge>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel label="Trusted network domains">
+        <div style={{ display: "grid", gap: 8 }}>
+          {data.domains.map((entry) => (
+            <article
+              key={entry.domain}
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(min(100%, 210px), 1fr))",
+                gap: 10,
+                padding: "12px 14px",
+                border: `1px solid ${V3.rule2}`,
+                background: V3.paper2,
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div className="micro-label">Domain</div>
+                <div
+                  style={{
+                    marginTop: 5,
+                    color: V3.ink,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 12,
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {entry.domain}
+                </div>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div className="micro-label">Owner</div>
+                <div style={{ marginTop: 5, color: V3.ink2, fontSize: 12.5 }}>
+                  {entry.organization}
+                </div>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div className="micro-label">Purpose</div>
+                <div style={{ marginTop: 5, color: V3.ink3, fontSize: 12.5, lineHeight: 1.5 }}>
+                  {entry.purpose}
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel label="Trusted organizations and publishers">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
+            gap: 10,
+          }}
+        >
+          {data.organizations.map((organization) => (
+            <article
+              key={organization.id}
+              style={{
+                minWidth: 0,
+                padding: 14,
+                border: `1px solid ${V3.rule2}`,
+                background: V3.paper2,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <strong style={{ color: V3.ink, fontSize: 13 }}>{organization.name}</strong>
+                <Badge tone="neutral">{organization.kind}</Badge>
+              </div>
+              <div className="micro-label" style={{ marginTop: 12 }}>
+                Publisher namespaces
+              </div>
+              <div
+                style={{
+                  marginTop: 6,
+                  color: organization.publishers.length ? V3.ink2 : V3.ink4,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 11.5,
+                  lineHeight: 1.6,
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {organization.publishers.length
+                  ? organization.publishers.join(" · ")
+                  : "No marketplace publisher namespace"}
+              </div>
+              {organization.extensions.length ? (
+                <div style={{ marginTop: 10, color: V3.ink3, fontSize: 11.5 }}>
+                  {organization.extensions.length} exact extension identit
+                  {organization.extensions.length === 1 ? "y" : "ies"} in the typosquat baseline
+                </div>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      </Panel>
+    </>
+  );
+}
+
+function WhitelistStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div style={{ padding: "12px 14px", border: `1px solid ${V3.rule2}`, background: V3.paper2 }}>
+      <div className="micro-label">{label}</div>
+      <div
+        style={{
+          marginTop: 7,
+          color: V3.ink,
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 20,
+          fontWeight: 700,
+        }}
+      >
+        {value}
+      </div>
     </div>
   );
 }

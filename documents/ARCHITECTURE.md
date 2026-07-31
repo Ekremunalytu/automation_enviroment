@@ -61,8 +61,10 @@ catalog data + analysis-job metadata is `appcore/storage/crud.py`.
 - `analysis_planner/` — registries, selection, attempts, coverage
   accounting, payload serialization.
 - `analysis_engine/` — dynamic detection rules under `rules/` (A1-A8 plus
-  the demo canary are production); allow-lists (`benign_domains.txt`,
-  `popular_extensions.txt`). Rules import only contracts.
+  the demo canary are production). Trusted domains/organizations live in the
+  shared `analysis_contracts/data/trusted_entities.json` catalog; exact popular
+  extension identities remain in `analysis_contracts/data/popular_extensions.txt`.
+  Rules import only contracts.
 - Static pre-check detection rules live outside `packages/` in
   `static_runtime/rules/` so the hardened analyzer image stays minimal; they
   may import stdlib plus `packages.analysis_contracts` helpers only.

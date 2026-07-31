@@ -1,1 +1,1 @@
-"""Operator-facing detection-rule configuration (the editable blacklist field)."""
+"""Operator-facing detection-rule trust and denylist configuration."""

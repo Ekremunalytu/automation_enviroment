@@ -5,7 +5,8 @@
 `Status: ACTIVE — SAP-0 through SAP-3 and the production-bundle precision
 follow-up are implemented on codex/static-analysis-artifact-precision. The
 branch also carries the static-only Reports presentation correction described
-in section 3 and the Reports-integrated Static analysis inspection tab.`
+in section 3, the Reports-integrated Static analysis inspection tab, and the
+pre-SAP-4 Rules whitelist visibility/normalization follow-up.`
 
 `Parent: static-analysis-improvement-roadmap.md Increment B / SAR-2.`
 
@@ -91,6 +92,13 @@ Gate policy stays unchanged: `BLOCK > INCONCLUSIVE > WARN > ALLOW`.
   coverage, severity distribution, tool execution time/status, coverage gaps,
   filterable findings, evidence-file footprint, and exact source snippets.
   INFO inventory remains visible without being presented as actionable risk.
+- Rules now exposes the shipped whitelist as a read-only operator surface:
+  trusted network domains include reviewed owner/purpose metadata, organization
+  cards expose publisher namespaces and exact typosquat-baseline identities,
+  and the API states the four dynamic rules affected by domain filtering.
+  `host:port` observations (including sandbox loopback traffic) normalize before
+  matching. Publisher/company identity alone never suppresses a behavioral
+  finding.
 - No blocker membership, timeout, dependency, DB schema, or dynamic execution
   behavior changed. Weak standalone heuristics were deliberately reclassified
   to INFO; proven critical/high conjunctions retain their existing gate effect.

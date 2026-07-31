@@ -25,6 +25,34 @@ export interface BlacklistDomainsDto {
   count: number;
 }
 
+export interface WhitelistDomainDto {
+  domain: string;
+  organization_id: string;
+  organization: string;
+  organization_kind: string;
+  purpose: string;
+  source_url: string | null;
+}
+
+export interface WhitelistOrganizationDto {
+  id: string;
+  name: string;
+  kind: string;
+  publishers: string[];
+  extensions: string[];
+}
+
+export interface WhitelistDto {
+  domains: WhitelistDomainDto[];
+  organizations: WhitelistOrganizationDto[];
+  extension_identities: string[];
+  domain_filtered_rule_ids: string[];
+  domain_count: number;
+  organization_count: number;
+  publisher_count: number;
+  extension_count: number;
+}
+
 export const apiClient = {
   listReports(signal?: AbortSignal) {
     return requestJson<ReportListItemDto[]>("/api/activations", { signal });
@@ -117,6 +145,9 @@ export const apiClient = {
   },
   getBlacklistDomains(signal?: AbortSignal) {
     return requestJson<BlacklistDomainsDto>("/api/rules/blacklist-domains", { signal });
+  },
+  getWhitelist(signal?: AbortSignal) {
+    return requestJson<WhitelistDto>("/api/rules/whitelist", { signal });
   },
   addBlacklistDomain(domain: string, signal?: AbortSignal) {
     return requestJson<BlacklistDomainsDto>("/api/rules/blacklist-domains", {

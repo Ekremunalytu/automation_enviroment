@@ -1,6 +1,6 @@
 # Rule Lifecycle + ADR 0003 Cross-Ref
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-07-31`
 
 Detection-rule authoring + the boundary between activation-layer
 `signal_summary` and rule-driven `DetectionReport.verdict`. Top-level
@@ -8,13 +8,17 @@ contract map: [`../DETECTION_SEMANTICS.md`](../DETECTION_SEMANTICS.md).
 
 ## Where Rules Live
 
-- `packages/analysis_engine/rules/` — A1 / A2 / A3 / A4 / A6 live; A5
-  - A7 deferred (`POST_POC_BACKLOG.md`).
+- `packages/analysis_engine/rules/` — A1-A8 plus the demo canary are live.
 - Rules import only contracts (`packages/analysis_contracts/`); never
   runtime, web, or storage layers (enforced by
   `tests/architecture/test_import_graph.py`).
-- Allow-lists under `packages/analysis_engine/allowlists/`
-  (`benign_domains.txt`, `popular_extensions.txt`).
+- Trusted domains and their reviewed organization/publisher ownership live in
+  `packages/analysis_contracts/data/trusted_entities.json`; the shared matcher
+  normalizes observed `host:port` values before exact/subdomain comparison.
+  Exact popular extension identities remain in
+  `packages/analysis_contracts/data/popular_extensions.txt` for the shared
+  dynamic/static typosquat matcher. Rules → Whitelist exposes both read-only;
+  publisher names are provenance context and never suppress behavior alone.
 
 ## ADR 0003 — Detection Taxonomy
 

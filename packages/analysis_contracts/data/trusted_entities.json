@@ -1,0 +1,204 @@
+{
+  "schema_version": 1,
+  "organizations": [
+    {
+      "id": "local-runtime",
+      "name": "Local runtime",
+      "kind": "system",
+      "publishers": [],
+      "domains": [
+        {
+          "domain": "127.0.0.1",
+          "purpose": "IPv4 loopback services inside the analysis environment"
+        },
+        {
+          "domain": "localhost",
+          "purpose": "Named loopback services inside the analysis environment"
+        }
+      ]
+    },
+    {
+      "id": "iana-examples",
+      "name": "IANA example namespace",
+      "kind": "system",
+      "publishers": [],
+      "domains": [
+        {
+          "domain": "example.com",
+          "purpose": "Reserved documentation and synthetic-test namespace",
+          "source_url": "https://www.iana.org/help/example-domains"
+        }
+      ]
+    },
+    {
+      "id": "microsoft-vscode",
+      "name": "Microsoft / Visual Studio Code",
+      "kind": "company",
+      "publishers": [
+        "microsoft",
+        "ms-azuretools",
+        "ms-dotnettools",
+        "ms-python",
+        "ms-toolsai",
+        "ms-vscode",
+        "ms-vscode-remote",
+        "visualstudio"
+      ],
+      "domains": [
+        {
+          "domain": "microsoft.com",
+          "purpose": "Microsoft first-party service baseline"
+        },
+        {
+          "domain": "visualstudio.com",
+          "purpose": "Visual Studio and Marketplace first-party services",
+          "source_url": "https://code.visualstudio.com/docs/setup/network"
+        },
+        {
+          "domain": "vscode-cdn.net",
+          "purpose": "Visual Studio Code CDN",
+          "source_url": "https://code.visualstudio.com/docs/setup/network"
+        },
+        {
+          "domain": "gallery.vsassets.io",
+          "purpose": "Visual Studio Marketplace gallery assets",
+          "source_url": "https://code.visualstudio.com/docs/setup/network"
+        },
+        {
+          "domain": "gallerycdn.vsassets.io",
+          "purpose": "Visual Studio Marketplace gallery CDN",
+          "source_url": "https://code.visualstudio.com/docs/setup/network"
+        },
+        {
+          "domain": "vsmarketplacebadges.dev",
+          "purpose": "Visual Studio Marketplace badge service",
+          "source_url": "https://code.visualstudio.com/docs/setup/network"
+        },
+        {
+          "domain": "vscode.dev",
+          "purpose": "Visual Studio Code web and authentication redirect service",
+          "source_url": "https://code.visualstudio.com/docs/setup/network"
+        },
+        {
+          "domain": "vscode-sync.trafficmanager.net",
+          "purpose": "Visual Studio Code Settings Sync",
+          "source_url": "https://code.visualstudio.com/docs/setup/network"
+        },
+        {
+          "domain": "vscode-sync-insiders.trafficmanager.net",
+          "purpose": "Visual Studio Code Insiders Settings Sync",
+          "source_url": "https://code.visualstudio.com/docs/setup/network"
+        }
+      ]
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "kind": "company",
+      "publishers": ["github"],
+      "domains": [
+        {
+          "domain": "github.com",
+          "purpose": "GitHub first-party web and API services",
+          "source_url": "https://docs.github.com/en/copilot/reference/copilot-allowlist-reference"
+        },
+        {
+          "domain": "githubassets.com",
+          "purpose": "GitHub static service assets",
+          "source_url": "https://docs.github.com/en/copilot/reference/copilot-allowlist-reference"
+        },
+        {
+          "domain": "githubcopilot.com",
+          "purpose": "GitHub Copilot API service",
+          "source_url": "https://docs.github.com/en/copilot/reference/copilot-allowlist-reference"
+        },
+        {
+          "domain": "copilot-proxy.githubusercontent.com",
+          "purpose": "GitHub Copilot suggestion proxy",
+          "source_url": "https://docs.github.com/en/copilot/reference/copilot-allowlist-reference"
+        },
+        {
+          "domain": "origin-tracker.githubusercontent.com",
+          "purpose": "GitHub Copilot origin tracking service",
+          "source_url": "https://docs.github.com/en/copilot/reference/copilot-allowlist-reference"
+        },
+        {
+          "domain": "copilot-telemetry.githubusercontent.com",
+          "purpose": "GitHub Copilot client telemetry",
+          "source_url": "https://docs.github.com/en/copilot/reference/copilot-allowlist-reference"
+        },
+        {
+          "domain": "default.exp-tas.com",
+          "purpose": "GitHub Copilot client experimentation",
+          "source_url": "https://docs.github.com/en/copilot/reference/copilot-allowlist-reference"
+        }
+      ]
+    },
+    {
+      "id": "npm",
+      "name": "npm",
+      "kind": "company",
+      "publishers": [],
+      "domains": [
+        {
+          "domain": "registry.npmjs.org",
+          "purpose": "Official npm public package registry",
+          "source_url": "https://docs.npmjs.com/cli/v7/using-npm/registry/"
+        }
+      ]
+    },
+    {
+      "id": "schemastore",
+      "name": "SchemaStore",
+      "kind": "community",
+      "publishers": [],
+      "domains": [
+        {
+          "domain": "www.schemastore.org",
+          "purpose": "Public JSON Schema catalog",
+          "source_url": "https://www.schemastore.org/"
+        }
+      ]
+    },
+    {
+      "id": "eclipse-open-vsx",
+      "name": "Eclipse Foundation / Open VSX",
+      "kind": "foundation",
+      "publishers": [],
+      "domains": [
+        {
+          "domain": "open-vsx.org",
+          "purpose": "Open VSX extension registry"
+        }
+      ]
+    },
+    {
+      "id": "red-hat",
+      "name": "Red Hat",
+      "kind": "company",
+      "publishers": ["redhat"],
+      "domains": []
+    },
+    {
+      "id": "hashicorp",
+      "name": "HashiCorp",
+      "kind": "company",
+      "publishers": ["hashicorp"],
+      "domains": []
+    },
+    {
+      "id": "go-project",
+      "name": "Go project",
+      "kind": "project",
+      "publishers": ["golang"],
+      "domains": []
+    },
+    {
+      "id": "rust-project",
+      "name": "Rust project",
+      "kind": "project",
+      "publishers": ["rust-lang"],
+      "domains": []
+    }
+  ]
+}

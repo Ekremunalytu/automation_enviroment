@@ -1,6 +1,6 @@
 # packages/analysis_engine
 
-`Last Updated: 2026-04-23`
+`Last Updated: 2026-07-31`
 
 This package owns trusted analysis logic that must stay outside sandbox-local
 executor modules so that detection rules can run against any
@@ -21,8 +21,10 @@ Current surfaces (W5 landed `2026-04-20`, W6 correctness follow-up
     `target_unknown_outbound_network_events`.
 - `rules/registry.py`
   - rule registration entry points and discovery helpers
-- `allowlists/`
-  - allowlist data files (e.g. `benign_domains.txt`) consumed by rules
+- Trusted-domain matching is shared through
+  `packages.analysis_contracts.trusted_entities`; the reviewed JSON catalog is
+  also consumed by the Rules API/UI so detection behavior and operator-visible
+  ownership cannot drift.
 
 This package stays framework-agnostic per ADR 0005: no imports from
 `appcore/`, `workflows/`, `executor/`, or `ui/`.

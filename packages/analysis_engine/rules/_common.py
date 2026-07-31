@@ -2,36 +2,30 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
-from packages.analysis_contracts import ActivationReport, EvidenceEvent
-from packages.analysis_contracts.detection import EvidenceRef
-
-_BENIGN_DOMAIN_PATH = (
-    Path(__file__).resolve().parents[1] / "allowlists" / "benign_domains.txt"
+from packages.analysis_contracts import (
+    ActivationReport,
+    EvidenceEvent,
+    is_trusted_domain,
+    trusted_domains,
 )
+from packages.analysis_contracts.detection import EvidenceRef
 
 TLS_EVENT_TYPES: frozenset[str] = frozenset({"tls_sni", "tls_client_hello"})
 _TARGET_ATTRIBUTION_STATUSES: frozenset[str] = frozenset({"strong", "direct"})
 
 
-@lru_cache(maxsize=1)
 def benign_domains() -> frozenset[str]:
-    lines = _BENIGN_DOMAIN_PATH.read_text(encoding="utf-8").splitlines()
-    values = {line.strip().lower() for line in lines if line.strip()}
-    return frozenset(values)
+    """Compatibility name for the shared trusted-domain catalog."""
+
+    return trusted_domains()
 
 
 def is_benign_domain(host: str) -> bool:
-    normalized = host.strip().lower().rstrip(".")
-    if not normalized:
-        return False
-    for allowed in benign_domains():
-        if normalized == allowed or normalized.endswith(f".{allowed}"):
-            return True
-    return False
+    """Compatibility name used by the dynamic unknown-outbound rules."""
+
+    return is_trusted_domain(host)
 
 
 def event_type(event: EvidenceEvent) -> str:
