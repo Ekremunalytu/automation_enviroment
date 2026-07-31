@@ -286,6 +286,11 @@ test-security:
 		tests/security/test_static_container_isolation.py \
 		tests/security/test_semgrep_js_rules.py \
 		tests/static_runtime/test_rule_inventory.py \
+		tests/static_runtime/test_evaluation_determinism.py \
+		tests/static_runtime/test_evaluation_manifest.py \
+		tests/static_runtime/test_evaluation_metrics.py \
+		tests/static_runtime/test_static_eval_cli.py \
+		tests/static_runtime/test_scan_coverage.py \
 		tests/static_runtime/test_s4_blacklisted_domain.py \
 		tests/static_runtime/test_s12_invisible_unicode.py \
 		tests/static_runtime/test_s13_native_node_loader.py \
@@ -295,6 +300,7 @@ test-security:
 		tests/architecture/test_default_bindings.py \
 		tests/architecture/test_dockerfile_digest_pin.py \
 		tests/workflows/marketplace/test_vsix_hardening.py \
+		tests/workflows/marketplace/test_decision_gate.py \
 		tests/executor/security/test_uri_trigger_injection.py \
 		tests/workflows/activation_reports/test_router_path_traversal.py
 	@echo "✅ Security fixture lane complete!"
@@ -559,6 +565,19 @@ static-run-fixture: static-up
 		--vsix-dir "$(TARGET)" \
 		--report-path "/results/static-report.json" \
 		--rules-version "$(if $(RULES_VERSION),$(RULES_VERSION),0.0.0)" \
+		--timeout-budget-s "$(if $(BUDGET),$(BUDGET),30)"
+
+# Deterministic SMF corpus evaluation. The launcher only performs a docker exec;
+# fixture source stays read-only and artifacts land under ignored output/.
+static-eval: static-up
+	@printf '%s' "$(if $(SPLIT),$(SPLIT),tuning)" | grep -qE '^(tuning|holdout|all)$$' || { \
+		echo "❌ SPLIT must be tuning, holdout, or all"; exit 1; \
+	}
+	@if [ -n "$(BUDGET)" ] && ! printf '%s' "$(BUDGET)" | grep -qE '^[1-9][0-9]*$$'; then \
+		echo "❌ BUDGET must be a positive integer (got: $(BUDGET))"; exit 1; \
+	fi
+	$(VENV)/python scripts/static_eval.py \
+		--split "$(if $(SPLIT),$(SPLIT),tuning)" \
 		--timeout-budget-s "$(if $(BUDGET),$(BUDGET),30)"
 
 # =============================================================================

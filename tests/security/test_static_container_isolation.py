@@ -97,6 +97,11 @@ def test_static_analyzer_mounts_input_ro_and_results_rw() -> None:
     assert all(not v.endswith(":ro") for v in results), (
         f"static_analyzer results mount must be writable (rw). Got: {results!r}."
     )
+    evaluation = [v for v in volumes if "/evaluation-corpus" in v and v.endswith(":ro")]
+    assert evaluation, (
+        "SMF corpus must be mounted read-only in the networkless analyzer. "
+        f"Got volumes: {volumes!r}."
+    )
 
 
 def test_static_analyzer_has_no_docker_socket() -> None:

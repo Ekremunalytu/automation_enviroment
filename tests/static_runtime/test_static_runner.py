@@ -47,8 +47,9 @@ def test_runner_emits_inhouse_tool_record_for_empty_tree(tmp_path: Path) -> None
     assert record.version == "1.0.0"
     assert record.rules_loaded == 26
     assert record.findings_emitted == 0
-    assert record.status == "ok"
-    assert report.partial is False
+    assert record.status == "partial"
+    assert report.partial is True
+    assert "manifest_missing" in report.coverage.coverage_reasons
     assert report.severity_counts.model_dump() == {
         "critical": 0,
         "high": 0,
@@ -168,6 +169,7 @@ def test_inhouse_rule_error_degrades_to_partial_and_is_recorded(
     assert record.status == "partial"
     assert record.error_count == 1
     assert record.errored_rule_ids == ["extrace.test.bad"]
+    assert "tool_error" in record.coverage.coverage_reasons
     assert report.partial is True
     assert record.findings_emitted == 1
     assert [f.rule_id for f in report.findings] == ["extrace.test.good"]
@@ -205,6 +207,7 @@ def test_inhouse_budget_trip_marks_partial_and_stops_early(
     assert report.partial is True
     assert record.error_count == 0
     assert record.errored_rule_ids == []
+    assert "budget_stop" in record.coverage.coverage_reasons
     # Only the first rule ran before the budget tripped.
     assert record.findings_emitted == 1
     assert [f.rule_id for f in report.findings] == ["extrace.test.first"]
@@ -250,6 +253,11 @@ def _semgrep_finding() -> StaticDetectionFinding:
 def test_runner_combines_inhouse_and_semgrep(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    (tmp_path / "package.json").write_text(
+        json.dumps({"publisher": "trusted", "main": "extension.js"}),
+        encoding="utf-8",
+    )
+    (tmp_path / "extension.js").write_text("module.exports = {};", encoding="utf-8")
     monkeypatch.setattr(
         static_runner,
         "run_semgrep",

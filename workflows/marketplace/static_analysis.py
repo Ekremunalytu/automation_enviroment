@@ -2,7 +2,7 @@
 
 The additive, orchestrator-free core of the static pre-check stage:
 
-* ``evaluate_static_gate`` — the block-and-warn truth table over a
+* ``evaluate_static_gate`` — the four-way conclusion truth table over a
   ``StaticDetectionReport`` (ADR 0016 §Decision 1).
 * ``run_static_analysis`` — drives the hardened ``automation_static_analyzer``
   container through ``StaticAnalyzerControl``, parses the emitted
@@ -37,27 +37,15 @@ from executor.static_control import (
     StaticAnalyzerControl,
     default_static_analyzer_control,
 )
-from packages.analysis_contracts.detection.enums import Severity
 from packages.analysis_contracts.static_detection import (
     StaticDetectionReport,
-    StaticGateDecision,
-    StaticGateOutcome,
 )
-
-# Curated HIGH-severity rules promoted to a BLOCK decision. A frozenset, never
-# config: changing it requires an ADR 0016 amendment + commit audit trail
-# (ADR 0016 §Decision 1). Today the sole member is the static typosquat rule.
-_PROMOTED_HIGH_BLOCKERS: frozenset[str] = frozenset({"extrace.s2.typosquat"})
-
-# Severity tiers that warrant a WARN when nothing blocks. ADR 0016 §Decision 1
-# enumerates LOW/MEDIUM -> warn; a HIGH finding that is not a promoted blocker
-# rides the same WARN path. INFO is purely informational and does not, by
-# itself, raise a warning.
-_WARN_SEVERITIES: frozenset[Severity] = frozenset(
-    {Severity.HIGH, Severity.MEDIUM, Severity.LOW}
+from packages.analysis_contracts.static_detection.policy import (
+    _PROMOTED_HIGH_BLOCKERS as _PROMOTED_HIGH_BLOCKERS,
 )
-
-_ALLOW_REASON_CLEAN = "No blocking or warnable static findings."
+from packages.analysis_contracts.static_detection.policy import (
+    evaluate_static_gate,
+)
 
 
 class StaticAnalysisBlockedError(RuntimeError):
@@ -82,50 +70,6 @@ class StaticReportError(RuntimeError):
     extension does not proceed to the dynamic sandbox on an unreadable report —
     so a broken analyzer can never be mistaken for an ALLOW.
     """
-
-
-def _is_blocking(severity: Severity, rule_id: str) -> bool:
-    """A finding blocks when it is CRITICAL or a promoted HIGH blocker."""
-    if severity is Severity.CRITICAL:
-        return True
-    return severity is Severity.HIGH and rule_id in _PROMOTED_HIGH_BLOCKERS
-
-
-def _dedupe(rule_ids: list[str]) -> list[str]:
-    """Stable-sorted unique rule ids for a deterministic machine-readable cause."""
-    return sorted(set(rule_ids))
-
-
-def evaluate_static_gate(report: StaticDetectionReport) -> StaticGateOutcome:
-    """Apply the ADR 0016 block-and-warn truth table to a detection report.
-
-    * a CRITICAL finding, or a HIGH finding whose ``rule_id`` is in
-      ``_PROMOTED_HIGH_BLOCKERS`` -> BLOCK (terminal ``rejected_static``);
-    * otherwise any HIGH/MEDIUM/LOW finding -> WARN (the dynamic stage proceeds
-      and the warnings ride along in the combined bundle);
-    * no findings (or only INFO) -> ALLOW.
-
-    ``blocked_by`` / ``warned_by`` carry the deduped, sorted ``rule_id`` set so
-    the rejection/warning always names a machine-readable cause (the gate
-    contract's observability invariant).
-    """
-    blocked_by = _dedupe(
-        [f.rule_id for f in report.findings if _is_blocking(f.severity, f.rule_id)]
-    )
-    if blocked_by:
-        return StaticGateOutcome(
-            decision=StaticGateDecision.BLOCK, blocked_by=blocked_by
-        )
-
-    warned_by = _dedupe(
-        [f.rule_id for f in report.findings if f.severity in _WARN_SEVERITIES]
-    )
-    if warned_by:
-        return StaticGateOutcome(decision=StaticGateDecision.WARN, warned_by=warned_by)
-
-    return StaticGateOutcome(
-        decision=StaticGateDecision.ALLOW, allow_reason=_ALLOW_REASON_CLEAN
-    )
 
 
 def run_static_analysis(

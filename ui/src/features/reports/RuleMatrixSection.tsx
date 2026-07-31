@@ -66,6 +66,14 @@ function severityTone(severity: RuleSeverity): V3Tone {
   return "neutral";
 }
 
+function staticDecisionTone(
+  decision: StaticReportView["decision"],
+): V3Tone {
+  if (decision === "block") return "danger";
+  if (decision === "warn" || decision === "inconclusive") return "warn";
+  return "ok";
+}
+
 function cellBackground(status: RuleStatus): string {
   if (status === "fired") return V3.dangerBg;
   if (status === "error") return V3.warnBg;
@@ -460,6 +468,28 @@ export function RuleMatrixSection({
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
               {latestStaticArtifact ? (
                 <Badge tone="neutral">Latest static artifact</Badge>
+              ) : null}
+              {effectiveReport.staticReport ? (
+                <Badge
+                  tone={staticDecisionTone(effectiveReport.staticReport.decision)}
+                >
+                  {effectiveReport.staticReport.decisionLabel}
+                </Badge>
+              ) : null}
+              {effectiveReport.staticReport?.decision === "inconclusive" ? (
+                <span
+                  role="status"
+                  aria-label="Static analysis inconclusive reasons"
+                  style={{
+                    color: V3.warn,
+                    fontFamily: FONT_MONO,
+                    fontSize: 10,
+                  }}
+                >
+                  Coverage incomplete:{" "}
+                  {effectiveReport.staticReport.inconclusiveReasons.join(", ") ||
+                    "unspecified"}
+                </span>
               ) : null}
               <Eyebrow>
                 {matrix.counts.staticFired}/{matrix.counts.staticTotal} fired

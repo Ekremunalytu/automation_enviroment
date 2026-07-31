@@ -66,8 +66,10 @@ const STATIC_REPORT: StaticReportView = {
   decisionLabel: "Warn",
   blockedBy: [],
   warnedBy: ["extrace.s3.embedded_native_binary"],
+  inconclusiveReasons: [],
   allowReason: null,
   partial: false,
+  coverage: { filesDiscovered: 2, filesScanned: 2, filesParsed: 2, reasons: [] },
   toolStatuses: [
     { tool: "inhouse", status: "ok", errorCount: 0 },
     { tool: "semgrep", status: "ok", errorCount: 0 },
@@ -119,6 +121,29 @@ describe("RuleMatrixSection", () => {
     expect(screen.getByText(/No static pre-check for this run/i)).toBeTruthy();
     // Dynamic band still renders.
     expect(screen.getByRole("button", { name: /Credential read.*Fired/i })).toBeTruthy();
+  });
+
+  it("shows inconclusive status and coverage reasons accessibly", () => {
+    render(
+      <RuleMatrixSection
+        report={makeReport({
+          detection: DETECTION,
+          staticReport: {
+            ...STATIC_REPORT,
+            decision: "inconclusive",
+            decisionLabel: "Inconclusive",
+            inconclusiveReasons: ["target_too_large", "parser_error"],
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("Inconclusive")).toBeTruthy();
+    expect(
+      screen.getByRole("status", {
+        name: "Static analysis inconclusive reasons",
+      }).textContent,
+    ).toContain("target_too_large, parser_error");
   });
 
   it("replaces dynamic cells with an explicit disabled state", () => {

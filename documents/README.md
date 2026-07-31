@@ -1,6 +1,8 @@
 # Documents Guide
 
-`Last Updated: 2026-07-30 — Last merged weekly: W22 (PR #31 week22 -> main 1399f82).`
+`Last Updated: 2026-07-31 — Last merged weekly: W22 (PR #31 week22 -> main 1399f82).`
+
+`Active named stream: static-analysis-measurement-foundation; tracker: active-work/static-analysis-measurement-foundation.md.`
 
 Do not preload this folder. After `AGENTS.md`, use
 [`AGENT_CONTEXT.md`](AGENT_CONTEXT.md) to choose one

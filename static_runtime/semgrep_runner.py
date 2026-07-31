@@ -33,10 +33,12 @@ from packages.analysis_contracts.detection.enums import (
     Severity,
 )
 from packages.analysis_contracts.static_detection import (
+    StaticCoverageReason,
     StaticDetectionFinding,
+    StaticScanCoverage,
     StaticToolExecutionRecord,
 )
-from static_runtime.rules._common import file_evidence
+from static_runtime.rules._common import MAX_TEXT_BYTES, file_evidence
 
 # The interpreter that launched ``python -m static_runtime`` — in the hardened
 # image the pinned ``/usr/local/bin/python3``. Semgrep's console script installs
@@ -62,13 +64,14 @@ _RULE_VERSION = "1.0.0"
 # caller derives from the remaining static budget.
 _SEMGREP_PER_RULE_TIMEOUT_S = 5
 
-# Skip files larger than this (minified/bundled payloads): bounds scan time and
-# mirrors the in-house "oversized text" posture. Oversize files land in semgrep's
-# ``paths.skipped`` (not ``errors``), so they do not mark the report partial.
-_MAX_TARGET_BYTES = 1_000_000
+# Keep Semgrep and the in-house text rules on the same bounded production-bundle
+# envelope. This covers common multi-MiB webpack/esbuild entrypoints without
+# allowing an extension-controlled file to drive an unbounded parser workload.
+_MAX_TARGET_BYTES = MAX_TEXT_BYTES
 
 # Cap total mapped findings so a pathological tree cannot bloat the report.
 _MAX_FINDINGS = 200
+_MAX_PATH_DETAILS = 20
 
 _SEMGREP_MEMORY_MB = 768
 
@@ -82,6 +85,7 @@ _SEMGREP_OK_RETURNCODES = frozenset({0, 1})
 
 # Mirror of StaticToolExecutionRecord.status's Literal.
 _ToolStatus = Literal["ok", "partial", "error", "timeout"]
+_SEMGREP_SOURCE_SUFFIXES = frozenset({".js", ".jsx", ".ts", ".tsx", ".cjs", ".mjs"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +109,16 @@ class SemgrepRuleInventoryEntry:
     severity: str
     confidence: str
     categories: tuple[str, ...]
+    capabilities: tuple[str, ...]
+    gate_effect: str
+    artifact_roles: tuple[str, ...]
+    test_ownership: tuple[str, ...]
+    positive_tests: tuple[str, ...]
+    negative_tests: tuple[str, ...]
+    known_false_positives: tuple[str, ...]
+    known_blind_spots: tuple[str, ...]
+    runtime_budget: str
+    owner: str
 
 
 # Keyed by the Semgrep rule's bare ``id`` (the trailing dotted segment of the
@@ -436,6 +450,11 @@ def run_semgrep(
             findings.append(finding)
 
     duration_ms = int((time.monotonic() - start) * 1000)
+    coverage = _build_semgrep_coverage(
+        vsix_root,
+        raw_result_count=len(results),
+        error_count=len(errors),
+    )
     record = StaticToolExecutionRecord(
         tool="semgrep",
         version=version,
@@ -444,9 +463,10 @@ def run_semgrep(
         duration_ms=duration_ms,
         # Per-file parse errors / rule timeouts mean incomplete coverage — mark
         # the run partial (and surface the count) without failing it.
-        status="partial" if errors else "ok",
+        status="partial" if (errors or coverage.coverage_reasons) else "ok",
         error_count=len(errors),
         errored_rule_ids=_collect_error_rule_ids(errors),
+        coverage=coverage,
     )
     return SemgrepRunResult(findings=findings, record=record)
 
@@ -618,6 +638,90 @@ def _count_rules() -> int:
     return len(_RULE_META)
 
 
+def _build_semgrep_coverage(
+    root: Path, *, raw_result_count: int, error_count: int
+) -> StaticScanCoverage:
+    """Build bounded target accounting from Semgrep's deterministic selection policy."""
+
+    discovered = 0
+    eligible = 0
+    scanned = 0
+    bytes_considered = 0
+    bytes_read = 0
+    skipped: dict[str, int] = {}
+    skipped_path_details: dict[str, list[str]] = {}
+    unsupported: dict[str, int] = {}
+    if root.is_dir():
+        for path in root.rglob("*"):
+            if path.is_symlink() or not path.is_file():
+                continue
+            discovered += 1
+            relative = path.relative_to(root)
+            suffix = path.suffix.lower() or "<none>"
+            if "node_modules" in relative.parts or path.name.endswith(".min.js"):
+                skipped["excluded_inventory_only"] = (
+                    skipped.get("excluded_inventory_only", 0) + 1
+                )
+                skipped_path_details.setdefault("excluded_inventory_only", []).append(
+                    relative.as_posix()
+                )
+                continue
+            if suffix not in _SEMGREP_SOURCE_SUFFIXES:
+                unsupported[suffix] = unsupported.get(suffix, 0) + 1
+                continue
+            eligible += 1
+            try:
+                size = path.stat().st_size
+            except OSError:
+                skipped["parser_error"] = skipped.get("parser_error", 0) + 1
+                skipped_path_details.setdefault("parser_error", []).append(
+                    relative.as_posix()
+                )
+                continue
+            bytes_considered += size
+            if size > _MAX_TARGET_BYTES:
+                skipped["target_too_large"] = skipped.get("target_too_large", 0) + 1
+                skipped_path_details.setdefault("target_too_large", []).append(
+                    relative.as_posix()
+                )
+                continue
+            scanned += 1
+            bytes_read += size
+
+    reasons: list[StaticCoverageReason] = []
+    if skipped.get("target_too_large"):
+        reasons.append("target_too_large")
+    if skipped.get("parser_error") or error_count:
+        reasons.append("parser_error")
+    finding_cap_reached = raw_result_count > _MAX_FINDINGS
+    if finding_cap_reached:
+        reasons.append("finding_cap")
+        skipped["finding_cap"] = raw_result_count - _MAX_FINDINGS
+    # Intentional scope exclusions remain visible in the inventory accounting,
+    # but are not a degraded execution state. The in-house production rules scan
+    # these text files; Semgrep's advisory echo rules exclude vendor/minified
+    # trees to keep parser cost and duplicate noise bounded. Real loss conditions
+    # (oversize targets, parse errors, caps) still populate ``coverage_reasons``.
+
+    return StaticScanCoverage(
+        files_discovered=discovered,
+        files_selected=eligible,
+        files_eligible=eligible,
+        files_scanned=scanned,
+        files_parsed=scanned,
+        files_skipped_by_reason=skipped,
+        skipped_paths_by_reason={
+            reason: sorted(set(paths))[:_MAX_PATH_DETAILS]
+            for reason, paths in skipped_path_details.items()
+        },
+        bytes_considered=bytes_considered,
+        bytes_read=bytes_read,
+        finding_cap_reached=finding_cap_reached,
+        unsupported_formats=unsupported,
+        coverage_reasons=reasons,
+    )
+
+
 def get_semgrep_rule_inventory() -> tuple[SemgrepRuleInventoryEntry, ...]:
     """Return deterministic metadata for every mappable Semgrep rule.
 
@@ -634,6 +738,25 @@ def get_semgrep_rule_inventory() -> tuple[SemgrepRuleInventoryEntry, ...]:
             severity=Severity.MEDIUM.value,
             confidence=Confidence.MEDIUM.value,
             categories=meta.categories,
+            capabilities=(meta.rule_id.rsplit(".", 1)[-1],),
+            gate_effect="warn",
+            artifact_roles=("source_file",),
+            test_ownership=("tests/security/test_semgrep_js_rules.py",),
+            positive_tests=("tests/security/test_semgrep_js_rules.py",),
+            negative_tests=("tests/security/test_semgrep_js_rules.py",),
+            known_false_positives=(
+                "Syntactic advisory matches can lack source-to-sink context.",
+            ),
+            known_blind_spots=(
+                "Semgrep excludes vendor/minified sources, targets above 32 MiB, "
+                "and unsupported languages; in-house rules retain bounded "
+                "text coverage.",
+            ),
+            runtime_budget=(
+                f"32 MiB per target; {_SEMGREP_PER_RULE_TIMEOUT_S}s per rule/file; "
+                "outer static-analysis wall clock"
+            ),
+            owner="security-detection",
         )
         for meta in sorted(_RULE_META.values(), key=lambda item: item.rule_id)
     )
@@ -673,6 +796,11 @@ def _failure_result(
             status=status,
             error_count=0,
             errored_rule_ids=[],
+            coverage=StaticScanCoverage(
+                coverage_reasons=[
+                    "tool_timeout" if status == "timeout" else "tool_error"
+                ]
+            ),
         ),
     )
 

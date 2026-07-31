@@ -6,7 +6,7 @@
 
 `Owner: ekrem`
 
-`Status: MERGED — all sub-items H0–H1b landed on week24 (272e9f8 H0 · 111bf6b H1 · fc57c59 H2 · 844df3d H3 · 200933c H1b), then PR #36 merged to main as 1e3fba6 on 2026-06-23. UI suite 155 green (+2 time-zone adapter integration tests added at close-out, see Verification); tsc/eslint/ui-boundaries/ui-types-check clean; doc-preamble parity/consistency/manifest/readme-pointer arch gates green; browser-verified via the ui-dev Vite preview against the live API (Settings honesty + live theme/density/time-zone, light↔dark switch with no dark islands, System API card real "OK" healthy tone + MOCK markers). Non-bar stream: closes no v1.0 bar; it removes operator-trust defects (decorative/dead console controls implying a backend effect that does not exist). phase.json.active_stream named operator-console-honesty while this stream was open; it is now null because no successor to closed W26 is open.`
+`Status: MERGED — all sub-items H0–H1b landed on week24 (272e9f8 H0 · 111bf6b H1 · fc57c59 H2 · 844df3d H3 · 200933c H1b), then PR #36 merged to main as 1e3fba6 on 2026-06-23. UI suite 155 green (+2 time-zone adapter integration tests added at close-out, see Verification); tsc/eslint/ui-boundaries/ui-types-check clean; doc-preamble parity/consistency/manifest/readme-pointer arch gates green; browser-verified via the ui-dev Vite preview against the live API (Settings honesty + live theme/density/time-zone, light↔dark switch with no dark islands, System API card real "OK" healthy tone + MOCK markers). Non-bar stream: closes no v1.0 bar; it removes operator-trust defects (decorative/dead console controls implying a backend effect that does not exist). phase.json.active_stream named operator-console-honesty while this stream was open and later returned to null after W26; the current pointer names static-analysis-measurement-foundation.`
 
 > Scope locked to **UI + docs only** (per the 2026-06-15 planning session):
 > **NO backend / DB / detection / executor. No Alembic migration. No
@@ -124,7 +124,9 @@ Bucketed, evidence-cited, blocking flags noted. Resolve/waive before close-out.
 ## Operational notes
 
 - `last_merged_weekly` stays **W22**. While this stream was open,
-  `active_stream = operator-console-honesty`; it is now `null`.
+  `active_stream = operator-console-honesty`; it later returned to `null`
+  after W26, and the current pointer names
+  `static-analysis-measurement-foundation`.
   Named stream — W24 is a stream label, not a weekly close-out.
 - No backend rebuild needed — UI-only; the `automation_ui` static build serves
   the changes (browser-verify via the `ui-dev` vite preview, not the :3000

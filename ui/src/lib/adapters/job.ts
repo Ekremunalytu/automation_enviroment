@@ -28,7 +28,7 @@ const STEP_WEIGHTS: Record<string, number> = {
 };
 
 // Static pre-check (ES-5) runs before the sandbox pipeline and lands as a single
-// terminal `static_report` gate (ALLOW/WARN/BLOCK), not as an incremental step.
+// `static_report` gate (ALLOW/WARN/INCONCLUSIVE/BLOCK), not as an incremental step.
 // When folded into progress it counts as one fixed-weight segment that is 100%
 // complete the moment the static report is attached, so the bar leaves 0% during
 // early warmup instead of sitting at zero while the sandbox resets.
@@ -155,8 +155,15 @@ export function adaptStaticReport(
     decisionLabel: titleCase(gate.decision),
     blockedBy: gate.blocked_by ?? [],
     warnedBy: gate.warned_by ?? [],
+    inconclusiveReasons: gate.inconclusive_reasons ?? [],
     allowReason: gate.allow_reason ?? null,
     partial: detection.partial ?? false,
+    coverage: {
+      filesDiscovered: detection.coverage?.files_discovered ?? 0,
+      filesScanned: detection.coverage?.files_scanned ?? 0,
+      filesParsed: detection.coverage?.files_parsed ?? 0,
+      reasons: detection.coverage?.coverage_reasons ?? [],
+    },
     toolStatuses: (detection.tool_executions ?? []).map((record) => ({
       tool: record.tool,
       status: record.status ?? "ok",

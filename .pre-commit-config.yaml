@@ -42,7 +42,9 @@ repos:
       - id: check-yaml
         args: [--unsafe]
       - id: check-json
-        exclude: ^ui/tsconfig.*\.json$  # JSONC: TypeScript tsconfig variants permit trailing commas / comments
+        # JSONC permits comments/trailing commas; the corpus path is the
+        # deliberate malformed-manifest coverage control.
+        exclude: ^(ui/tsconfig.*\.json|tests/static_corpus/samples/tuning-manifest-malformed/package\.json)$
       - id: check-toml
       - id: check-added-large-files
         args: [--maxkb=1000]

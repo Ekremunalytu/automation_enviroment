@@ -17,6 +17,9 @@
     { "id": "W20", "pr": 29, "branch": "week20 -> main", "sha": "64a3c3d" },
     { "id": "W21", "pr": 30, "branch": "week21 -> main", "sha": "5dc18aa" }
   ],
-  "active_stream": null,
-  "updated": "2026-07-29"
+  "active_stream": {
+    "id": "static-analysis-measurement-foundation",
+    "tracker": "documents/active-work/static-analysis-measurement-foundation.md"
+  },
+  "updated": "2026-07-30"
 }

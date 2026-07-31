@@ -1,8 +1,8 @@
 # Static Analysis Improvement Roadmap
 
-`Last Updated: 2026-07-30`
+`Last Updated: 2026-07-31`
 
-`Status: PROPOSED — non-active planning document. documents/phase.json.active_stream remains null. Opening an implementation stream, changing gate policy, adding dependencies, or changing shared contracts still requires the normal owner decision and ADR process.`
+`Status: ACTIVE ROADMAP — Increment A is open as static-analysis-measurement-foundation (SMF-0..SMF-8) in documents/phase.json.active_stream. Later increments, dependencies, detector/blocker changes, and AI work still require their normal owner decision and ADR process.`
 
 `Scope: Stream 6 measured-catch-rate and static-primary/threat-directed-dynamic strategy. Product execution order remains containment safety first, then measured detection.`
 
@@ -24,15 +24,15 @@ report/provenance but exposed context false positives: PNG assets read as
 native and documentation URLs as runtime endpoints. Measure first, improve
 precision second, then add depth and policy weight.
 
-The 2026-07-30 research pass also found two product-honesty risks that must be
-resolved before deeper detection claims:
+The 2026-07-30 research pass identified two product-honesty risks now addressed
+by the active measurement foundation:
 
-- a schema-valid report with `partial=true` and no warnable finding currently
-  reaches the severity-only gate's clean `ALLOW` branch;
-- the current bounded scanners stop or skip at file, byte, target, and finding
-  limits without consistently exposing the lost coverage, while Semgrep
-  blanket-excludes `node_modules` and `*.min.js` even though current extension
-  supply-chain campaigns use vendored and disguised payloads.
+- a schema-valid report with `partial=true` no longer reaches a clean `ALLOW`;
+  blocker-free incomplete runs conclude `INCONCLUSIVE`;
+- bounded file, byte, target, finding, parser, and time stops now carry coverage
+  accounting. Intentional Semgrep vendor/minified exclusions remain visible but
+  are not alone a degraded tool state because the in-house production rules
+  retain bounded text coverage.
 
 These are not reasons to remove resource bounds or scan every bundled file with
 every rule. They require an explicit scan-coverage contract, deterministic
@@ -108,20 +108,19 @@ on the critical path for measured static detection.
 Deliver a corpus-manifest schema, JSON/Markdown baseline, capability matrix,
 and glossary separating sample/finding and raw/adjusted metrics.
 
-### Current Coverage-Honesty Gaps
+### Implemented Coverage-Honesty Baseline
 
-Freeze these implemented behaviors as named baseline cases before changing
-them:
+These implemented behaviors are frozen as named baseline cases:
 
 | Surface | Current bound/behavior | Required observable state |
 |---|---|---|
 | Manifest | reads at most 1 MiB; malformed/unreadable/non-object becomes an empty manifest | `manifest_status`, bytes read, reason, critical-entrypoint impact |
 | File walk | stops after 50,000 regular files | discovered/selected count, `file_cap_reached`, deterministic selection policy |
-| In-house text scan | reads the first 1 MiB and ignores undecodable bytes | bytes read, truncated/undecodable status, affected rule families |
-| Semgrep targets | skips targets above 1,000,000 bytes | skipped count/paths by role; partial when a critical entrypoint is skipped |
+| In-house text scan | reads up to 32 MiB per file and ignores undecodable bytes | bytes read, truncated/undecodable status, affected rule families |
+| Semgrep targets | scans targets up to 32 MiB; larger targets remain bounded | skipped count/paths by role; partial when a critical entrypoint is skipped |
 | Semgrep result mapping | stops after 200 mapped findings | `finding_cap_reached`, omitted count when known, partial status |
-| Decision gate | evaluates severities but not `report.partial` | partial/error/timeout can never carry a clean allow reason |
-| Dependency scope | excludes `node_modules` and `*.min.js` from Semgrep | inventory for all files; deep scan selection and skip rationale |
+| Decision gate | `BLOCK > INCONCLUSIVE > WARN > ALLOW` | partial/error/timeout can never carry a clean allow reason |
+| Dependency scope | excludes `node_modules` and `*.min.js` from Semgrep while in-house rules retain bounded text coverage | inventory for all files; deep scan selection and skip rationale |
 
 Bounds stay in place. The change is that every bounded stop becomes measurable
 and its effect on conclusion quality is explicit.
@@ -153,13 +152,9 @@ Per-tool records explain local coverage; the report carries the conservative
 aggregate. Paths in skip details remain bounded, normalized, and capped so the
 coverage record cannot become a second report-bloat vector.
 
-The gate/conclusion representation is a design decision, not a hidden rule
-patch. Options to decide through the owner/ADR path:
-
-1. preserve `ALLOW/WARN/BLOCK` and require partial-without-blocker to be `WARN`
-   with a dedicated machine-readable coverage cause;
-2. add a separate aggregate `INCONCLUSIVE` conclusion without changing raw
-   rule severity or the terminal blocker path.
+The owner selected a separate aggregate `INCONCLUSIVE` conclusion without
+changing raw rule severity or the terminal blocker path. ADR 0016 records the
+precedence and dynamic-continuation semantics.
 
 Do not manufacture a fake rule ID to carry a tool-coverage failure.
 
@@ -916,8 +911,10 @@ Every rule/tool package preserves:
 
 ## 21. Planning State
 
-This plan does not declare work started:
-`documents/phase.json.active_stream` remains `null` and containment safety is
-the next gate. Open Increment A, then B, then C; keep later packages separately
-reviewable. AI-0 may be planned as a provider-free contract exercise, but AI-1
-does not begin without an explicit owner/ADR/data-policy decision.
+Increment A is active as
+`documents/phase.json.active_stream = static-analysis-measurement-foundation`;
+its local acceptance implementation is complete on the named branch.
+Containment safety remains the next product/release gate. Increment B and C
+stay separately reviewable and require their own activation. AI-0 may be
+planned as a provider-free contract exercise, but AI-1 does not begin without
+an explicit owner/ADR/data-policy decision.

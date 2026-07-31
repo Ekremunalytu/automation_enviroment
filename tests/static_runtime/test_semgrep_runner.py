@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -131,16 +132,36 @@ def test_rc0_no_findings_is_ok(monkeypatch: pytest.MonkeyPatch) -> None:
     assert res.record.findings_emitted == 0
 
 
+def test_inventory_only_exclusion_does_not_mark_tool_partial(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    vendor = tmp_path / "node_modules" / "vendor"
+    vendor.mkdir(parents=True)
+    (vendor / "index.js").write_text("eval(payload)", encoding="utf-8")
+    (tmp_path / "extension.js").write_text("activate()", encoding="utf-8")
+    _fake_semgrep(monkeypatch, returncode=0, results=[])
+
+    result = semgrep_runner.run_semgrep(vsix_dir=str(tmp_path), wall_timeout_s=20)
+
+    assert result.record.status == "ok"
+    assert result.record.coverage.files_skipped_by_reason == {
+        "excluded_inventory_only": 1
+    }
+    assert result.record.coverage.coverage_reasons == []
+
+
 def test_rc2_is_tool_error(monkeypatch: pytest.MonkeyPatch) -> None:
     res = _run(monkeypatch, returncode=2, results=[])
     assert res.findings == []
     assert res.record.status == "error"
+    assert res.record.coverage.coverage_reasons == ["tool_error"]
 
 
 def test_timeout_yields_timeout_record(monkeypatch: pytest.MonkeyPatch) -> None:
     res = _run(monkeypatch, raise_timeout=True)
     assert res.findings == []
     assert res.record.status == "timeout"
+    assert res.record.coverage.coverage_reasons == ["tool_timeout"]
 
 
 def test_unparseable_stdout_is_error(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -160,6 +181,7 @@ def test_errors_array_marks_partial_and_counts(
     assert res.record.status == "partial"
     assert res.record.error_count == 2
     assert "extrace.sg.eval" in res.record.errored_rule_ids
+    assert "parser_error" in res.record.coverage.coverage_reasons
     # Findings are still mapped despite the per-file errors (degrade, not fail).
     assert len(res.findings) == 1
 
@@ -170,6 +192,8 @@ def test_findings_are_capped(monkeypatch: pytest.MonkeyPatch) -> None:
     ]
     res = _run(monkeypatch, results=many)
     assert len(res.findings) == semgrep_runner._MAX_FINDINGS
+    assert res.record.coverage.finding_cap_reached is True
+    assert "finding_cap" in res.record.coverage.coverage_reasons
 
 
 def test_missing_semgrep_binary_degrades_to_error(

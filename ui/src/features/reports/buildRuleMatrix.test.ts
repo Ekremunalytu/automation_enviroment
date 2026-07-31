@@ -78,8 +78,10 @@ const STATIC_REPORT: StaticReportView = {
   decisionLabel: "Warn",
   blockedBy: [],
   warnedBy: ["extrace.s3.embedded_native_binary"],
+  inconclusiveReasons: [],
   allowReason: null,
   partial: false,
+  coverage: { filesDiscovered: 2, filesScanned: 2, filesParsed: 2, reasons: [] },
   toolStatuses: [
     { tool: "inhouse", status: "ok", errorCount: 0 },
     { tool: "semgrep", status: "ok", errorCount: 0 },

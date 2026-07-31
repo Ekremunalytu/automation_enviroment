@@ -8,8 +8,9 @@
 # finding. Severity below is advisory only — the runner pins MEDIUM/WARN for all
 # four (none is promoted to a gate BLOCK).
 #
-# Scope: the runner passes `--exclude node_modules --exclude '*.min.js'` and
-# `--max-target-bytes`, so vendored/bundled dependencies do not generate noise.
+# Scope: the runner passes `--exclude node_modules --exclude '*.min.js'` and an
+# 32 MiB `--max-target-bytes`. Intentional exclusions remain inventory-visible
+# while the in-house production rules retain bounded text coverage over them.
 rules:
   - id: eval
     languages: [javascript, typescript]

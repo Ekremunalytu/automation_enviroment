@@ -694,12 +694,13 @@ export interface AnalyzeJobStatusDto {
   static_report?: StaticAnalysisReportDto | null;
 }
 
-export type StaticGateDecisionDto = "allow" | "warn" | "block";
+export type StaticGateDecisionDto = "allow" | "warn" | "block" | "inconclusive";
 
 export interface StaticGateOutcomeDto {
   decision: StaticGateDecisionDto;
   blocked_by?: string[];
   warned_by?: string[];
+  inconclusive_reasons?: string[];
   allow_reason?: string | null;
   decided_at?: string;
 }
@@ -737,7 +738,27 @@ export interface StaticToolExecutionRecordDto {
   status?: "ok" | "partial" | "error" | "timeout";
   error_count?: number;
   errored_rule_ids?: string[];
+  coverage?: StaticScanCoverageDto;
   db_freshness_days?: number | null;
+}
+
+export interface StaticScanCoverageDto {
+  files_discovered?: number;
+  files_selected?: number;
+  files_eligible?: number;
+  files_scanned?: number;
+  files_parsed?: number;
+  files_skipped_by_reason?: Record<string, number>;
+  skipped_paths_by_reason?: Record<string, string[]>;
+  bytes_considered?: number;
+  bytes_read?: number;
+  manifest_status?: "parsed" | "missing" | "malformed" | "too_large" | "unreadable" | "non_object";
+  critical_entrypoints?: string[];
+  critical_entrypoints_parsed?: string[];
+  file_cap_reached?: boolean;
+  finding_cap_reached?: boolean;
+  unsupported_formats?: Record<string, number>;
+  coverage_reasons?: ("file_cap" | "target_too_large" | "text_truncated" | "undecodable" | "unsupported_suffix" | "parser_error" | "manifest_missing" | "manifest_malformed" | "manifest_too_large" | "critical_entrypoint_missing" | "critical_entrypoint_unparsed" | "rule_timeout" | "tool_timeout" | "tool_error" | "finding_cap" | "budget_stop" | "excluded_inventory_only")[];
 }
 
 export interface StaticSeverityCountsDto {
@@ -754,6 +775,7 @@ export interface StaticDetectionReportDto {
   tool_executions?: StaticToolExecutionRecordDto[];
   severity_counts?: StaticSeverityCountsDto;
   partial?: boolean;
+  coverage?: StaticScanCoverageDto;
   generated_at?: string;
   vsix_sha256?: string;
 }

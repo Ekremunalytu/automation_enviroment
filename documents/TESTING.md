@@ -1,6 +1,6 @@
 # Testing Guide
 
-`Last Updated: 2026-05-28 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82; W21 closed and merged via PR #30 5dc18aa. Final W22 static bar: tests/architecture/ 292 passed; make test-security 228 passed.`
+`Last Updated: 2026-07-31 — active static-analysis-measurement-foundation validation includes deterministic corpus evaluation, coverage/gate regressions, container smoke, security lane, UI, and test-DB-backed check-all. Historical W22 counts remain in its frozen tracker.`
 
 Test layers, fixtures, and commands. **Slim canonical** — per-domain
 deep dives split out:
@@ -27,6 +27,7 @@ boundary tests:
 | Integration | `(requires_db or integration) and not smoke` | `make test-integration` |
 | Smoke | `smoke` | `make test-smoke` |
 | Security | n/a (path-based) | `make test-security` |
+| Static evaluation | n/a (safe corpus) | `make static-eval SPLIT=<tuning, holdout, or all>` |
 | Live security | n/a (T2/T3) | `make test-security-live` |
 | Local default | `not smoke` | `make test-local` |
 | CI default | `smoke or not smoke` | `make test-ci` |
@@ -69,7 +70,8 @@ security lane or only in `make test-local`.
 
 ```bash
 make test-local                      # default Python suite (~2100+ passed / 9 skipped / 8 deselected at W21-N close-out; W22 static cuts add ~21 tests on top), with postgres_test
-make test-security                   # cross-tree security lane (228 passed after W22-5 evasion canary enrolment; was 220 from W19-2 anchor through W21 close-out)
+make test-security                   # cross-tree security lane; current count lives in the active SMF tracker
+make static-eval SPLIT=all           # networkless production-runner evaluation over tuning + holdout
 make check-all                       # ruff + mypy + bandit + ui-types-check + ui-boundaries + pytest
 make sim-target TARGET=publisher.name [TRIGGERS=...] [SCENARIO=...]
 make demo-canary                     # full canary demo
@@ -130,17 +132,14 @@ CDP reconnect stalls are the dominant failure mode).
   workbench stability still needs real smoke.
 - SPA TypeScript contracts are generated, but request client + adapters
   hand-written — drift if generation is skipped.
-- `make test-security` → **228 cases** green as of the W22-5 sandbox-evasion
-  canary enrolment (was 220 from W19-2 anchor through W21 close-out;
-  W22-5 added 8 observer-side cases). The 45-case figure was the entry-gate
-  baseline at `2026-04-27` (post-PR345 + W8-0 lock-in). Live
+- Current `make test-security`, `make check-all`, UI, smoke, fingerprint, and
+  runtime counts live in
+  [`active-work/static-analysis-measurement-foundation.md`](active-work/static-analysis-measurement-foundation.md)
+  so this slim guide does not drift with every added case. The W22 frozen
+  tracker preserves its historical 228-case bar. Live
   `make test-security-live` + Docker-based A1 canary structural diff are
   user-side regression gates for the capture pipeline.
-- `make test-local` → full suite was **2104 passed**, 9 skipped, 8
-  deselected at the W21-N close-out (`dd24f1e`). W22 static cuts add
-  ~21 tests on top (W22-2 +5 capability invariants, W22-3 +8 attribution
-  parity invariants, W22-5 +8 evasion canary cases). The platform
-  baseline fixture contract currently resolves
+- The platform baseline fixture contract currently resolves
   `ms-python.python@2026.5.2026050801` plus the five benign-silence
   fixtures (`extrace.fixture-{chat,theme,snippet,keybinding,cmd}-0.0.1`)
   from local artifacts without network access.

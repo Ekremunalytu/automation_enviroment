@@ -1,8 +1,8 @@
 # Static Analysis Measurement Foundation
 
-`Last Updated: 2026-07-30`
+`Last Updated: 2026-07-31`
 
-`Status: PROPOSED — next static-analysis development iteration, ready for owner review. This document does not open a stream; documents/phase.json.active_stream remains null.`
+`Status: ACTIVE — implementation and local acceptance complete 2026-07-30; commit and branch push are authorized, PR/merge close-out is not. documents/phase.json.active_stream remains static-analysis-measurement-foundation.`
 
 `Parent: static-analysis-improvement-roadmap.md Increment A / SAR-0 + SAR-1 measurement foundation.`
 
@@ -49,17 +49,19 @@ seven MEDIUM findings, including known context errors:
 - PNG assets were classified as native binaries;
 - README/license HTTP links were classified as suspicious runtime endpoints.
 
-Repository inspection also identified coverage-honesty gaps:
+Repository inspection at activation identified these coverage-honesty
+baseline cases, all addressed by SMF-4/SMF-5 in this branch:
 
 - manifest parsing reads at most 1 MiB and degrades malformed or unreadable
   content to an empty manifest;
 - the file walk stops at 50,000 regular files without a report-level cap reason;
-- in-house text rules read the first 1 MiB and ignore undecodable bytes;
-- Semgrep skips targets above 1,000,000 bytes without making the result partial;
+- in-house text rules read up to 32 MiB per file and ignore undecodable bytes;
+- Semgrep scans targets up to 32 MiB and reports larger targets as partial;
 - Semgrep mapping stops at 200 findings without exposing the cap;
 - Semgrep blanket-excludes `node_modules` and `*.min.js`;
-- `StaticDetectionReport.partial` is not considered by the severity-only gate,
-  so a findings-free partial report can receive the clean `ALLOW` reason;
+- `StaticDetectionReport.partial` was not considered by the severity-only
+  gate, so a findings-free partial report could receive the clean `ALLOW`
+  reason;
 - finding ULIDs vary by run and therefore cannot serve as determinism keys.
 
 These behaviors are baseline cases to measure before changing detector
@@ -527,18 +529,18 @@ meaningful.
 
 ### New Focused Tests
 
-Suggested files:
+Implemented files:
 
 ```text
 tests/static_runtime/test_evaluation_manifest.py
 tests/static_runtime/test_evaluation_metrics.py
 tests/static_runtime/test_evaluation_determinism.py
-tests/static_runtime/test_evaluation_partial_results.py
 tests/static_runtime/test_scan_coverage.py
-tests/static_runtime/test_semgrep_coverage_limits.py
-tests/workflows/marketplace/test_static_partial_gate.py
+tests/static_runtime/test_static_runner.py
+tests/static_runtime/test_semgrep_runner.py
+tests/workflows/marketplace/test_decision_gate.py
+tests/workflows/marketplace/test_static_gate_stage.py
 tests/architecture/test_static_evaluation_import_boundary.py
-tests/architecture/test_static_corpus_manifest_parity.py
 ```
 
 ### Required Cases
@@ -562,11 +564,12 @@ tests/architecture/test_static_corpus_manifest_parity.py
 
 ```text
 .venv/bin/pytest -q tests/static_runtime/
-.venv/bin/pytest -q tests/workflows/marketplace/test_static_partial_gate.py
+.venv/bin/pytest -q tests/workflows/marketplace/test_decision_gate.py
 .venv/bin/pytest -q tests/architecture/
 make test-security
-make static-eval CORPUS=tests/static_corpus SPLIT=tuning
-make static-eval CORPUS=tests/static_corpus SPLIT=holdout
+make static-eval SPLIT=tuning
+make static-eval SPLIT=holdout
+make static-eval SPLIT=all
 make check-all
 git diff --check
 ```
@@ -639,7 +642,7 @@ reproducible and reviewable.
 | `node_modules` scope explodes runtime | p95 regression | inventory now; deep scan deferred to Increment B |
 | Contract change breaks UI/API adapters | product regression | schema-first compatibility review and generated-contract tests |
 | Evaluator diverges from production runner | invalid baseline | invoke the same production static runner/ruleset |
-| Roadmap work appears to open a stream | lifecycle drift | keep `phase.json.active_stream=null` until explicit activation |
+| Roadmap and lifecycle state drift | misleading status | keep `phase.json`, canonical preambles, and this tracker synchronized |
 
 ## 17. Iteration Acceptance Bar
 
@@ -683,12 +686,61 @@ proving:
 
 ## 19. Activation And State
 
-Merging this roadmap to `main` approves the planning artifact, not execution.
-To start implementation later:
+The owner approved the iteration scope and separate `INCONCLUSIVE` conclusion
+on 2026-07-30. The implementation branch and active-stream pointer are open.
+Containment safety remains the release/product execution gate. Keep this tracker
+as the SMF-0..SMF-8 acceptance source; return `active_stream` to `null` only in
+an explicitly authorized merge/close-out sequence.
 
-1. owner confirms the partial-conclusion option and iteration scope;
-2. create the implementation branch;
-3. update `documents/phase.json.active_stream` and canonical state docs together
-   if the iteration is formally opened as the active named stream;
-4. keep containment safety as the release/product execution gate;
-5. implement SMF-0 first and preserve this tracker as the acceptance source.
+## 20. Implementation And Baseline Evidence
+
+SMF-0 through SMF-8 implementation work is complete for the named branch.
+Commit and branch push were authorized on 2026-07-30; PR, merge, lifecycle
+close-out, and resetting `active_stream` remain separate actions.
+
+- rule inventory: 26 in-house plus 16 Semgrep production rules, each with
+  capability, artifact role, positive/negative test ownership, gate effect,
+  known limitation, runtime budget, and owner metadata;
+- rule-bundle fingerprint:
+  `d57ee07849d9a5755d401bf54385367502e5f928c6df54d5fff1280b3e1cf62c`;
+- corpus manifest fingerprint:
+  `b275e62a7eb56a8b78ff1bb04de1eb0743540e5a90d6c5455c40b85f8cf4a52a`;
+- corpus: 12 repository-authored harmless fixtures, split 8 tuning and 4
+  holdout, with 6 positive/vulnerable and 6 benign/coverage-control samples;
+- release evaluation: 12/12 expectation matches, zero evaluator errors, gate
+  distribution 0 BLOCK / 1 INCONCLUSIVE / 7 WARN / 4 ALLOW;
+- sample confusion matrix, excluding the coverage-only control: TP 6, FP 1,
+  FN 0, TN 4; precision 0.8571, recall 1.0, FPR 0.2, noise 0.1429;
+- latest runtime snapshot: total p50 1252 ms / p95 1519 ms; in-house p50
+  3 ms / p95 4 ms; Semgrep p50 1248 ms / p95 1515 ms;
+- latest aggregate coverage: 27 files discovered/scanned, 25 parsed, 3250
+  bytes considered/read, with the intentional malformed-manifest control
+  recorded as incomplete;
+- three identical full-container runs produced normalized SHA-256
+  `43209dc971ea05892cec7a8cd5051401762681f76155d27c9e302214b7c3dff7`
+  every time;
+- production-bundle regression: the bounded per-file text/Semgrep envelope is
+  32 MiB; intentional Semgrep vendor/minified exclusions remain visible in
+  inventory accounting but do not alone degrade the report; Node-style
+  extensionless `main`/`browser` paths resolve relative to the manifest;
+  coverage paths normalize to stable relative POSIX form; host and container
+  evaluator CLIs reject non-positive budgets rather than disabling the soft
+  timeout;
+- live container regression: Prettier (4.92 MB), Copilot (12.70 MB), and
+  Copilot Chat (20.57 MB) critical entrypoints were fully parsed; both tools
+  reported `ok`, aggregate coverage reasons were empty, and each run stayed
+  inside the unchanged 30-second static-analysis budget;
+- live isolation probes: UID/GID 10001, no external network, corpus mount
+  read-only, results mount writable, all Linux capabilities dropped, and
+  `no-new-privileges`;
+- validation: `make test-security` 372 passed; the final
+  contract/evaluator/gate focus lane passed 72 tests; container-access smoke
+  passed 12 tests with one unavailable fixture skipped; the final
+  test-DB-backed `make check-all` passed 2792 tests, with 11 skipped and 13
+  deselected. Ruff, mypy, Bandit, generated-contract parity, UI boundaries,
+  all 174 UI tests, ESLint, the production UI build, `git diff --check`,
+  markdownlint, link validation, and documentation architecture gates pass.
+
+Known baseline noise is intentional input to Increment B: the documentation URL
+control still WARNs. No detector behavior, severity, or blocker promotion was
+changed in this iteration.

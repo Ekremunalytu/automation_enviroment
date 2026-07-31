@@ -16,19 +16,25 @@ from packages.analysis_contracts.static_detection.gate import (
     StaticGateOutcome,
 )
 from packages.analysis_contracts.static_detection.report import (
+    StaticCoverageReason,
     StaticDetectionReport,
+    StaticManifestStatus,
+    StaticScanCoverage,
     StaticSeverityCounts,
     StaticTool,
     StaticToolExecutionRecord,
 )
 
 __all__ = [
+    "StaticCoverageReason",
     "StaticDetectionFinding",
     "StaticDetectionReport",
     "StaticEvidenceRef",
     "StaticEvidenceType",
     "StaticGateDecision",
     "StaticGateOutcome",
+    "StaticManifestStatus",
+    "StaticScanCoverage",
     "StaticSeverityCounts",
     "StaticTool",
     "StaticToolExecutionRecord",

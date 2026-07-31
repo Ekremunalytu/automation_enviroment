@@ -10,7 +10,7 @@ ES-1b audit-fix invariants):
 4. v2 tool Literal pre-ship (yara / trivy slots land at ES-1)
 5. ``StaticDetectionReport`` wrapper composition
 6. severity-counts <-> ``Severity`` tier parity
-7. gate decision three-way (allow / warn / block)
+7. gate decision four-way (allow / warn / inconclusive / block)
 8. ``StaticGateOutcome`` shape + allow_reason-None-on-block invariant
 9. ``StaticToolExecutionRecord`` shape (db_freshness_days optional, v2 Trivy)
 10. ``CombinedAnalysisBundle`` composition (dynamic bundle optional on BLOCK)
@@ -42,6 +42,7 @@ from packages.analysis_contracts.static_detection import (
     StaticEvidenceRef,
     StaticGateDecision,
     StaticGateOutcome,
+    StaticScanCoverage,
     StaticSeverityCounts,
     StaticToolExecutionRecord,
 )
@@ -197,8 +198,13 @@ def test_detection_report_wrapper_composition() -> None:
     assert report.generated_at is not None
 
 
-def test_gate_decision_is_three_way() -> None:
-    assert {d.value for d in StaticGateDecision} == {"allow", "warn", "block"}
+def test_gate_decision_includes_inconclusive() -> None:
+    assert {d.value for d in StaticGateDecision} == {
+        "allow",
+        "warn",
+        "block",
+        "inconclusive",
+    }
 
 
 def test_gate_outcome_shape_and_allow_reason_invariant() -> None:
@@ -209,6 +215,10 @@ def test_gate_outcome_shape_and_allow_reason_invariant() -> None:
     assert blocked.allow_reason is None
     assert blocked.decided_at is not None
     StaticGateOutcome(decision=StaticGateDecision.ALLOW, allow_reason="no findings")
+    StaticGateOutcome(
+        decision=StaticGateDecision.INCONCLUSIVE,
+        inconclusive_reasons=["manifest_malformed"],
+    )
     with pytest.raises(ValidationError):
         StaticGateOutcome(decision=StaticGateDecision.BLOCK, allow_reason="nope")
 
@@ -270,6 +280,8 @@ def test_gate_outcome_requires_machine_readable_cause() -> None:
         warned_by=["01J0000000000000000000000B"],
     )
     StaticGateOutcome(decision=StaticGateDecision.ALLOW)
+    with pytest.raises(ValidationError):
+        StaticGateOutcome(decision=StaticGateDecision.INCONCLUSIVE)
 
 
 def test_evidence_ref_rejects_unsafe_relative_path() -> None:
@@ -291,3 +303,34 @@ def test_evidence_ref_rejects_unsafe_relative_path() -> None:
     for bad in ("a\nb", "a\x00b", "tab\tx"):
         with pytest.raises(ValidationError):
             StaticEvidenceRef(type="manifest", relative_path=bad, tool="inhouse")
+
+
+def test_static_coverage_rejects_unsafe_or_unbounded_path_details() -> None:
+    with pytest.raises(ValidationError, match="safe and relative"):
+        StaticScanCoverage(skipped_paths_by_reason={"parser_error": ["../outside.js"]})
+    with pytest.raises(ValidationError, match="safe and relative"):
+        StaticScanCoverage(skipped_paths_by_reason={"parser_error": ["C:\\outside.js"]})
+    with pytest.raises(ValidationError, match="must be bounded"):
+        StaticScanCoverage(
+            skipped_paths_by_reason={
+                "parser_error": [f"file-{index}.js" for index in range(21)]
+            }
+        )
+
+
+def test_static_coverage_normalizes_relative_paths_deterministically() -> None:
+    coverage = StaticScanCoverage(
+        skipped_paths_by_reason={
+            "parser_error": ["src\\extension.js", "src/extension.js"]
+        },
+        critical_entrypoints=["dist\\extension.js", "dist/extension.js"],
+        critical_entrypoints_parsed=["dist\\extension.js"],
+    )
+
+    assert coverage.skipped_paths_by_reason == {"parser_error": ["src/extension.js"]}
+    assert coverage.critical_entrypoints == ["dist/extension.js"]
+    assert coverage.critical_entrypoints_parsed == ["dist/extension.js"]
+
+    for unsafe in ("C:\\outside.js", "\\absolute.js", "src\nentry.js"):
+        with pytest.raises(ValidationError, match="safe and relative"):
+            StaticScanCoverage(critical_entrypoints=[unsafe])

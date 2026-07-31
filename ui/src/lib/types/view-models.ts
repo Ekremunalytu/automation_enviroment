@@ -115,15 +115,22 @@ export interface StaticToolStatusView {
 }
 
 export interface StaticReportView {
-  // Gate verdict (ADR 0016 §Decision 1 block-and-warn).
-  decision: "allow" | "warn" | "block";
+  // Gate verdict (ADR 0016 §Decision 1 + SMF coverage-honesty amendment).
+  decision: "allow" | "warn" | "block" | "inconclusive";
   decisionLabel: string;
   blockedBy: string[];
   warnedBy: string[];
+  inconclusiveReasons: string[];
   allowReason: string | null;
   // True when any tool ran only partially (a swallowed rule error, an early
   // budget break, a Semgrep timeout) — coverage is incomplete, not clean.
   partial: boolean;
+  coverage: {
+    filesDiscovered: number;
+    filesScanned: number;
+    filesParsed: number;
+    reasons: string[];
+  };
   toolStatuses: StaticToolStatusView[];
   findings: StaticFindingView[];
 }

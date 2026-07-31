@@ -1,6 +1,10 @@
 # Static Analysis Pre-Check Lane
 
-**Last Updated:** 2026-06-01 (ES-5 close-out — static result surfaced to the
+**Last Updated:** 2026-07-31 (active SMF measurement foundation adds
+coverage-aware `INCONCLUSIVE`, deterministic rule/corpus fingerprints, the
+container-only `make static-eval` evaluator, 32 MiB bounded production-bundle
+coverage, and Node-style entrypoint resolution). Historical base: 2026-06-01
+(ES-5 close-out — static result surfaced to the
 API (`AnalyzeJobStatusResponse.static_report` / `static_report_path` +
 `AnalyzeResponse.static_report`) and the UI (SimulationPage static pre-check
 panel); ALLOW/WARN now persists the static-only combined bundle; the feature
@@ -87,6 +91,11 @@ decision gate that fronts the dynamic sandbox.
   reference-only and shared Google Calendar/Gmail fallback infrastructure is
   intentionally not denylisted (pinned by `tests/security/test_ioc_safety.py`).
   The full status board is `documents/detection-design/README.md`.
+- **Measurement-foundation expansion (active):**
+  `documents/active-work/static-analysis-measurement-foundation.md` owns
+  SMF-0..SMF-8 acceptance. `packages/analysis_contracts/static_evaluation/`
+  defines the safe corpus/evaluation contracts; `static_runtime/evaluation.py`
+  invokes the production runner and policy in the same networkless container.
 
 ## Invariants
 
@@ -101,9 +110,16 @@ decision gate that fronts the dynamic sandbox.
   `ui`, or `packages.analysis_engine` (whose `__init__` eagerly imports the
   dynamic engine, which would bloat the hardened image). Pinned by
   `tests/architecture/test_static_runtime_import_boundary.py`.
-- **Block-and-warn.** CRITICAL → terminal `rejected_static`; the only
+- **Block/inconclusive/warn/allow.** CRITICAL → terminal `rejected_static`; the only
   promoted HIGH blocker is `extrace.s2.typosquat` via a frozenset, not
-  config. Everything else warns or allows.
+  config. Schema-valid incomplete coverage without a blocker concludes
+  `INCONCLUSIVE`; real warning IDs remain separate from bounded coverage causes.
+  Precedence is `BLOCK > INCONCLUSIVE > WARN > ALLOW`.
+- **Bounded production bundles.** In-house text rules and Semgrep share a
+  32 MiB per-file ceiling under the unchanged 30-second outer budget. Larger
+  targets remain visible and inconclusive. Intentional Semgrep vendor/minified
+  exclusions stay inventory-visible but are not alone a degraded tool state;
+  in-house rules retain bounded text coverage.
 - **Container isolation.** The static analyzer runs with `network_mode:
   none`, `cap_drop: [ALL]`, `no-new-privileges`, non-root, no
   `docker.sock` — never inline on the host or in the executor.
@@ -121,6 +137,8 @@ decision gate that fronts the dynamic sandbox.
 - `make test-security` — enroll new static security tests into the
   explicit file list in the Makefile; it does not auto-discover.
 - `make test-smoke` for the container + pipeline sub-iters.
+- `make static-eval SPLIT=tuning|holdout|all` for deterministic SMF corpus
+  measurement; JSON is canonical and Markdown derives from it.
 - `make static-up` / `make static-run-fixture` for manual container spot
   checks (land ES-2).
 

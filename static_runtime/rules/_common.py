@@ -59,10 +59,13 @@ TEXT_SUFFIXES: frozenset[str] = frozenset(
     }
 )
 # Per-file read cap for the content scanners (parity with the context's ES-4
-# adversarial-input bounds): a real source file fits well under this; a larger
-# file is scanned only up to the cap so the rules cannot be driven into an
-# unbounded read inside the hardened container.
-_MAX_TEXT_BYTES = 1024 * 1024
+# adversarial-input bounds). Modern VS Code extensions commonly ship multi-MiB
+# webpack/esbuild entrypoint bundles (the local production set reaches 20.6
+# MiB), so the old 1 MiB cap produced a blind spot on otherwise normal
+# artifacts. Thirty-two MiB covers that production shape while preserving a hard
+# per-file bound inside the 1 GiB, networkless analyzer container.
+_MAX_TEXT_BYTES = 32 * 1024 * 1024
+MAX_TEXT_BYTES = _MAX_TEXT_BYTES
 
 # Mirror of StaticEvidenceRef.snippet's max_length=400 contract bound.
 _SNIPPET_MAX = 400
@@ -191,6 +194,7 @@ def evidence_type_for(
 
 
 __all__ = [
+    "MAX_TEXT_BYTES",
     "TEXT_SUFFIXES",
     "evidence_type_for",
     "file_evidence",

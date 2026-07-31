@@ -392,6 +392,39 @@ describe("adaptStaticReport", () => {
     expect(view.findings[0].severityLabel).toBe("High");
   });
 
+  it("maps an INCONCLUSIVE decision and bounded coverage reasons", () => {
+    const dto: StaticAnalysisReportDto = {
+      detection_report: {
+        partial: true,
+        coverage: {
+          files_discovered: 10,
+          files_scanned: 8,
+          files_parsed: 7,
+          coverage_reasons: ["target_too_large", "parser_error"],
+        },
+      },
+      gate_outcome: {
+        decision: "inconclusive",
+        warned_by: ["extrace.s5.suspicious_network_endpoint"],
+        inconclusive_reasons: ["parser_error", "target_too_large"],
+      },
+    };
+    const view = adaptStaticReport(dto);
+    expect(view.decision).toBe("inconclusive");
+    expect(view.inconclusiveReasons).toEqual([
+      "parser_error",
+      "target_too_large",
+    ]);
+    expect(view.warnedBy).toEqual(["extrace.s5.suspicious_network_endpoint"]);
+    expect(view.coverage).toEqual({
+      filesDiscovered: 10,
+      filesScanned: 8,
+      filesParsed: 7,
+      reasons: ["target_too_large", "parser_error"],
+    });
+    expect(view.allowReason).toBeNull();
+  });
+
   it("tolerates a minimal report with all optional fields omitted", () => {
     const dto: StaticAnalysisReportDto = {
       detection_report: {},

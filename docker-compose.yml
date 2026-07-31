@@ -196,6 +196,7 @@ services:
       # env vars so both stages see the same input tree + results dir.
       - ${EXECUTOR_EXTENSIONS_HOST_PATH:-./extensions}:${EXECUTOR_EXTENSIONS_CONTAINER_PATH:-/extensions-input}:ro
       - ${EXECUTOR_OUTPUT_HOST_PATH:-./output}:${EXECUTOR_OUTPUT_CONTAINER_PATH:-/results}
+      - ./tests/static_corpus:/evaluation-corpus:ro
     # ADR 0013 isolation baseline. Starts as the non-root `static` user, so no
     # cap_add (no runtime privilege drop, unlike api/ui's gosu/nginx entrypoints).
     cap_drop:
