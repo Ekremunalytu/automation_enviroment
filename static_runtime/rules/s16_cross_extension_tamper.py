@@ -212,6 +212,16 @@ class CrossExtensionTamperRule:
             (match.group(1), match.start())
             for match in _GET_EXTENSION_ASSIGN_RE.finditer(text)
         ]
+        if (
+            not foreign_receivers
+            and _INSTALL_ROOT_LITERAL_RE.search(text) is None
+            and _INLINE_GET_EXTENSION_PATH_RE.search(text) is None
+        ):
+            # Without a proven foreign receiver or install-root path, the
+            # assignment/dataflow pass cannot produce a finding. Avoid parsing
+            # every assignment in large minified bundles only to rediscover
+            # that prerequisite is absent.
+            return None
         for candidate in _EXT_PATH_IN_SINK_RE.finditer(text):
             if any(
                 receiver == candidate.group(1)
@@ -233,6 +243,15 @@ class CrossExtensionTamperRule:
         foreign_vars = [
             (assign.group(1), assign.start())
             for assign in _ASSIGN_RE.finditer(text)
+            if any(
+                token in assign.group(2)
+                for token in (
+                    "extensionPath",
+                    "extensionUri",
+                    "getExtension",
+                    "extensions",
+                )
+            )
             if CrossExtensionTamperRule._rhs_is_foreign_path(
                 assign.group(2),
                 assignment_start=assign.start(),

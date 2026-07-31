@@ -115,7 +115,15 @@ class ReverseShellRule:
 
         for process in _PROCESS_ASSIGN_RE.finditer(text):
             process_name = process.group(1)
-            for socket in _SOCKET_ASSIGN_RE.finditer(text):
+            # Only socket assignments close enough to satisfy the final chain
+            # bound can contribute. Re-scanning an entire production bundle for
+            # every process assignment made this rule quadratic on minified
+            # sources and could consume the static runner's whole 30s budget.
+            socket_search_start = max(0, process.end() - _MAX_CHAIN_SPAN)
+            socket_search_end = min(len(text), process.start() + _MAX_CHAIN_SPAN)
+            for socket in _SOCKET_ASSIGN_RE.finditer(
+                text, socket_search_start, socket_search_end
+            ):
                 socket_name = socket.group(1)
                 start = min(process.start(), socket.start())
                 end = max(process.end(), socket.end())

@@ -161,7 +161,11 @@ class PathTraversalServerRule:
             for reachable in (_PERMISSIVE_CORS_RE, _WEBVIEW_RE):
                 cluster = find_local_pattern_cluster(
                     text,
-                    (_SERVER_RE, _REQ_PATH_RE, _FS_READ_SINK_RE, reachable),
+                    # Reachability is the rare, load-bearing prerequisite. Put
+                    # it first so ordinary multi-MiB server/framework bundles
+                    # do not get scanned for every other conjunct when neither
+                    # permissive CORS nor a scripted webview is present.
+                    (reachable, _SERVER_RE, _REQ_PATH_RE, _FS_READ_SINK_RE),
                     max_span=_MAX_CHAIN_SPAN,
                 )
                 if cluster is None:

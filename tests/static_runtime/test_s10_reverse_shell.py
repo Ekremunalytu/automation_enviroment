@@ -9,9 +9,14 @@ section).
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import re
+from collections.abc import Callable, Iterator
+from typing import cast
+
+import pytest
 
 from static_runtime.context import StaticAnalysisContext
+from static_runtime.rules import s10_reverse_shell
 from static_runtime.rules.s10_reverse_shell import ReverseShellRule
 
 MakeContext = Callable[..., StaticAnalysisContext]
@@ -172,3 +177,39 @@ def test_silent_when_bridge_is_outside_bounded_chain(make_context: MakeContext) 
         + "sock.pipe(proc.stdin); proc.stdout.pipe(sock);"
     )
     assert ReverseShellRule().evaluate(make_context(files={"bundle.js": src})) == []
+
+
+def test_socket_assignment_search_is_bounded_per_process(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class SocketPatternSpy:
+        def __init__(self) -> None:
+            self.calls: list[tuple[int, int]] = []
+
+        def finditer(
+            self, text: str, pos: int = 0, endpos: int | None = None
+        ) -> Iterator[re.Match[str]]:
+            resolved_end = len(text) if endpos is None else endpos
+            self.calls.append((pos, resolved_end))
+            return iter(())
+
+    spy = SocketPatternSpy()
+    monkeypatch.setattr(
+        s10_reverse_shell,
+        "_SOCKET_ASSIGN_RE",
+        cast(re.Pattern[str], spy),
+    )
+    source = (
+        "x" * 20_000
+        + ';const proc = cp.exec("sh");'
+        + "y" * 20_000
+        + ';const worker = cp.spawn("node");'
+        + "z" * 20_000
+    )
+
+    assert ReverseShellRule._connected_chain(source) is None
+    assert len(spy.calls) == 2
+    assert all(
+        end - start <= (2 * s10_reverse_shell._MAX_CHAIN_SPAN)
+        for start, end in spy.calls
+    )

@@ -226,9 +226,15 @@ def find_local_pattern_cluster(
 
     if not patterns or max_span < 0:
         return None
-    matches_by_pattern = [list(pattern.finditer(text)) for pattern in patterns]
-    if any(not matches for matches in matches_by_pattern):
-        return None
+    matches_by_pattern: list[list[re.Match[str]]] = []
+    for pattern in patterns:
+        matches = list(pattern.finditer(text))
+        if not matches:
+            # Most production bundles do not contain the first, most-specific
+            # conjunct. Stop there instead of scanning the same multi-MiB file
+            # once for every remaining pattern.
+            return None
+        matches_by_pattern.append(matches)
 
     events = sorted(
         (match.start(), pattern_index)
