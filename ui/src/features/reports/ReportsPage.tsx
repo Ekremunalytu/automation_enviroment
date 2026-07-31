@@ -45,17 +45,26 @@ import { adaptStaticReport } from "../../lib/adapters/job";
 import { FindingCard } from "./FindingCard";
 import { verdictTone, verdictAction, VERDICT_LEGEND } from "./verdictColors";
 import { RuleMatrixSection } from "./RuleMatrixSection";
+import { StaticAnalysisInspectionSection } from "../static-inspection";
 import { EventTimeline } from "./charts/EventTimeline";
 import { EventDensityStrip } from "./charts/EventDensityStrip";
 import { InteractionGraph } from "./charts/InteractionGraph";
 import { DISPLAY_CAPS } from "../../lib/displayCaps";
 
 type ReportModel = NonNullable<ReturnType<typeof adaptReport>>;
-type ReportTab = "overview" | "matrix" | "interactions" | "timeline" | "ledger" | "audit";
+type ReportTab =
+  | "overview"
+  | "matrix"
+  | "inspection"
+  | "interactions"
+  | "timeline"
+  | "ledger"
+  | "audit";
 
 const REPORT_TABS: TabSpec<ReportTab>[] = [
   { value: "overview", label: "Overview" },
   { value: "matrix", label: "Rule matrix" },
+  { value: "inspection", label: "Static analysis inspection" },
   { value: "interactions", label: "Interactions" },
   { value: "timeline", label: "Timeline" },
   { value: "ledger", label: "Event ledger" },
@@ -69,7 +78,14 @@ const DYNAMIC_ONLY_REPORT_TABS = new Set<ReportTab>([
 ]);
 
 function normalizeTab(raw: string | null): ReportTab {
-  if (raw === "matrix" || raw === "interactions" || raw === "timeline" || raw === "ledger" || raw === "audit") return raw;
+  if (
+    raw === "matrix" ||
+    raw === "inspection" ||
+    raw === "interactions" ||
+    raw === "timeline" ||
+    raw === "ledger" ||
+    raw === "audit"
+  ) return raw;
   if (raw === "activation" || raw === "file" || raw === "network" || raw === "scenario" || raw === "evidence" || raw === "logs") {
     return "ledger";
   }
@@ -162,6 +178,8 @@ export function ReportsPage() {
     staticOnlyLatest && DYNAMIC_ONLY_REPORT_TABS.has(selectedTab)
       ? "overview"
       : selectedTab;
+  const staticInspectionActive = activeTab === "inspection";
+  const showingStaticArtifact = staticOnlyLatest || staticInspectionActive;
   const reportTabs = useMemo(
     () =>
       REPORT_TABS.map((tab) =>
@@ -186,13 +204,13 @@ export function ReportsPage() {
           : await apiClient.getReportBundleByName(reportParam, signal);
       return adaptBundle(dto, reportParam);
     },
-    enabled: preferencesResolved && !staticOnlyLatest,
+    enabled: preferencesResolved && !staticOnlyLatest && !staticInspectionActive,
   });
 
   const latestStaticQuery = useQuery({
     queryKey: ["reports", "static", "latest"],
     queryFn: ({ signal }) => apiClient.getLatestStaticReport(signal),
-    enabled: staticOnlyLatest,
+    enabled: staticOnlyLatest || staticInspectionActive,
     refetchInterval: 4000,
   });
   const latestStaticReport = useMemo(
@@ -247,10 +265,10 @@ export function ReportsPage() {
     reportParam === "latest"
       ? reportsQuery.data?.[0]
       : reportsQuery.data?.find((item) => item.filename === reportParam) || reportsQuery.data?.[0];
-  const activeArtifactFilename = staticOnlyLatest
+  const activeArtifactFilename = showingStaticArtifact
     ? latestStaticQuery.data?.filename
     : activeReport?.filename;
-  const activeArtifactModified = staticOnlyLatest
+  const activeArtifactModified = showingStaticArtifact
     ? latestStaticQuery.data?.modified
     : activeReport?.modified;
 
@@ -319,7 +337,7 @@ export function ReportsPage() {
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
               <span aria-hidden style={{ width: 18, height: 2, background: V3.coral }} />
-              <Eyebrow>{staticOnlyLatest ? "Static scan" : "Run control"}</Eyebrow>
+              <Eyebrow>{showingStaticArtifact ? "Static scan" : "Run control"}</Eyebrow>
             </div>
             <span
               title={activeArtifactFilename || "Latest report"}
@@ -350,7 +368,13 @@ export function ReportsPage() {
             <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
               <Eyebrow>Report source</Eyebrow>
               <select
-                value={reportParam}
+                value={staticInspectionActive ? "latest" : reportParam}
+                disabled={staticInspectionActive}
+                title={
+                  staticInspectionActive
+                    ? "Static analysis inspection always uses the latest static artifact."
+                    : undefined
+                }
                 onChange={(event) => {
                   const next = new URLSearchParams(searchParams);
                   next.set("report", event.target.value);
@@ -369,7 +393,7 @@ export function ReportsPage() {
                 }}
               >
                 <option value="latest">
-                  {staticOnlyLatest ? "Latest static artifact" : "Latest report"}
+                  {showingStaticArtifact ? "Latest static artifact" : "Latest report"}
                 </option>
                 {(reportsQuery.data || []).map((item) => (
                   <option key={item.filename} value={item.filename}>
@@ -385,9 +409,9 @@ export function ReportsPage() {
               value={filters.search}
               onChange={(value) => updateFilters({ ...filters, search: value })}
               inputProps={{
-                disabled: staticOnlyLatest,
-                title: staticOnlyLatest
-                  ? "Dynamic evidence search is unavailable while dynamic analysis is disabled."
+                disabled: showingStaticArtifact,
+                title: showingStaticArtifact
+                  ? "Dynamic evidence search is unavailable in the static inspection workspace."
                   : undefined,
               }}
               mono
@@ -396,10 +420,10 @@ export function ReportsPage() {
 
             <GhostButton
               ariaLabel="Filters"
-              disabled={staticOnlyLatest}
+              disabled={showingStaticArtifact}
               title={
-                staticOnlyLatest
-                  ? "Dynamic evidence filters are unavailable while dynamic analysis is disabled."
+                showingStaticArtifact
+                  ? "Dynamic evidence filters are unavailable in the static inspection workspace."
                   : undefined
               }
               onClick={() => setFiltersOpen(true)}
@@ -410,7 +434,7 @@ export function ReportsPage() {
           </div>
 
           <div
-            aria-label={staticOnlyLatest ? "Static report summary" : "Report summary"}
+            aria-label={showingStaticArtifact ? "Static report summary" : "Report summary"}
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 120px), 1fr))",
@@ -418,7 +442,7 @@ export function ReportsPage() {
               background: V3.paper3,
             }}
           >
-            {staticOnlyLatest ? (
+            {showingStaticArtifact ? (
               <>
                 <ReportReadout
                   label="Findings"
@@ -491,9 +515,9 @@ export function ReportsPage() {
         </Panel>
       </section>
 
-      {staticOnlyLatest ? (
+      {staticOnlyLatest && !staticInspectionActive ? (
         <DynamicAnalysisDisabledPanel />
-      ) : report ? (
+      ) : report && !staticInspectionActive ? (
         <RiskRadarPanel
           axes={buildRiskRadarAxes(report)}
           compositeScore={report.summary.signalSummaryScore ?? 0}
@@ -517,6 +541,28 @@ export function ReportsPage() {
           body="Resolving the current analysis mode before selecting report data."
           title="Preparing report workspace"
         />
+      ) : activeTab === "inspection" ? (
+        latestStaticQuery.isLoading ? (
+          <EmptyState
+            eyebrow="Inspecting"
+            body="Loading gate, coverage, tool, finding, and evidence measurements."
+            title="Reading latest static artifact"
+          />
+        ) : latestStaticQuery.isError ? (
+          <EmptyState
+            eyebrow="Unavailable"
+            body={String(latestStaticQuery.error)}
+            title="Static inspection could not be loaded"
+          />
+        ) : latestStaticQuery.data ? (
+          <StaticAnalysisInspectionSection artifact={latestStaticQuery.data} />
+        ) : (
+          <EmptyState
+            eyebrow="Static"
+            body="Run a static scan to populate this inspection workspace."
+            title="No static artifact is available"
+          />
+        )
       ) : staticOnlyLatest ? (
         latestStaticQuery.isLoading ? (
           <EmptyState
@@ -598,7 +644,7 @@ export function ReportsPage() {
       <SlideOverDrawer
         description="Narrow the evidence set without crowding the main workspace."
         onClose={() => setFiltersOpen(false)}
-        open={filtersOpen && !staticOnlyLatest}
+        open={filtersOpen && !showingStaticArtifact}
         title="Evidence filters"
       >
         <FilterRail

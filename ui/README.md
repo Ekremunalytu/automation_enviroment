@@ -26,6 +26,9 @@ Routes:
 - `/reports?report=latest&tab=matrix` — dynamic/static rule activation matrix;
   static tool status is shown with the static band. In static-only mode the
   matrix remains available while dynamic rule cells are explicitly disabled
+- `/reports?report=latest&tab=inspection` — latest static artifact inspection;
+  gate decision, severity distribution, coverage field, tool performance,
+  filterable findings, source footprint, and exact evidence locations
 - `/simulation?job=<jobId>&tab=live`
 - `/marketplace?q=<query>` and `/marketplace?mode=offline` — online/offline
   intake; download/ingest stays available while dynamic analysis is off
@@ -100,6 +103,9 @@ make ui-boundaries
 
 ## Recent Changes
 
+- 2026-07-31: added Static analysis inspection beside Rule matrix in Reports
+  for the newest static artifact, with measured coverage/severity/tool
+  visualizations and filterable source-level evidence.
 - 2026-07-31: Reports `latest` now presents the newest independent static
   artifact when dynamic analysis is disabled. Overview exposes the static gate
   decision, findings, coverage, and tool health; dynamic-only controls and tabs

@@ -5,7 +5,7 @@
 `Status: ACTIVE — SAP-0 through SAP-3 and the production-bundle precision
 follow-up are implemented on codex/static-analysis-artifact-precision. The
 branch also carries the static-only Reports presentation correction described
-in section 3.`
+in section 3 and the Reports-integrated Static analysis inspection tab.`
 
 `Parent: static-analysis-improvement-roadmap.md Increment B / SAR-2.`
 
@@ -85,6 +85,12 @@ Gate policy stays unchanged: `BLOCK > INCONCLUSIVE > WARN > ALLOW`.
   only search, filters, Interactions, Timeline, Event ledger, and Audit are
   disabled. Historical activation reports remain explicitly selectable and
   are never merged with an unrelated static run.
+- Reports `Static analysis inspection`, placed beside `Rule matrix`, consumes
+  the newest static artifact regardless of dynamic-analysis mode. It presents
+  the gate decision, measured file
+  coverage, severity distribution, tool execution time/status, coverage gaps,
+  filterable findings, evidence-file footprint, and exact source snippets.
+  INFO inventory remains visible without being presented as actionable risk.
 - No blocker membership, timeout, dependency, DB schema, or dynamic execution
   behavior changed. Weak standalone heuristics were deliberately reclassified
   to INFO; proven critical/high conjunctions retain their existing gate effect.
@@ -96,6 +102,9 @@ Focused host checks:
 ```text
 focused production-bundle rule regression lane: 101 passed
 focused Reports/Rules UI regression lane: 23 passed
+full UI suite: 186 passed
+rendered browser QA: desktop + 390x844 mobile, no horizontal overflow or
+console errors; severity/search/evidence interactions passed
 make test-security: 505 passed
 make check-all: 2857 passed / 11 skipped / 13 deselected
 ruff: all checks passed

@@ -396,6 +396,47 @@ describe("ReportsPage", () => {
     expect(apiClient.getLatestStaticReport).toHaveBeenCalled();
   });
 
+  it("renders static analysis inspection as the tab beside Rule matrix", async () => {
+    vi.mocked(apiClient.getLatestStaticReport).mockResolvedValue(latestStaticArtifact);
+
+    renderPage("/reports?report=latest&tab=inspection");
+
+    expect(
+      await screen.findByRole("heading", { name: "Static analysis inspection" }),
+    ).toBeInTheDocument();
+    const reportTabs = screen.getAllByRole("tab").map((tab) => tab.textContent);
+    expect(reportTabs.slice(0, 3)).toEqual([
+      "Overview",
+      "Rule matrix",
+      "Static analysis inspection",
+    ]);
+    expect(
+      screen.getByRole("tab", { name: "Static analysis inspection" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("combobox", { name: "Report source" })).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "Search evidence" })).toBeDisabled();
+    expect(screen.getByLabelText("Static gate inspection")).toBeInTheDocument();
+    expect(apiClient.getLatestStaticReport).toHaveBeenCalled();
+    expect(apiClient.getLatestReportBundle).not.toHaveBeenCalled();
+  });
+
+  it("keeps a static inspection loading failure explicit inside Reports", async () => {
+    vi.mocked(apiClient.getLatestStaticReport).mockRejectedValue(
+      new Error("static artifact unavailable"),
+    );
+
+    renderPage("/reports?report=latest&tab=inspection");
+
+    expect(
+      await screen.findByText("Static inspection could not be loaded"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Error: static artifact unavailable")).toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: "Static analysis inspection" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(apiClient.getLatestReportBundle).not.toHaveBeenCalled();
+  });
+
   it("uses the latest static artifact for overview and disables dynamic-only controls", async () => {
     vi.mocked(apiClient.getExecutorPreferences).mockResolvedValue({
       dynamic_analysis_enabled: false,
@@ -427,6 +468,9 @@ describe("ReportsPage", () => {
 
     expect(screen.getByRole("tab", { name: "Overview" })).toBeEnabled();
     expect(screen.getByRole("tab", { name: "Rule matrix" })).toBeEnabled();
+    expect(
+      screen.getByRole("tab", { name: "Static analysis inspection" }),
+    ).toBeEnabled();
     expect(screen.getByRole("tab", { name: "Interactions" })).toBeDisabled();
     expect(screen.getByRole("tab", { name: "Timeline" })).toBeDisabled();
     expect(screen.getByRole("tab", { name: "Event ledger" })).toBeDisabled();
@@ -510,6 +554,9 @@ describe("ReportsPage", () => {
     expect(screen.queryByText(/File ·/u)).not.toBeInTheDocument();
     expect(screen.queryByText(/Visible ·/u)).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Overview" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: "Static analysis inspection" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Interactions" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Timeline" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Event ledger" })).toBeInTheDocument();

@@ -24,7 +24,7 @@ describe("AppShell", () => {
     expect(screen.getByRole("button", { name: /^Reports/i })).not.toHaveAttribute("aria-current");
   });
 
-  it("exposes all six v3 nav targets including Rules, Settings, and System", () => {
+  it("exposes all six primary v3 nav targets", () => {
     render(
       <MemoryRouter initialEntries={["/reports"]}>
         <AppShell>
@@ -33,7 +33,14 @@ describe("AppShell", () => {
       </MemoryRouter>,
     );
 
-    for (const label of ["Reports", "Simulation", "Marketplace", "Rules", "Settings", "System"]) {
+    for (const label of [
+      "Reports",
+      "Simulation",
+      "Marketplace",
+      "Rules",
+      "Settings",
+      "System",
+    ]) {
       const pattern = new RegExp(`^${label}`, "i");
       expect(screen.getByRole("button", { name: pattern })).toBeInTheDocument();
     }

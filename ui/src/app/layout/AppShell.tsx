@@ -3,7 +3,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import { LogoMark, V3 } from "../../components/v3";
 
-type NavId = "reports" | "simulation" | "marketplace" | "rules" | "settings" | "system";
+type NavId =
+  | "reports"
+  | "simulation"
+  | "marketplace"
+  | "rules"
+  | "settings"
+  | "system";
 
 type NavSpec = {
   id: NavId;
