@@ -18,13 +18,15 @@ from static_runtime.context import StaticAnalysisContext
 from static_runtime.rules._common import (
     evidence_type_for,
     file_evidence,
+    find_local_pattern_cluster,
     iter_text_documents,
-    line_at,
     line_number_at,
+    snippet_at,
 )
 from static_runtime.rules.registry import register
 
 _MAX_EVIDENCE = 25
+_MAX_CHAIN_SPAN = 8 * 1024
 
 _GLOBALSTATE_GET_RE = re.compile(r"\bcontext\s*\.\s*globalState\s*\.\s*get\s*\(")
 _GLOBALSTATE_UPDATE_RE = re.compile(r"\bcontext\s*\.\s*globalState\s*\.\s*update\s*\(")
@@ -51,7 +53,7 @@ _PAYLOAD_CALL_RE = re.compile(
 
 class GlobalStateDormancyRule:
     rule_id = "extrace.s14.globalstate_dormancy"
-    rule_version = "1.0.0"
+    rule_version = "1.1.0"
     lifecycle = RuleLifecycle.PRODUCTION
     adversary_class: AdversaryClass | None = None
     severity = Severity.MEDIUM
@@ -67,26 +69,45 @@ class GlobalStateDormancyRule:
         reasons: set[str] = set()
 
         for relative_path, text in iter_text_documents(context):
-            has_get = _GLOBALSTATE_GET_RE.search(text)
-            has_update = _GLOBALSTATE_UPDATE_RE.search(text)
-            if has_get is None or has_update is None:
-                continue
-            has_time = _TIME_MARKER_RE.search(text) is not None
-            has_gate = _GATE_RE.search(text) is not None
-            has_duration = _DURATION_RE.search(text) is not None
-            has_payload_call = _PAYLOAD_CALL_RE.search(text) is not None
-            if not (has_time and (has_gate or has_duration) and has_payload_call):
+            cluster = find_local_pattern_cluster(
+                text,
+                (
+                    _GLOBALSTATE_GET_RE,
+                    _GLOBALSTATE_UPDATE_RE,
+                    _TIME_MARKER_RE,
+                    _PAYLOAD_CALL_RE,
+                    _GATE_RE,
+                ),
+                max_span=_MAX_CHAIN_SPAN,
+            )
+            used_duration = False
+            if cluster is None:
+                cluster = find_local_pattern_cluster(
+                    text,
+                    (
+                        _GLOBALSTATE_GET_RE,
+                        _GLOBALSTATE_UPDATE_RE,
+                        _TIME_MARKER_RE,
+                        _PAYLOAD_CALL_RE,
+                        _DURATION_RE,
+                    ),
+                    max_span=_MAX_CHAIN_SPAN,
+                )
+                used_duration = cluster is not None
+            if cluster is None:
                 continue
 
             files_with_dormancy += 1
             reasons.add("context.globalState get/update")
             reasons.add("timestamp or activation-state comparison")
-            if has_duration:
+            if used_duration or any(
+                _DURATION_RE.search(text, match.start(), match.end() + 512)
+                for match in cluster
+            ):
                 reasons.add("cooldown/re-arm duration")
-            if has_payload_call:
-                reasons.add("gated init/payload call")
+            reasons.add("gated init/payload call")
 
-            for match in (has_get, has_update):
+            for match in cluster[:2]:
                 if len(evidence) >= _MAX_EVIDENCE:
                     break
                 line_number = line_number_at(text, match.start())
@@ -94,7 +115,8 @@ class GlobalStateDormancyRule:
                     file_evidence(
                         relative_path,
                         evidence_type_for(context, relative_path),
-                        snippet=line_at(text, line_number) or "context.globalState",
+                        snippet=snippet_at(text, match.start())
+                        or "context.globalState",
                         line_number=line_number,
                     )
                 )

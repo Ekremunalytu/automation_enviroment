@@ -13,27 +13,36 @@ MakeContext = Callable[..., StaticAnalysisContext]
 def test_fires_critical_on_contiguous_variation_selector_run(
     make_context: MakeContext,
 ) -> None:
-    ctx = make_context(files={"extension.js": 'const x = "ok";\ufe0f\ufe0f\ufe0f'})
+    ctx = make_context(files={"extension.js": 'const x = "ok";' + "\ufe0f" * 16})
     findings = InvisibleUnicodeRunRule().evaluate(ctx)
     assert len(findings) == 1
     finding = findings[0]
     assert finding.rule_id == "extrace.s12.invisible_unicode_run"
     assert finding.severity.value == "critical"
-    assert "maximum contiguous run is 3" in finding.description
+    assert "maximum contiguous run is 16" in finding.description
     assert finding.evidence
     assert "U+FE0F" in (finding.evidence[0].snippet or "")
     assert "\ufe0f" not in (finding.evidence[0].snippet or "")
 
 
-def test_single_invisible_codepoint_is_low_severity(
+def test_short_invisible_run_is_informational(
     make_context: MakeContext,
 ) -> None:
     ctx = make_context(files={"extension.js": 'const label = "a\u200bb";'})
     findings = InvisibleUnicodeRunRule().evaluate(ctx)
     assert len(findings) == 1
-    assert findings[0].severity.value == "low"
+    assert findings[0].severity.value == "info"
 
 
 def test_silent_for_ascii_source(make_context: MakeContext) -> None:
     ctx = make_context(files={"extension.js": 'const x = "plain source";'})
     assert InvisibleUnicodeRunRule().evaluate(ctx) == []
+
+
+def test_generated_unicode_table_run_below_threshold_is_informational(
+    make_context: MakeContext,
+) -> None:
+    ctx = make_context(files={"worker.js": "const marks='" + "\u00ad" * 11 + "';"})
+    findings = InvisibleUnicodeRunRule().evaluate(ctx)
+    assert len(findings) == 1
+    assert findings[0].severity.value == "info"

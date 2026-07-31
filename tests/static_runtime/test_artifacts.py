@@ -16,6 +16,7 @@ from static_runtime.artifacts import artifact_role, classify_artifact
         ("README.md", "documentation"),
         ("docs/setup.txt", "documentation"),
         ("LICENSE", "license"),
+        ("ThirdPartyNotices.txt", "license"),
         ("tests/extension.test.js", "test"),
         ("assets/logo.png", "asset"),
         ("dist/extension.js.map", "source_map"),

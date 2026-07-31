@@ -67,13 +67,15 @@ from static_runtime.context import StaticAnalysisContext
 from static_runtime.rules._common import (
     evidence_type_for,
     file_evidence,
+    find_local_pattern_cluster,
     iter_text_documents,
-    line_at,
     line_number_at,
+    snippet_at,
 )
 from static_runtime.rules.registry import register
 
 _MAX_EVIDENCE = 9
+_MAX_CHAIN_SPAN = 8 * 1024
 
 # (A) "Make executable":
 #   * a shell ``chmod ... +x`` command (the +x flag, on one logical line), or
@@ -116,7 +118,7 @@ _EXEC_TARGET_RE = re.compile(
 
 class DownloadExecDropperRule:
     rule_id = "extrace.s18.download_exec_dropper"
-    rule_version = "1.0.0"
+    rule_version = "1.1.0"
     lifecycle = RuleLifecycle.PRODUCTION
     adversary_class: AdversaryClass | None = None
     # HIGH / WARN, not CRITICAL / BLOCK: drop-and-run has a legitimate cousin (a
@@ -131,15 +133,34 @@ class DownloadExecDropperRule:
 
     def evaluate(self, context: StaticAnalysisContext) -> list[StaticDetectionFinding]:
         for relative_path, text in iter_text_documents(context):
-            if _CHMOD_EXEC_RE.search(text) is None:
+            cluster = find_local_pattern_cluster(
+                text,
+                (_CHMOD_EXEC_RE, _EXEC_SINK_RE),
+                max_span=_MAX_CHAIN_SPAN,
+            )
+            if cluster is None:
                 continue
-            if _EXEC_SINK_RE.search(text) is None:
-                continue
-            has_fetch = _REMOTE_FETCH_RE.search(text) is not None
-            shared = self._shared_symbol(text)
+            start = max(0, min(match.start() for match in cluster) - 1024)
+            end = min(len(text), max(match.end() for match in cluster) + 1024)
+            region = text[start:end]
+            fetch = _REMOTE_FETCH_RE.search(region)
+            has_fetch = fetch is not None
+            shared = self._shared_symbol(region)
+            evidence_matches = list(cluster)
+            if fetch is not None:
+                absolute_fetch = _REMOTE_FETCH_RE.search(
+                    text, start + fetch.start(), start + fetch.end()
+                )
+                if absolute_fetch is not None:
+                    evidence_matches.append(absolute_fetch)
             return [
                 self._finding(
-                    context, relative_path, text, has_fetch=has_fetch, shared=shared
+                    context,
+                    relative_path,
+                    text,
+                    evidence_matches=tuple(evidence_matches),
+                    has_fetch=has_fetch,
+                    shared=shared,
                 )
             ]
         return []
@@ -169,16 +190,13 @@ class DownloadExecDropperRule:
         relative_path: str,
         text: str,
         *,
+        evidence_matches: tuple[re.Match[str], ...],
         has_fetch: bool,
         shared: bool,
     ) -> StaticDetectionFinding:
         evidence: list[StaticEvidenceRef] = []
-        for pattern in (_CHMOD_EXEC_RE, _EXEC_SINK_RE):
-            self._add_first_match(evidence, context, relative_path, text, pattern)
-        if has_fetch:
-            self._add_first_match(
-                evidence, context, relative_path, text, _REMOTE_FETCH_RE
-            )
+        for match in evidence_matches:
+            self._add_match(evidence, context, relative_path, text, match)
 
         confidence = Confidence.HIGH if (has_fetch or shared) else Confidence.MEDIUM
         chain = "download" if has_fetch else "staged"
@@ -226,24 +244,21 @@ class DownloadExecDropperRule:
         )
 
     @staticmethod
-    def _add_first_match(
+    def _add_match(
         evidence: list[StaticEvidenceRef],
         context: StaticAnalysisContext,
         relative_path: str,
         text: str,
-        pattern: re.Pattern[str],
+        match: re.Match[str],
     ) -> None:
         if len(evidence) >= _MAX_EVIDENCE:
-            return
-        match = pattern.search(text)
-        if match is None:
             return
         line_number = line_number_at(text, match.start())
         evidence.append(
             file_evidence(
                 relative_path,
                 evidence_type_for(context, relative_path),
-                snippet=line_at(text, line_number) or "drop-and-run",
+                snippet=snippet_at(text, match.start()) or "drop-and-run",
                 line_number=line_number,
             )
         )

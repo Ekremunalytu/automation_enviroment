@@ -15,7 +15,7 @@ from static_runtime.rule_inventory import build_rule_bundle_inventory
 CORPUS_ROOT = Path(__file__).resolve().parents[1] / "static_corpus"
 
 
-def test_starter_manifest_has_balanced_hashed_tuning_and_holdout_samples() -> None:
+def test_starter_manifest_has_balanced_binary_samples_and_controls() -> None:
     manifest = CorpusManifest.model_validate_json(
         (CORPUS_ROOT / "manifest.json").read_bytes()
     )
@@ -27,7 +27,7 @@ def test_starter_manifest_has_balanced_hashed_tuning_and_holdout_samples() -> No
             sample.label in {"malicious_behavior", "vulnerable"}
             for sample in manifest.samples
         )
-        == 6
+        == 5
     )
     assert {
         "artifact_role",
@@ -42,13 +42,8 @@ def test_starter_manifest_has_balanced_hashed_tuning_and_holdout_samples() -> No
         "workspace_trust",
         "dormancy_platform",
     } <= {family for sample in manifest.samples for family in sample.families}
-    assert (
-        sum(
-            sample.label in {"benign", "coverage_control"}
-            for sample in manifest.samples
-        )
-        == 6
-    )
+    assert sum(sample.label == "benign" for sample in manifest.samples) == 5
+    assert sum(sample.label == "coverage_control" for sample in manifest.samples) == 2
     for sample in manifest.samples:
         assert (
             hash_tree(CORPUS_ROOT / "samples" / sample.relative_path) == sample.sha256

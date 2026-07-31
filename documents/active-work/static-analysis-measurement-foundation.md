@@ -708,7 +708,7 @@ close-out, and resetting `active_stream` remain separate actions.
 - corpus manifest fingerprint:
   `b275e62a7eb56a8b78ff1bb04de1eb0743540e5a90d6c5455c40b85f8cf4a52a`;
 - corpus: 12 repository-authored harmless fixtures, split 8 tuning and 4
-  holdout, with 6 positive/vulnerable and 6 benign/coverage-control samples;
+  holdout, with 5 positive/vulnerable, 5 benign, and 2 coverage-control samples;
 - release evaluation: 12/12 expectation matches, zero evaluator errors, gate
   distribution 0 BLOCK / 1 INCONCLUSIVE / 7 WARN / 4 ALLOW;
 - sample confusion matrix, excluding the coverage-only control: TP 6, FP 1,

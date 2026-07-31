@@ -108,7 +108,7 @@ spec records that, plus the two genuinely-new additions it motivated.
 | RS1 shell↔socket bridge (`.pipe()` **and** manual `stdin.write` form) | in-house static | `extrace.s10.reverse_shell` | ✅ **CRITICAL → BLOCK** — **improved** to also catch the manual `socket.on("data", d => proc.stdin.write(d))` bridge |
 | RS1/RS2/RS3 AST echoes | semgrep | `reverse_shell_pipe` / `_spawn` / `_ip_connect` | ✅ advisory MEDIUM/WARN (pre-existing) |
 | RS4 `*` activation | in-house static | `extrace.s1.activation_wildcard` | ✅ pre-existing (HIGH / WARN) — **silent for nf3xn** (it uses `onCommand`, correctly lower severity) |
-| **MN publisher impersonation** | in-house static | `extrace.s1.reserved_publisher_spoof` | ✅ **NEW this work** — MEDIUM / WARN |
+| **MN reserved-publisher claim** | in-house static | `extrace.s1.reserved_publisher_spoof` | ✅ INFO provenance signal; name-only evidence never convicts |
 | runtime shell spawn + outbound socket | dynamic | `extrace.a8.reverse_shell` | ✅ HIGH, `AdversaryClass.A8` — **fires for nf3xn** (see §5) |
 
 ### 4a. `s10` improvement — manual `stdin.write` bridge (NEW)
@@ -122,10 +122,9 @@ socket.on("data", (d) => proc.stdin.write(d));   // C2 -> shell  (inbound leg)
 proc.stdout.on("data", (d) => socket.write(d));  // shell -> C2  (outbound leg)
 ```
 
-The wiring conjunct now also matches `stdin.write(` — feeding a spawned process's
-stdin is the diagnostic, low-FP inbound leg (a bare `socket.write` is too generic
-to add). It only ever contributes **inside** the four-way conjunction (shell name,
-child_process, socket, and wiring), so it cannot fire alone. Regression covered by
+The wiring logic requires the same process/socket identifiers on both the inbound
+and outbound legs inside an 8 KiB region. A bare `stdin.write` or `.pipe()` from
+an unrelated bundled library cannot contribute. Regression covered by
 `tests/static_runtime/test_s10_reverse_shell.py::test_fires_on_manual_stdin_write_bridge`.
 
 ### 4b. `extrace.s1.reserved_publisher_spoof` — MN (NEW)
@@ -136,7 +135,7 @@ reserved / first-party brand publisher namespace (curated set:
 `publisher: "ms-vscode"` matches. Distinct from `generic_publisher` (which catches
 *missing/placeholder* identity); this catches *claimed-trusted* identity.
 
-### 4c. Honest FP boundary for MN — why MEDIUM/WARN, never a blocker
+### 4c. Honest FP boundary for MN — why INFO until provenance is verified
 
 Genuine first-party extensions carry these exact publishers
 (`ms-vscode.cpptools`, `GitHub.copilot`). Name-only matching **cannot** separate a

@@ -162,3 +162,16 @@ def test_silent_for_fs_read_without_local_server(make_context: MakeContext) -> N
     )
     ctx = make_context(files={"util.js": src})
     assert PathTraversalServerRule().evaluate(ctx) == []
+
+
+def test_silent_when_bundle_conjuncts_are_in_unrelated_regions(
+    make_context: MakeContext,
+) -> None:
+    padding = "const bundledData = '" + ("x" * 9000) + "';"
+    src = (
+        'http.createServer(handler); res.setHeader("Access-Control-Allow-Origin", "*");'
+        + padding
+        + "function unrelated(req) { return fs.readFileSync(root + req.url); }"
+    )
+    ctx = make_context(files={"bundle.js": src})
+    assert PathTraversalServerRule().evaluate(ctx) == []

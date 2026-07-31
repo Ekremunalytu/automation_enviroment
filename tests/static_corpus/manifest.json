@@ -7,19 +7,19 @@
       "relative_path": "tuning-artifact-native",
       "sha256": "e43dddd4a728f3ffce7dbc772e5dde25a960a1bbcb12f860b2cbad9d72e7a6d8",
       "split": "tuning",
-      "label": "malicious_behavior",
+      "label": "coverage_control",
       "families": ["artifact_role", "native"],
       "variant": "renamed inert native marker",
       "platform": "any",
       "provenance": "Repository-authored declawed marker; no executable payload.",
       "safety_state": "declawed",
-      "expected_gate": "warn",
+      "expected_gate": "allow",
       "must_fire": ["extrace.s3.embedded_native_binary"],
       "may_fire": [],
       "must_not_fire": [],
       "expected_coverage": [],
       "expected_inconclusive_reasons": [],
-      "notes": "Measures the current native artifact heuristic."
+      "notes": "Pins native presence as inventory-only; S13 owns suspicious native-loader conjunctions."
     },
     {
       "sample_id": "tuning-artifact-png",

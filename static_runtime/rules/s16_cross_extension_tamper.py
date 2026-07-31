@@ -31,8 +31,8 @@ all collapse to that primitive, matched here:
   * **TAMPER1a (variable form)** — ``const ext = getExtension(id); ...
     fs.copyFileSync(src, path.join(ext.extensionPath, ...))``: a write/copy sink
     whose argument references a ``.extensionPath`` / ``.extensionUri`` on a
-    receiver that is **not** the extension's own ``context`` (an own-context
-    allowlist — writing to your own ``context.extensionPath`` is *not* tamper).
+    receiver proven by a nearby ``getExtension`` assignment. An arbitrary
+    receiver name is not treated as foreign.
   * **TAMPER1a (inline form)** — ``getExtension(id).extensionPath`` used directly
     inside a write/copy sink.
   * **TAMPER1b (install-root literal)** — a write/copy sink whose path argument
@@ -56,7 +56,7 @@ sample IOCs live only in tests + the spec appendix.
 rare and arguably *should* be reviewed; the spec documents it as the single
 negative-fixture case. Writing to the extension's **own** directory
 (``context.extensionPath`` / ``context.globalStorageUri`` / ``storageUri``) is
-explicitly allowlisted and never fires. The static limit (spec §7): a tamper that
+never fires without foreign provenance. The static limit (spec §7): a tamper that
 builds the destination path entirely from runtime-derived variables with no
 ``.extensionPath`` token and no install-root literal in the sink call is a
 documented miss, left to the dynamic plane (an ``openat``/``write`` into a foreign
@@ -82,12 +82,13 @@ from static_runtime.rules._common import (
     evidence_type_for,
     file_evidence,
     iter_text_documents,
-    line_at,
     line_number_at,
+    snippet_at,
 )
 from static_runtime.rules.registry import register
 
 _MAX_EVIDENCE = 9
+_MAX_DATAFLOW_SPAN = 8 * 1024
 
 # A filesystem *write / copy* sink. ``fs.``-qualified or the unambiguous bare
 # forms (the *Sync names and the create/copy/write/append family). Read-only
@@ -109,23 +110,15 @@ _FS_READ_RE = re.compile(
 )
 
 # TAMPER1a (variable form) — a write/copy sink whose arguments reference a
-# ``.extensionPath`` / ``.extensionUri`` on some receiver. The receiver
-# identifier is captured (group 1) so the own-context allowlist can be applied in
-# code: ``context.extensionPath`` is the extension's *own* directory and is NOT
-# tamper. ``[^;{}]{0,300}?`` keeps the match inside one call's argument list.
+# ``.extensionPath`` / ``.extensionUri`` on a receiver. The receiver identifier
+# is captured (group 1) and must be proven by a nearby ``getExtension``
+# assignment. ``[^;{}]{0,300}?`` keeps the match inside one call's argument list.
 # The bounded window between a sink's open-paren and a token inside its argument
 # list (one call; no statement break).
 _SINK_GAP = r"[^;{}]{0,300}?"
 _EXT_PATH_SUFFIX = r"\.\s*(?:extensionPath|extensionUri)\b"
 _EXT_PATH_IN_SINK_RE = re.compile(
     _WRITE_SINK + _SINK_GAP + r"([A-Za-z_$][\w$]*)\s*" + _EXT_PATH_SUFFIX
-)
-
-# Receivers that denote the extension's OWN context — writing to these is not
-# foreign-extension tampering (allowlist). ``getExtension(<otherId>)`` always
-# yields a different receiver name, so a foreign target survives this filter.
-_OWN_CONTEXT_RECEIVERS = frozenset(
-    {"context", "_context", "ctx", "extensioncontext", "this", "self", "thiscontext"}
 )
 
 # TAMPER1a (inline form) — ``getExtension(id).extensionPath`` (or ``.extensionUri``)
@@ -162,11 +155,18 @@ _ASSIGN_RE = re.compile(r"\b([A-Za-z_$][\w$]*)\s*=\s*([^;\n]*)")
 _EXT_PATH_RECEIVER_RE = re.compile(
     r"\b([A-Za-z_$][\w$]*)\s*\.\s*(?:extensionPath|extensionUri)\b"
 )
+_GET_EXTENSION_ASSIGN_RE = re.compile(
+    r"\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*"
+    r"[^;{}\n]{0,300}?\bgetExtension\s*\("
+)
+_INLINE_GET_EXTENSION_PATH_RE = re.compile(
+    r"\bgetExtension\s*\([^)]*\)\s*[!?]*\s*" + _EXT_PATH_SUFFIX
+)
 
 
 class CrossExtensionTamperRule:
     rule_id = "extrace.s16.cross_extension_tamper"
-    rule_version = "1.0.0"
+    rule_version = "1.1.0"
     lifecycle = RuleLifecycle.PRODUCTION
     # Class-less per the static-IOC convention (reconciliation doc): in-house
     # static rules report a capability/IOC surface and leave adversary-class
@@ -208,29 +208,56 @@ class CrossExtensionTamperRule:
         inline = _INLINE_FOREIGN_WRITE_RE.search(text)
         if inline is not None:
             return inline
+        foreign_receivers = [
+            (match.group(1), match.start())
+            for match in _GET_EXTENSION_ASSIGN_RE.finditer(text)
+        ]
         for candidate in _EXT_PATH_IN_SINK_RE.finditer(text):
-            if candidate.group(1).lower() not in _OWN_CONTEXT_RECEIVERS:
+            if any(
+                receiver == candidate.group(1)
+                and 0 <= candidate.start() - assigned_at <= _MAX_DATAFLOW_SPAN
+                for receiver, assigned_at in foreign_receivers
+            ):
                 return candidate
-        return CrossExtensionTamperRule._variable_form_match(text)
+        return CrossExtensionTamperRule._variable_form_match(
+            text, foreign_receivers=foreign_receivers
+        )
 
     @staticmethod
-    def _variable_form_match(text: str) -> re.Match[str] | None:
+    def _variable_form_match(
+        text: str,
+        *,
+        foreign_receivers: list[tuple[str, int]],
+    ) -> re.Match[str] | None:
         """A write sink whose argument is a variable holding a foreign path."""
-        foreign_vars = {
-            assign.group(1)
+        foreign_vars = [
+            (assign.group(1), assign.start())
             for assign in _ASSIGN_RE.finditer(text)
-            if CrossExtensionTamperRule._rhs_is_foreign_path(assign.group(2))
-        }
+            if CrossExtensionTamperRule._rhs_is_foreign_path(
+                assign.group(2),
+                assignment_start=assign.start(),
+                foreign_receivers=foreign_receivers,
+            )
+        ]
         if not foreign_vars:
             return None
         for sink in _WRITE_SINK_CALL_RE.finditer(text):
             args = text[sink.end() : sink.end() + 300]
-            if any(re.search(rf"\b{re.escape(var)}\b", args) for var in foreign_vars):
+            if any(
+                0 <= sink.start() - assigned_at <= _MAX_DATAFLOW_SPAN
+                and re.search(rf"\b{re.escape(var)}\b", args)
+                for var, assigned_at in foreign_vars
+            ):
                 return sink
         return None
 
     @staticmethod
-    def _rhs_is_foreign_path(rhs: str) -> bool:
+    def _rhs_is_foreign_path(
+        rhs: str,
+        *,
+        assignment_start: int,
+        foreign_receivers: list[tuple[str, int]],
+    ) -> bool:
         """True if an assignment RHS builds a *foreign* extension path.
 
         Either an install-root literal, or a non-own ``.extensionPath`` receiver.
@@ -240,9 +267,15 @@ class CrossExtensionTamperRule:
             return False
         if _INSTALL_ROOT_LITERAL_RE.search(rhs) is not None:
             return True
+        if _INLINE_GET_EXTENSION_PATH_RE.search(rhs) is not None:
+            return True
+        rhs_receivers = {
+            receiver.group(1) for receiver in _EXT_PATH_RECEIVER_RE.finditer(rhs)
+        }
         return any(
-            receiver.group(1).lower() not in _OWN_CONTEXT_RECEIVERS
-            for receiver in _EXT_PATH_RECEIVER_RE.finditer(rhs)
+            receiver in rhs_receivers
+            and 0 <= assignment_start - assigned_at <= _MAX_DATAFLOW_SPAN
+            for receiver, assigned_at in foreign_receivers
         )
 
     def _finding(
@@ -257,7 +290,7 @@ class CrossExtensionTamperRule:
             file_evidence(
                 relative_path,
                 evidence_type_for(context, relative_path),
-                snippet=line_at(text, line_number) or "cross-extension write",
+                snippet=snippet_at(text, match.start()) or "cross-extension write",
                 line_number=line_number,
             )
         ]

@@ -37,16 +37,20 @@ from static_runtime.rules._common import (
     evidence_type_for,
     file_evidence,
     iter_text_documents,
-    line_at,
     line_number_at,
+    snippet_at,
 )
 from static_runtime.rules.registry import register
 
 _MAX_EVIDENCE = 25
 
-# A dotted-quad inside a URL or as an explicit host:port connect target.
+# A dotted-quad must be in endpoint syntax. Bare dotted quads are not enough:
+# large crypto/TLS bundles contain ASN.1 object identifiers such as 1.3.6.1,
+# which ``ipaddress`` can consider globally routable even though they are not
+# network addresses.
 _IP_ENDPOINT_RE = re.compile(
-    r"\b(?:https?://)?(\d{1,3}(?:\.\d{1,3}){3})(?::\d{2,5})?\b"
+    r"\b(?:https?://(\d{1,3}(?:\.\d{1,3}){3})(?::\d{2,5})?"
+    r"|(\d{1,3}(?:\.\d{1,3}){3}):\d{2,5})\b"
 )
 # A cleartext http:// URL host (captured up to the first path/port/quote char).
 _CLEARTEXT_HTTP_RE = re.compile(r"\bhttp://([a-z0-9.\-]+\.[a-z]{2,})", re.IGNORECASE)
@@ -58,8 +62,23 @@ _IGNORED_HOST_SUFFIXES = (
     ".invalid",
     ".local",
     ".localhost",
+    ".internal",
 )
 _IGNORED_HOSTS = frozenset({"localhost"})
+_REFERENCE_HTTP_HOSTS = frozenset(
+    {
+        "json-schema.org",
+        "www.apple.com",
+        "www.ibm.com",
+        "www.w3.org",
+    }
+)
+_RUNTIME_ENDPOINT_PREFIX_RE = re.compile(
+    r"(?:fetch|head|get|open|request|connect|createConnection|axios\s*\.\s*"
+    r"(?:get|post|put|patch|request))\s*\([^()]{0,256}$"
+    r"|(?:apiUrl|baseUrl|endpoint|host|server|url)\s*[:=]\s*['\"]?$",
+    re.IGNORECASE,
+)
 _MANIFEST_DOCUMENTATION_FIELDS = frozenset(
     {
         "author",
@@ -85,6 +104,8 @@ def _is_routable_ipv4(candidate: str) -> bool:
 def _is_flaggable_http_host(host: str) -> bool:
     lowered = host.lower()
     if lowered in _IGNORED_HOSTS:
+        return False
+    if lowered in _REFERENCE_HTTP_HOSTS:
         return False
     if any(lowered == suffix.lstrip(".") for suffix in _IGNORED_HOST_SUFFIXES):
         return False
@@ -119,9 +140,32 @@ def _text_for_endpoint_scan(
     )
 
 
+def _is_runtime_endpoint_literal(
+    context: StaticAnalysisContext,
+    relative_path: str,
+    text: str,
+    index: int,
+) -> bool:
+    if relative_path == context.manifest_relative_path:
+        return True
+    prefix = text[max(0, index - 256) : index]
+    return _RUNTIME_ENDPOINT_PREFIX_RE.search(prefix) is not None
+
+
+def _is_connectivity_probe(text: str, start: int, end: int) -> bool:
+    """Recognize bounded HEAD-to-root reachability checks, not C2 endpoints."""
+
+    prefix = text[max(0, start - 80) : start]
+    suffix = text[end : min(len(text), end + 160)]
+    return (
+        re.search(r"\.\s*head\s*\([^()]{0,64}$", prefix, re.IGNORECASE) is not None
+        and "AbortSignal.timeout" in suffix
+    )
+
+
 class SuspiciousNetworkEndpointRule:
     rule_id = "extrace.s5.suspicious_network_endpoint"
-    rule_version = "1.1.0"
+    rule_version = "1.2.0"
     lifecycle = RuleLifecycle.PRODUCTION
     adversary_class: AdversaryClass | None = None
     severity = Severity.MEDIUM
@@ -140,11 +184,19 @@ class SuspiciousNetworkEndpointRule:
                 "documentation",
                 "license",
                 "source_map",
+                "test",
             }:
                 continue
             scan_text = _text_for_endpoint_scan(context, relative_path, text)
             for match in _IP_ENDPOINT_RE.finditer(scan_text):
-                if not _is_routable_ipv4(match.group(1)):
+                candidate = match.group(1) or match.group(2)
+                if not _is_routable_ipv4(candidate):
+                    continue
+                if not _is_runtime_endpoint_literal(
+                    context, relative_path, scan_text, match.start()
+                ):
+                    continue
+                if _is_connectivity_probe(scan_text, match.start(), match.end()):
                     continue
                 reasons.add("routable IPv4 endpoint")
                 total_hits += 1
@@ -153,6 +205,10 @@ class SuspiciousNetworkEndpointRule:
                 )
             for match in _CLEARTEXT_HTTP_RE.finditer(scan_text):
                 if not _is_flaggable_http_host(match.group(1)):
+                    continue
+                if not _is_runtime_endpoint_literal(
+                    context, relative_path, scan_text, match.start()
+                ):
                     continue
                 reasons.add("cleartext http:// external host")
                 total_hits += 1
@@ -202,7 +258,7 @@ class SuspiciousNetworkEndpointRule:
             file_evidence(
                 relative_path,
                 evidence_type_for(context, relative_path),
-                snippet=line_at(text, line_number) or "network endpoint",
+                snippet=snippet_at(text, index) or "network endpoint",
                 line_number=None if is_manifest else line_number,
             )
         )

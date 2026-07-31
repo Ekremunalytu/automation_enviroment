@@ -39,7 +39,7 @@ _MAX_EVIDENCE = 25
 
 class HardcodedSecretRule:
     rule_id = "extrace.s7.hardcoded_secret"
-    rule_version = "1.0.0"
+    rule_version = "1.1.0"
     lifecycle = RuleLifecycle.PRODUCTION
     adversary_class: AdversaryClass | None = None
     severity = Severity.MEDIUM
@@ -51,10 +51,17 @@ class HardcodedSecretRule:
     def evaluate(self, context: StaticAnalysisContext) -> list[StaticDetectionFinding]:
         evidence: list[StaticEvidenceRef] = []
         classes: set[str] = set()
+        warnable_classes: set[str] = set()
 
         for relative_path, text in iter_text_documents(context):
             for secret_class, offset in find_secret_offsets(text):
                 classes.add(secret_class)
+                paired_tls_material = (
+                    secret_class == "private" + "_key"
+                    and "-----BEGIN CERTIFICATE-----" in text
+                )
+                if not paired_tls_material:
+                    warnable_classes.add(secret_class)
                 if len(evidence) >= _MAX_EVIDENCE:
                     continue
                 line_number = line_number_at(text, offset)
@@ -72,24 +79,29 @@ class HardcodedSecretRule:
             return []
 
         shown = ", ".join(sorted(classes))
+        severity = Severity.MEDIUM if warnable_classes else Severity.INFO
+        confidence = Confidence.MEDIUM if warnable_classes else Confidence.LOW
         return [
             StaticDetectionFinding(
                 rule_id=self.rule_id,
                 rule_version=self.rule_version,
                 rule_lifecycle=self.lifecycle,
                 categories=["attack.T1552", "extrace.ext.hardcoded_secret"],
-                severity=self.severity,
-                confidence=Confidence.MEDIUM,
+                severity=severity,
+                confidence=confidence,
                 title="Extension hardcodes a credential in source",
                 description=(
                     f"Hardcoded credential(s) found in the extension source: "
                     f"{shown}. Shipped secrets are a supply-chain leak and a "
-                    "common marker of a hardcoded exfiltration channel."
+                    "common marker of a hardcoded exfiltration channel. A "
+                    "private key shipped with its matching certificate is "
+                    "classified as informational TLS material."
                 ),
                 evidence=evidence,
                 mitigation_hint=(
                     "Rotate the exposed credential and confirm why the extension "
-                    "ships a secret; legitimate extensions do not embed keys."
+                    "ships a secret; paired local-service TLS material still "
+                    "needs provenance review but is not itself evidence of malice."
                 ),
             )
         ]

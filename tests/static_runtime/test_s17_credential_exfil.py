@@ -85,3 +85,16 @@ def test_silent_for_network_without_sensitive_read(make_context: MakeContext) ->
 def test_silent_for_network_only(make_context: MakeContext) -> None:
     ctx = make_context(files={"net.js": 'fetch("https://api.example.com/ping");'})
     assert CredentialExfilRule().evaluate(ctx) == []
+
+
+def test_silent_when_bundle_conjuncts_are_in_unrelated_regions(
+    make_context: MakeContext,
+) -> None:
+    padding = "const bundledData = '" + ("x" * 9000) + "';"
+    src = (
+        'const p = ".ssh/id_rsa"; const key = fs.readFileSync(p);'
+        + padding
+        + 'fetch("https://telemetry.example.com/ping");'
+    )
+    ctx = make_context(files={"bundle.js": src})
+    assert CredentialExfilRule().evaluate(ctx) == []

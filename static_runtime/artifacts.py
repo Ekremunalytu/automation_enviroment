@@ -65,7 +65,13 @@ _RUNTIME_SUFFIXES = frozenset(
 )
 _DOCUMENTATION_SUFFIXES = frozenset({".md", ".mdx", ".rst", ".adoc"})
 _DOCUMENTATION_PREFIXES = ("readme", "changelog", "history", "authors")
-_LICENSE_PREFIXES = ("license", "licence", "copying", "notice")
+_LICENSE_PREFIXES = (
+    "license",
+    "licence",
+    "copying",
+    "notice",
+    "thirdpartynotice",
+)
 _DOCUMENTATION_DIRS = frozenset({"doc", "docs", "documentation"})
 _TEST_DIRS = frozenset({"test", "tests", "__tests__", "spec", "specs"})
 _ASSET_DIRS = frozenset({"asset", "assets", "image", "images", "media", "icons"})

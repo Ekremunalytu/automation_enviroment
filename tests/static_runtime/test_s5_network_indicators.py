@@ -137,6 +137,19 @@ def test_runtime_source_with_same_cleartext_url_still_fires(
     assert len(SuspiciousNetworkEndpointRule().evaluate(ctx)) == 1
 
 
+def test_silent_for_asn1_oids_and_reference_namespaces(
+    make_context: MakeContext,
+) -> None:
+    src = (
+        'const oid = "1.3.6.1";'
+        'const xhtml = "http://www.w3.org/1999/xhtml";'
+        'const schema = "http://json-schema.org/draft-07/schema#";'
+        'const metadata = "http://metadata.google.internal/computeMetadata/v1";'
+    )
+    ctx = make_context(files={"bundle.js": src})
+    assert SuspiciousNetworkEndpointRule().evaluate(ctx) == []
+
+
 def test_evidence_is_capped_but_description_reports_all_hits(
     make_context: MakeContext,
 ) -> None:

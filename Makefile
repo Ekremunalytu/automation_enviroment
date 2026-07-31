@@ -292,12 +292,21 @@ test-security:
 		tests/static_runtime/test_static_eval_cli.py \
 		tests/static_runtime/test_scan_coverage.py \
 		tests/static_runtime/test_artifacts.py \
+		tests/static_runtime/test_s1_manifest_red_flags.py \
 		tests/static_runtime/test_s3_file_tree_heuristics.py \
 		tests/static_runtime/test_s4_blacklisted_domain.py \
 		tests/static_runtime/test_s5_network_indicators.py \
+		tests/static_runtime/test_s6_obfuscation_indicators.py \
+		tests/static_runtime/test_s7_secret_exposure.py \
+		tests/static_runtime/test_s9_crypto_address_scan.py \
+		tests/static_runtime/test_s10_reverse_shell.py \
 		tests/static_runtime/test_s12_invisible_unicode.py \
 		tests/static_runtime/test_s13_native_node_loader.py \
 		tests/static_runtime/test_s14_globalstate_dormancy.py \
+		tests/static_runtime/test_s15_path_traversal_server.py \
+		tests/static_runtime/test_s16_cross_extension_tamper.py \
+		tests/static_runtime/test_s17_credential_exfil.py \
+		tests/static_runtime/test_s18_download_exec_dropper.py \
 		tests/platform/contracts/test_domain_indicators.py \
 		tests/platform/security \
 		tests/architecture/test_default_bindings.py \

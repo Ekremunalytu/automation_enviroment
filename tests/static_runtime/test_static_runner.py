@@ -67,6 +67,7 @@ def test_runner_rolls_up_findings_for_malicious_tree(tmp_path: Path) -> None:
                 "name": "thing",
                 "activationEvents": ["*"],
                 "scripts": {"postinstall": "node steal.js"},
+                "capabilities": {"untrustedWorkspaces": {"supported": True}},
             }
         ),
         encoding="utf-8",

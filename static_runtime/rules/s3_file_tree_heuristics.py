@@ -67,10 +67,12 @@ def _file_size(path: Path) -> int:
 
 class EmbeddedNativeBinaryRule:
     rule_id = "extrace.s3.embedded_native_binary"
-    rule_version = "1.1.0"
+    rule_version = "1.2.0"
     lifecycle = RuleLifecycle.PRODUCTION
     adversary_class: AdversaryClass | None = None
-    severity = Severity.MEDIUM
+    # Presence is inventory, not malice. S13 owns suspicious native-loader
+    # conjunctions; an ordinary signed/verified helper must not warn by itself.
+    severity = Severity.INFO
     description = (
         "Extension ships native binaries or content-sniffed binary blobs, which "
         "can execute outside the JS sandbox and resist static review."
@@ -122,10 +124,12 @@ class EmbeddedNativeBinaryRule:
 
 class UnusualFileSignatureRule:
     rule_id = "extrace.s3.unusual_file_signature"
-    rule_version = "1.0.0"
+    rule_version = "1.1.0"
     lifecycle = RuleLifecycle.PRODUCTION
     adversary_class: AdversaryClass | None = None
-    severity = Severity.LOW
+    # Modern webpack/esbuild bundles commonly exceed 2 MiB. Keep the visibility
+    # but do not turn bundle size alone into a security warning.
+    severity = Severity.INFO
     description = (
         "Extension contains text/source files that are unexpectedly large, a "
         "common shape for packed or obfuscated payloads."

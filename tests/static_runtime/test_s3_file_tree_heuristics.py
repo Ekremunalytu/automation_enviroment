@@ -23,7 +23,7 @@ def test_native_binary_fires_on_node_suffix(make_context: MakeContext) -> None:
     findings = EmbeddedNativeBinaryRule().evaluate(ctx)
     assert len(findings) == 1
     assert findings[0].rule_id == "extrace.s3.embedded_native_binary"
-    assert findings[0].severity.value == "medium"
+    assert findings[0].severity.value == "info"
     assert any(ev.relative_path == "build/addon.node" for ev in findings[0].evidence)
 
 
@@ -41,7 +41,7 @@ def test_native_binary_fires_on_renamed_pe(make_context: MakeContext) -> None:
     findings = EmbeddedNativeBinaryRule().evaluate(ctx)
 
     assert len(findings) == 1
-    assert findings[0].rule_version == "1.1.0"
+    assert findings[0].rule_version == "1.2.0"
     assert findings[0].evidence[0].snippet
     assert "pe native artifact" in findings[0].evidence[0].snippet
 
@@ -112,7 +112,7 @@ def test_unusual_signature_fires_on_oversized_text(
     findings = UnusualFileSignatureRule().evaluate(ctx)
     assert len(findings) == 1
     assert findings[0].rule_id == "extrace.s3.unusual_file_signature"
-    assert findings[0].severity.value == "low"
+    assert findings[0].severity.value == "info"
     assert any(ev.relative_path == "bundle.js" for ev in findings[0].evidence)
 
 

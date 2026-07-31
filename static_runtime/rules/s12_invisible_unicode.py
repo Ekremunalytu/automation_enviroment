@@ -33,7 +33,11 @@ from static_runtime.rules.registry import register
 
 _MAX_SCAN_BYTES = 1024 * 1024
 _MAX_EVIDENCE = 25
-_RUN_THRESHOLD = 3
+# A three-codepoint run is normal in localization, Unicode category tables, and
+# generated workers. Encoded source-hiding payloads need a materially longer
+# stream; 16 keeps a conservative block threshold while eliminating those
+# production false positives.
+_RUN_THRESHOLD = 16
 
 _INVISIBLE_RANGES: tuple[tuple[int, int], ...] = (
     (0x00AD, 0x00AD),
@@ -104,7 +108,7 @@ def _scan_text(text: str) -> _UnicodeScan:
 
 class InvisibleUnicodeRunRule:
     rule_id = "extrace.s12.invisible_unicode_run"
-    rule_version = "1.0.0"
+    rule_version = "1.1.0"
     lifecycle = RuleLifecycle.PRODUCTION
     adversary_class: AdversaryClass | None = None
     severity = Severity.CRITICAL
@@ -157,8 +161,8 @@ class InvisibleUnicodeRunRule:
             return []
 
         uc2 = max_run >= _RUN_THRESHOLD
-        severity = Severity.CRITICAL if uc2 else Severity.LOW
-        confidence = Confidence.HIGH if uc2 else Confidence.MEDIUM
+        severity = Severity.CRITICAL if uc2 else Severity.INFO
+        confidence = Confidence.HIGH if uc2 else Confidence.LOW
         title = (
             "Source contains an invisible Unicode run"
             if uc2
@@ -177,9 +181,9 @@ class InvisibleUnicodeRunRule:
                     f"{total_hits} invisible Unicode / PUA codepoint(s) found "
                     f"across {files_with_hits} text/source file(s); maximum "
                     f"contiguous run is {max_run}. Runs of {_RUN_THRESHOLD}+ "
-                    "codepoints are treated as malicious source hiding because "
-                    "normal JS/TS source should not contain invisible payload "
-                    "streams."
+                    "codepoints are treated as malicious source hiding; shorter "
+                    "runs remain informational because localization and generated "
+                    "Unicode tables legitimately contain them."
                 ),
                 evidence=evidence,
                 mitigation_hint=(

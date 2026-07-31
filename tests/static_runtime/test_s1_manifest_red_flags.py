@@ -45,17 +45,13 @@ def test_activation_wildcard_silent_without_manifest(
 # --- extrace.s1.suspicious_capabilities -------------------------------------
 
 
-def test_suspicious_capabilities_fires_on_install_script(
+def test_suspicious_capabilities_ignores_packaging_install_script(
     make_context: MakeContext,
 ) -> None:
     ctx = make_context(
         manifest={"publisher": "acme", "scripts": {"postinstall": "node x.js"}}
     )
-    findings = SuspiciousCapabilitiesRule().evaluate(ctx)
-    assert len(findings) == 1
-    assert findings[0].rule_id == "extrace.s1.suspicious_capabilities"
-    assert findings[0].severity.value == "medium"
-    assert "postinstall" in findings[0].description
+    assert SuspiciousCapabilitiesRule().evaluate(ctx) == []
 
 
 def test_suspicious_capabilities_fires_on_untrusted_workspace(
@@ -69,6 +65,7 @@ def test_suspicious_capabilities_fires_on_untrusted_workspace(
     )
     findings = SuspiciousCapabilitiesRule().evaluate(ctx)
     assert len(findings) == 1
+    assert findings[0].severity.value == "info"
     assert "untrusted" in findings[0].description.lower()
 
 
@@ -111,8 +108,9 @@ def test_reserved_publisher_spoof_fires_on_ms_vscode(make_context: MakeContext) 
     assert len(findings) == 1
     finding = findings[0]
     assert finding.rule_id == "extrace.s1.reserved_publisher_spoof"
-    # Provenance-review signal — MEDIUM/WARN, never a blocker.
-    assert finding.severity.value == "medium"
+    # Name-only provenance signal is informational until marketplace identity is
+    # verified or a malicious capability independently convicts the package.
+    assert finding.severity.value == "info"
     assert finding.adversary_class is None
     assert "extrace.ext.publisher_impersonation" in finding.categories
     assert finding.evidence and finding.evidence[0].type == "manifest"

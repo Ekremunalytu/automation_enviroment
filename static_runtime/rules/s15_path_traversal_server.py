@@ -21,7 +21,7 @@ here the conjunction is unusually load-bearing because every part alone is wildl
 benign. Dozens of legitimate extensions (Live Preview, dev-server, LSP-over-http)
 stand up a local HTTP server (VLN1); plenty read files in response to requests
 (VLN2); permissive CORS (VLN4) and webviews (VLN3) are everywhere. The signal is
-**not** any of those — it is the single file where all of:
+**not** any of those — it is one bounded source region where all of:
 
   (VLN1) a local HTTP server (``http.createServer`` / ``express()`` / ``.listen``),
   (VLN2) a request-derived path flowing into a filesystem read sink
@@ -42,7 +42,7 @@ deliberately **conservative** — if a ``path.resolve``/``normalize`` co-occurs 
 a ``startsWith`` containment check, or a hardened static lib is imported, the rule
 goes **silent** even at some cost of a false negative. The honest static limit:
 this approximates the spec's taint (request-path -> fs sink, guard = sanitizer) by
-file-level co-occurrence rather than true dataflow, so a hardened-lib-with-a-logic-
+bounded lexical co-occurrence rather than true dataflow, so a hardened-lib-with-a-logic-
 bug or a config/runtime-gated server path is a documented miss (spec §7).
 
 This is a **VULNERABILITY surface, not a malice conviction**, so unlike ``s10``/
@@ -73,13 +73,15 @@ from static_runtime.context import StaticAnalysisContext
 from static_runtime.rules._common import (
     evidence_type_for,
     file_evidence,
+    find_local_pattern_cluster,
     iter_text_documents,
-    line_at,
     line_number_at,
+    snippet_at,
 )
 from static_runtime.rules.registry import register
 
 _MAX_EVIDENCE = 9
+_MAX_CHAIN_SPAN = 8 * 1024
 
 # VLN1 — a local HTTP server is stood up. ``.listen(<num/var>)`` covers the
 # express/connect ``app.listen(8090)`` shape without matching DOM event
@@ -136,7 +138,7 @@ _CSP_RE = re.compile(r"content-security-policy", re.IGNORECASE)
 
 class PathTraversalServerRule:
     rule_id = "extrace.s15.path_traversal_server"
-    rule_version = "1.0.0"
+    rule_version = "1.1.0"
     lifecycle = RuleLifecycle.PRODUCTION
     # Class-less: in-house static rules report a capability/IOC surface and leave
     # adversary attribution to the dynamic a-rules — and adversary class is the
@@ -156,47 +158,34 @@ class PathTraversalServerRule:
 
     def evaluate(self, context: StaticAnalysisContext) -> list[StaticDetectionFinding]:
         for relative_path, text in iter_text_documents(context):
-            if not _SERVER_RE.search(text):
-                continue
-            if not (_REQ_PATH_RE.search(text) and _FS_READ_SINK_RE.search(text)):
-                continue
-            if _GUARD_RE.search(text):
-                # Correctly guarded (resolve+containment, or a hardened static
-                # lib) — the primitive is closed; stay silent.
-                continue
-            reachable = self._reachable_origin(text)
-            if reachable is None:
-                continue
-            return [self._finding(context, relative_path, text, reachable)]
+            for reachable in (_PERMISSIVE_CORS_RE, _WEBVIEW_RE):
+                cluster = find_local_pattern_cluster(
+                    text,
+                    (_SERVER_RE, _REQ_PATH_RE, _FS_READ_SINK_RE, reachable),
+                    max_span=_MAX_CHAIN_SPAN,
+                )
+                if cluster is None:
+                    continue
+                start = max(0, min(match.start() for match in cluster) - 512)
+                end = min(len(text), max(match.end() for match in cluster) + 512)
+                region = text[start:end]
+                if _GUARD_RE.search(region):
+                    continue
+                if reachable is _WEBVIEW_RE and _CSP_RE.search(region):
+                    continue
+                return [self._finding(context, relative_path, text, cluster)]
         return []
-
-    @staticmethod
-    def _reachable_origin(text: str) -> re.Pattern[str] | None:
-        """Return the pattern proving the server is reachable, or None.
-
-        Permissive CORS (VLN4) directly exposes the HTTP server cross-origin; a
-        CSP-less scripted webview (VLN3) is the render-side variant of the same
-        reachable-origin condition. A webview that ships a CSP meta tag is
-        treated as defended and does not count.
-        """
-        if _PERMISSIVE_CORS_RE.search(text):
-            return _PERMISSIVE_CORS_RE
-        if _WEBVIEW_RE.search(text) and not _CSP_RE.search(text):
-            return _WEBVIEW_RE
-        return None
 
     def _finding(
         self,
         context: StaticAnalysisContext,
         relative_path: str,
         text: str,
-        reachable: re.Pattern[str],
+        cluster: tuple[re.Match[str], ...],
     ) -> StaticDetectionFinding:
         evidence: list[StaticEvidenceRef] = []
-        # The two load-bearing conjuncts (request-path sink and the missing-guard
-        # server) first, then the reachable-origin proof.
-        for pattern in (_FS_READ_SINK_RE, _SERVER_RE, reachable):
-            self._add_first_match(evidence, context, relative_path, text, pattern)
+        for match in cluster:
+            self._add_match(evidence, context, relative_path, text, match)
 
         return StaticDetectionFinding(
             rule_id=self.rule_id,
@@ -237,24 +226,21 @@ class PathTraversalServerRule:
         )
 
     @staticmethod
-    def _add_first_match(
+    def _add_match(
         evidence: list[StaticEvidenceRef],
         context: StaticAnalysisContext,
         relative_path: str,
         text: str,
-        pattern: re.Pattern[str],
+        match: re.Match[str],
     ) -> None:
         if len(evidence) >= _MAX_EVIDENCE:
-            return
-        match = pattern.search(text)
-        if match is None:
             return
         line_number = line_number_at(text, match.start())
         evidence.append(
             file_evidence(
                 relative_path,
                 evidence_type_for(context, relative_path),
-                snippet=line_at(text, line_number) or "path-traversal server",
+                snippet=snippet_at(text, match.start()) or "path-traversal server",
                 line_number=line_number,
             )
         )

