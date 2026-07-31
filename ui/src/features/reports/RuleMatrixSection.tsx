@@ -11,13 +11,13 @@ import {
   type V3Tone,
 } from "../../components/v3";
 import type {
-  ActivationReportView,
   StaticReportView,
 } from "../../lib/types/view-models";
 import {
   buildRuleMatrix,
   type FamilyGroup,
   type MatrixCell,
+  type RuleMatrixReport,
   type RuleStatus,
   type ToolCell,
 } from "./buildRuleMatrix";
@@ -402,7 +402,7 @@ export function RuleMatrixSection({
   staticReportError = false,
   latestStaticArtifact = false,
 }: {
-  report: ActivationReportView;
+  report: RuleMatrixReport | null;
   dynamicAnalysisEnabled?: boolean;
   staticReportOverride?: StaticReportView | null;
   staticReportLoading?: boolean;
@@ -410,10 +410,13 @@ export function RuleMatrixSection({
   latestStaticArtifact?: boolean;
 }) {
   const effectiveReport = useMemo(
-    () =>
-      staticReportOverride === undefined
-        ? report
-        : { ...report, staticReport: staticReportOverride },
+    () => ({
+      detection: report?.detection ?? null,
+      staticReport:
+        staticReportOverride === undefined
+          ? (report?.staticReport ?? null)
+          : staticReportOverride,
+    }),
     [report, staticReportOverride],
   );
   const matrix = useMemo(() => buildRuleMatrix(effectiveReport), [effectiveReport]);

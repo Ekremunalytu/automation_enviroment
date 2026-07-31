@@ -71,6 +71,11 @@ export interface RuleMatrix {
   };
 }
 
+export type RuleMatrixReport = Pick<
+  ActivationReportView,
+  "detection" | "staticReport"
+>;
+
 const STATUS_LABEL: Record<RuleStatus, string> = {
   fired: "Fired",
   silent: "Silent",
@@ -163,7 +168,7 @@ function staticDetail(
   return null;
 }
 
-function buildDynamicCells(report: ActivationReportView): MatrixCell[] {
+function buildDynamicCells(report: RuleMatrixReport): MatrixCell[] {
   const detection = report.detection;
   const records = detection?.rulesExecuted ?? [];
   const findingsByRule = groupFindingsByRule(detection?.findings ?? []);
@@ -194,7 +199,7 @@ function buildDynamicCells(report: ActivationReportView): MatrixCell[] {
   });
 }
 
-function buildStaticCells(report: ActivationReportView): MatrixCell[] {
+function buildStaticCells(report: RuleMatrixReport): MatrixCell[] {
   const staticReport = report.staticReport;
   if (!staticReport) return [];
 
@@ -278,7 +283,7 @@ function groupByFamily(cells: MatrixCell[]): FamilyGroup[] {
   return groups;
 }
 
-export function buildRuleMatrix(report: ActivationReportView): RuleMatrix {
+export function buildRuleMatrix(report: RuleMatrixReport): RuleMatrix {
   const dynamicCells = buildDynamicCells(report);
   const staticCells = buildStaticCells(report);
   const toolCells: ToolCell[] = (report.staticReport?.toolStatuses ?? []).map((tool) => ({

@@ -33,6 +33,7 @@ import {
   parseEvidenceFilters,
 } from "../evidence";
 import { apiClient } from "../../lib/api/client";
+import type { StaticReportView } from "../../lib/types/view-models";
 import {
   adaptBundle,
   adaptReport,
@@ -60,6 +61,12 @@ const REPORT_TABS: TabSpec<ReportTab>[] = [
   { value: "ledger", label: "Event ledger" },
   { value: "audit", label: "Audit" },
 ];
+const DYNAMIC_ONLY_REPORT_TABS = new Set<ReportTab>([
+  "interactions",
+  "timeline",
+  "ledger",
+  "audit",
+]);
 
 function normalizeTab(raw: string | null): ReportTab {
   if (raw === "matrix" || raw === "interactions" || raw === "timeline" || raw === "ledger" || raw === "audit") return raw;
@@ -93,6 +100,26 @@ function severityToTone(severity?: string): V3Tone {
   return "neutral";
 }
 
+function staticDecisionTone(decision?: StaticReportView["decision"]): V3Tone {
+  if (decision === "block") return "danger";
+  if (decision === "warn" || decision === "inconclusive") return "warn";
+  if (decision === "allow") return "ok";
+  return "neutral";
+}
+
+function staticDecisionAction(decision: StaticReportView["decision"]): string {
+  if (decision === "block") {
+    return "Blocked before sandbox execution. Review the blocking static findings before enabling or running dynamic analysis.";
+  }
+  if (decision === "inconclusive") {
+    return "Static coverage is incomplete. Resolve the coverage reasons and re-run before treating the extension as clean.";
+  }
+  if (decision === "warn") {
+    return "Review the warned static findings before deciding whether this extension should enter the sandbox.";
+  }
+  return "No blocking static finding was produced. This is a static-only result, not behavioral clearance.";
+}
+
 export function ReportsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -118,6 +145,38 @@ export function ReportsPage() {
     refetchInterval: 4000,
   });
 
+  const executorPreferencesQuery = useQuery({
+    queryKey: ["settings", "executor-preferences"],
+    queryFn: ({ signal }) => apiClient.getExecutorPreferences(signal),
+    refetchInterval: 4000,
+  });
+  const preferencesResolved =
+    executorPreferencesQuery.isSuccess || executorPreferencesQuery.isError;
+  const dynamicAnalysisEnabled =
+    executorPreferencesQuery.data?.dynamic_analysis_enabled ?? true;
+  const staticOnlyLatest =
+    reportParam === "latest" &&
+    executorPreferencesQuery.isSuccess &&
+    !dynamicAnalysisEnabled;
+  const activeTab =
+    staticOnlyLatest && DYNAMIC_ONLY_REPORT_TABS.has(selectedTab)
+      ? "overview"
+      : selectedTab;
+  const reportTabs = useMemo(
+    () =>
+      REPORT_TABS.map((tab) =>
+        staticOnlyLatest && DYNAMIC_ONLY_REPORT_TABS.has(tab.value)
+          ? {
+              ...tab,
+              disabled: true,
+              disabledReason:
+                "Dynamic analysis is disabled; this section requires sandbox evidence.",
+            }
+          : tab,
+      ),
+    [staticOnlyLatest],
+  );
+
   const reportQuery = useQuery({
     queryKey: ["report", reportParam],
     queryFn: async ({ signal }) => {
@@ -127,24 +186,13 @@ export function ReportsPage() {
           : await apiClient.getReportBundleByName(reportParam, signal);
       return adaptBundle(dto, reportParam);
     },
+    enabled: preferencesResolved && !staticOnlyLatest,
   });
 
-  const executorPreferencesQuery = useQuery({
-    queryKey: ["settings", "executor-preferences"],
-    queryFn: ({ signal }) => apiClient.getExecutorPreferences(signal),
-    refetchInterval: 4000,
-  });
-  const dynamicAnalysisEnabled =
-    executorPreferencesQuery.data?.dynamic_analysis_enabled ?? true;
-  const useLatestStaticArtifact =
-    selectedTab === "matrix" &&
-    reportParam === "latest" &&
-    executorPreferencesQuery.isSuccess &&
-    !dynamicAnalysisEnabled;
   const latestStaticQuery = useQuery({
     queryKey: ["reports", "static", "latest"],
     queryFn: ({ signal }) => apiClient.getLatestStaticReport(signal),
-    enabled: useLatestStaticArtifact,
+    enabled: staticOnlyLatest,
     refetchInterval: 4000,
   });
   const latestStaticReport = useMemo(
@@ -166,7 +214,21 @@ export function ReportsPage() {
   );
 
   useEffect(() => {
-    if (selectedTab !== "interactions" && selectedTab !== "ledger") return;
+    if (!staticOnlyLatest || activeTab === selectedTab) return;
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", activeTab);
+    next.delete("event");
+    setSearchParams(next, { replace: true });
+  }, [
+    activeTab,
+    searchParams,
+    selectedTab,
+    setSearchParams,
+    staticOnlyLatest,
+  ]);
+
+  useEffect(() => {
+    if (activeTab !== "interactions" && activeTab !== "ledger") return;
     if (!filteredEvents.length) return;
 
     const candidate = filteredEvents[0]?.eventId;
@@ -177,7 +239,7 @@ export function ReportsPage() {
       next.set("event", candidate);
       setSearchParams(next, { replace: true });
     }
-  }, [eventId, filteredEvents, searchParams, selectedTab, setSearchParams]);
+  }, [activeTab, eventId, filteredEvents, searchParams, setSearchParams]);
 
   const options = buildEvidenceFilterOptions(report?.evidence || []);
   const activeFilterCount = countEvidenceFilters(filters);
@@ -185,6 +247,12 @@ export function ReportsPage() {
     reportParam === "latest"
       ? reportsQuery.data?.[0]
       : reportsQuery.data?.find((item) => item.filename === reportParam) || reportsQuery.data?.[0];
+  const activeArtifactFilename = staticOnlyLatest
+    ? latestStaticQuery.data?.filename
+    : activeReport?.filename;
+  const activeArtifactModified = staticOnlyLatest
+    ? latestStaticQuery.data?.modified
+    : activeReport?.modified;
 
   const interactionGraph = useMemo(() => (report ? buildInteractionGraph(report) : null), [report]);
   const timelineEvents = useMemo(() => {
@@ -251,10 +319,10 @@ export function ReportsPage() {
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
               <span aria-hidden style={{ width: 18, height: 2, background: V3.coral }} />
-              <Eyebrow>Run control</Eyebrow>
+              <Eyebrow>{staticOnlyLatest ? "Static scan" : "Run control"}</Eyebrow>
             </div>
             <span
-              title={activeReport?.filename || "Latest report"}
+              title={activeArtifactFilename || "Latest report"}
               style={{
                 minWidth: 0,
                 overflow: "hidden",
@@ -266,7 +334,7 @@ export function ReportsPage() {
                 letterSpacing: "0.04em",
               }}
             >
-              {activeReport?.filename || "Latest report"}
+              {activeArtifactFilename || "Latest report"}
             </span>
           </div>
 
@@ -300,7 +368,9 @@ export function ReportsPage() {
                   fontSize: 12,
                 }}
               >
-                <option value="latest">Latest report</option>
+                <option value="latest">
+                  {staticOnlyLatest ? "Latest static artifact" : "Latest report"}
+                </option>
                 {(reportsQuery.data || []).map((item) => (
                   <option key={item.filename} value={item.filename}>
                     {item.filename}
@@ -314,12 +384,24 @@ export function ReportsPage() {
               placeholder="host, path, extension, summary…"
               value={filters.search}
               onChange={(value) => updateFilters({ ...filters, search: value })}
+              inputProps={{
+                disabled: staticOnlyLatest,
+                title: staticOnlyLatest
+                  ? "Dynamic evidence search is unavailable while dynamic analysis is disabled."
+                  : undefined,
+              }}
               mono
               style={{ minWidth: 0 }}
             />
 
             <GhostButton
               ariaLabel="Filters"
+              disabled={staticOnlyLatest}
+              title={
+                staticOnlyLatest
+                  ? "Dynamic evidence filters are unavailable while dynamic analysis is disabled."
+                  : undefined
+              }
               onClick={() => setFiltersOpen(true)}
               style={{ justifySelf: "start" }}
             >
@@ -328,7 +410,7 @@ export function ReportsPage() {
           </div>
 
           <div
-            aria-label="Report summary"
+            aria-label={staticOnlyLatest ? "Static report summary" : "Report summary"}
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 120px), 1fr))",
@@ -336,29 +418,82 @@ export function ReportsPage() {
               background: V3.paper3,
             }}
           >
-            <ReportReadout label="Events" value={formatNumber(report?.summary.totalEvents ?? 0)} />
-            <ReportReadout
-              label="Sensitive"
-              value={formatNumber(report?.summary.sensitiveEvents ?? 0)}
-              tone="danger"
-            />
-            <ReportReadout
-              label="Network"
-              value={formatNumber(report?.summary.networkEvents ?? 0)}
-              tone="warn"
-            />
-            <ReportReadout
-              label="Score"
-              value={`${report?.summary.signalSummaryScore ?? 0}`}
-              tone={headerTone}
-            />
-            <ReportReadout label="Quality" value={report?.summary.runQuality ?? "—"} />
-            <ReportReadout label="Updated" value={formatModified(activeReport?.modified)} compact />
+            {staticOnlyLatest ? (
+              <>
+                <ReportReadout
+                  label="Findings"
+                  value={formatNumber(latestStaticReport?.findings.length ?? 0)}
+                  tone={
+                    latestStaticReport?.findings.length
+                      ? staticDecisionTone(latestStaticReport.decision)
+                      : "neutral"
+                  }
+                />
+                <ReportReadout
+                  label="Blocked by"
+                  value={formatNumber(latestStaticReport?.blockedBy.length ?? 0)}
+                  tone="danger"
+                />
+                <ReportReadout
+                  label="Warned by"
+                  value={formatNumber(latestStaticReport?.warnedBy.length ?? 0)}
+                  tone="warn"
+                />
+                <ReportReadout
+                  label="Decision"
+                  value={latestStaticReport?.decisionLabel ?? "—"}
+                  tone={staticDecisionTone(latestStaticReport?.decision)}
+                />
+                <ReportReadout
+                  label="Coverage"
+                  value={
+                    latestStaticReport
+                      ? `${latestStaticReport.coverage.filesScanned}/${latestStaticReport.coverage.filesDiscovered}`
+                      : "—"
+                  }
+                />
+                <ReportReadout
+                  label="Updated"
+                  value={formatModified(activeArtifactModified)}
+                  compact
+                />
+              </>
+            ) : (
+              <>
+                <ReportReadout
+                  label="Events"
+                  value={formatNumber(report?.summary.totalEvents ?? 0)}
+                />
+                <ReportReadout
+                  label="Sensitive"
+                  value={formatNumber(report?.summary.sensitiveEvents ?? 0)}
+                  tone="danger"
+                />
+                <ReportReadout
+                  label="Network"
+                  value={formatNumber(report?.summary.networkEvents ?? 0)}
+                  tone="warn"
+                />
+                <ReportReadout
+                  label="Score"
+                  value={`${report?.summary.signalSummaryScore ?? 0}`}
+                  tone={headerTone}
+                />
+                <ReportReadout label="Quality" value={report?.summary.runQuality ?? "—"} />
+                <ReportReadout
+                  label="Updated"
+                  value={formatModified(activeArtifactModified)}
+                  compact
+                />
+              </>
+            )}
           </div>
         </Panel>
       </section>
 
-      {report ? (
+      {staticOnlyLatest ? (
+        <DynamicAnalysisDisabledPanel />
+      ) : report ? (
         <RiskRadarPanel
           axes={buildRiskRadarAxes(report)}
           compositeScore={report.summary.signalSummaryScore ?? 0}
@@ -367,8 +502,8 @@ export function ReportsPage() {
 
       <Tabs<ReportTab>
         ariaLabel="Report sections"
-        tabs={REPORT_TABS}
-        value={selectedTab}
+        tabs={reportTabs}
+        value={activeTab}
         onChange={(nextTab) => {
           const params = new URLSearchParams(searchParams);
           params.set("tab", nextTab);
@@ -376,32 +511,60 @@ export function ReportsPage() {
         }}
       />
 
-      {reportQuery.isLoading ? (
+      {!preferencesResolved ? (
+        <EmptyState
+          eyebrow="Loading"
+          body="Resolving the current analysis mode before selecting report data."
+          title="Preparing report workspace"
+        />
+      ) : staticOnlyLatest ? (
+        latestStaticQuery.isLoading ? (
+          <EmptyState
+            eyebrow="Static"
+            body="Reading the newest completed static analysis artifact."
+            title="Loading latest static pre-check"
+          />
+        ) : latestStaticQuery.isError ? (
+          <EmptyState
+            eyebrow="Static"
+            body={String(latestStaticQuery.error)}
+            title="Latest static pre-check unavailable"
+          />
+        ) : !latestStaticReport ? null : activeTab === "overview" ? (
+          <StaticOnlyOverviewSection
+            artifactFilename={latestStaticQuery.data?.filename ?? "Latest static artifact"}
+            report={latestStaticReport}
+          />
+        ) : (
+          <RuleMatrixSection
+            report={null}
+            dynamicAnalysisEnabled={false}
+            staticReportOverride={latestStaticReport}
+            latestStaticArtifact
+          />
+        )
+      ) : reportQuery.isLoading ? (
         <EmptyState
           eyebrow="Loading"
           body="Fetching the selected report and normalizing evidence."
           title="Preparing report workspace"
         />
       ) : reportQuery.isError ? (
-        <EmptyState eyebrow="Error" body={String(reportQuery.error)} title="Report could not be loaded" />
-      ) : !report ? null : selectedTab === "overview" ? (
+        <EmptyState
+          eyebrow="Error"
+          body={String(reportQuery.error)}
+          title="Report could not be loaded"
+        />
+      ) : !report ? null : activeTab === "overview" ? (
         <OverviewSection report={report} />
-      ) : selectedTab === "matrix" ? (
+      ) : activeTab === "matrix" ? (
         <RuleMatrixSection
           report={report}
           dynamicAnalysisEnabled={dynamicAnalysisEnabled}
-          staticReportOverride={
-            useLatestStaticArtifact ? (latestStaticReport ?? null) : undefined
-          }
-          staticReportLoading={useLatestStaticArtifact && latestStaticQuery.isLoading}
-          staticReportError={useLatestStaticArtifact && latestStaticQuery.isError}
-          latestStaticArtifact={
-            useLatestStaticArtifact && latestStaticQuery.isSuccess
-          }
         />
-      ) : selectedTab === "interactions" ? (
+      ) : activeTab === "interactions" ? (
         <InteractionsSection graph={interactionGraph} report={report} onSelectEvent={setSelectedEvent} />
-      ) : selectedTab === "timeline" ? (
+      ) : activeTab === "timeline" ? (
         <TimelineSection
           events={timelineEvents}
           timelineKey={timelineKey}
@@ -410,7 +573,7 @@ export function ReportsPage() {
           visibleCount={filteredEvents.length}
           report={report}
         />
-      ) : selectedTab === "ledger" ? (
+      ) : activeTab === "ledger" ? (
         <LedgerSection
           events={filteredEvents}
           eventId={eventId || undefined}
@@ -435,7 +598,7 @@ export function ReportsPage() {
       <SlideOverDrawer
         description="Narrow the evidence set without crowding the main workspace."
         onClose={() => setFiltersOpen(false)}
-        open={filtersOpen}
+        open={filtersOpen && !staticOnlyLatest}
         title="Evidence filters"
       >
         <FilterRail
@@ -449,7 +612,7 @@ export function ReportsPage() {
       </SlideOverDrawer>
 
       <Dialog
-        open={inspectorOpen}
+        open={inspectorOpen && !staticOnlyLatest}
         onClose={() => setInspectorOpen(false)}
         eyebrow="Inspector"
         title={inspector?.event.summaryDisplay || "Event inspector"}
@@ -513,6 +676,7 @@ function ReportReadout({
             : V3.ink;
   return (
     <div
+      aria-label={`${label}: ${value}`}
       style={{
         minWidth: 0,
         padding: "12px 14px",
@@ -537,6 +701,398 @@ function ReportReadout({
         }}
       >
         {value}
+      </div>
+    </div>
+  );
+}
+
+function DynamicAnalysisDisabledPanel() {
+  return (
+    <Panel
+      label="Dynamic analysis"
+      right={<Badge tone="neutral">Disabled</Badge>}
+      style={{ opacity: 0.78 }}
+    >
+      <div
+        aria-disabled="true"
+        role="status"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "36px minmax(0, 1fr)",
+          gap: 14,
+          alignItems: "center",
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            display: "grid",
+            placeItems: "center",
+            width: 34,
+            height: 34,
+            border: `1px solid ${V3.rule2}`,
+            color: V3.ink3,
+            fontFamily: FONT_MONO,
+            fontSize: 18,
+          }}
+        >
+          —
+        </span>
+        <div>
+          <div
+            style={{
+              color: V3.ink,
+              fontSize: 15,
+              fontWeight: 650,
+            }}
+          >
+            Dynamic analysis is disabled
+          </div>
+          <p
+            style={{
+              margin: "5px 0 0",
+              color: V3.ink3,
+              fontSize: 12.5,
+              lineHeight: 1.55,
+            }}
+          >
+            Sandbox evidence, risk radar, interactions, timeline, event ledger,
+            and audit views are unavailable. The latest static artifact remains
+            fully visible below.
+          </p>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function StaticOnlyOverviewSection({
+  artifactFilename,
+  report,
+}: {
+  artifactFilename: string;
+  report: StaticReportView;
+}) {
+  const visibleFindings = report.findings.slice(0, 6);
+  const overflow = report.findings.length - visibleFindings.length;
+  const coverageIncomplete =
+    report.partial || report.coverage.reasons.length > 0;
+  const gateRuleIds =
+    report.decision === "block"
+      ? report.blockedBy
+      : report.decision === "warn"
+        ? report.warnedBy
+        : report.inconclusiveReasons;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <section
+        aria-label="Static decision overview"
+        style={{
+          border: `1px solid ${V3.rule}`,
+          background: V3.paper2,
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
+          }}
+        >
+          <div
+            style={{
+              padding: "18px 20px",
+              borderRight: `1px solid ${V3.rule}`,
+              borderBottom: `1px solid ${V3.rule}`,
+            }}
+          >
+            <Eyebrow>Current static decision</Eyebrow>
+            <div
+              style={{
+                marginTop: 12,
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+              }}
+            >
+              <Badge
+                tone={staticDecisionTone(report.decision)}
+                style={{ padding: "6px 10px", fontSize: 11 }}
+              >
+                Decision · {report.decision.toUpperCase()}
+              </Badge>
+              <Badge tone="neutral">Static only</Badge>
+            </div>
+          </div>
+          <div
+            style={{
+              padding: "18px 20px",
+              borderBottom: `1px solid ${V3.rule}`,
+            }}
+          >
+            <Eyebrow>Operator action</Eyebrow>
+            <p
+              role="note"
+              aria-label="Static recommended action"
+              style={{
+                margin: "10px 0 0",
+                maxWidth: 680,
+                fontSize: 13.5,
+                lineHeight: 1.55,
+                color: V3.ink2,
+              }}
+            >
+              {staticDecisionAction(report.decision)}
+            </p>
+          </div>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+            padding: "13px 20px",
+            background: V3.paper3,
+          }}
+        >
+          <span
+            title={artifactFilename}
+            style={{
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              color: V3.ink3,
+              fontFamily: FONT_MONO,
+              fontSize: 10,
+            }}
+          >
+            {artifactFilename}
+          </span>
+          <Badge tone={coverageIncomplete ? "warn" : "ok"}>
+            {coverageIncomplete ? "Coverage incomplete" : "Coverage complete"}
+          </Badge>
+        </div>
+      </section>
+
+      {gateRuleIds.length ? (
+        <Panel
+          label={
+            report.decision === "block"
+              ? "Blocking rules"
+              : report.decision === "warn"
+                ? "Warning rules"
+                : "Coverage reasons"
+          }
+          right={<Badge tone={staticDecisionTone(report.decision)}>{gateRuleIds.length}</Badge>}
+        >
+          <div
+            role="list"
+            aria-label="Static gate reasons"
+            style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+          >
+            {gateRuleIds.map((ruleId) => (
+              <span
+                key={ruleId}
+                role="listitem"
+                style={{
+                  border: `1px solid ${V3.rule2}`,
+                  padding: "6px 8px",
+                  color: V3.ink2,
+                  fontFamily: FONT_MONO,
+                  fontSize: 10.5,
+                }}
+              >
+                {ruleId}
+              </span>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
+
+      <Panel
+        label="Static findings"
+        right={
+          <Badge tone={report.findings.length ? "warn" : "ok"}>
+            {report.findings.length} finding{report.findings.length === 1 ? "" : "s"}
+          </Badge>
+        }
+      >
+        {visibleFindings.length ? (
+          <div
+            role="list"
+            aria-label="Static findings"
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
+              gap: 12,
+            }}
+          >
+            {visibleFindings.map((finding) => (
+              <article
+                key={finding.id}
+                role="listitem"
+                style={{
+                  border: `1px solid ${V3.rule}`,
+                  borderLeft: `3px solid ${
+                    severityToTone(finding.severity) === "danger"
+                      ? V3.coral
+                      : severityToTone(finding.severity) === "warn"
+                        ? V3.warn
+                        : V3.rule2
+                  }`,
+                  padding: "14px 16px",
+                  background: V3.paper3,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                  }}
+                >
+                  <span
+                    style={{
+                      color: V3.ink,
+                      fontSize: 13.5,
+                      fontWeight: 650,
+                    }}
+                  >
+                    {finding.title}
+                  </span>
+                  <Badge tone={severityToTone(finding.severity)}>
+                    {finding.severityLabel}
+                  </Badge>
+                </div>
+                <p
+                  style={{
+                    margin: "9px 0 0",
+                    color: V3.ink2,
+                    fontSize: 12.5,
+                    lineHeight: 1.55,
+                  }}
+                >
+                  {finding.description}
+                </p>
+                <div
+                  style={{
+                    marginTop: 10,
+                    color: V3.ink3,
+                    fontFamily: FONT_MONO,
+                    fontSize: 10,
+                  }}
+                >
+                  {finding.ruleId} · {finding.evidenceCount} evidence
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p style={{ margin: 0, color: V3.ink3, fontSize: 13 }}>
+            No static finding was emitted.
+          </p>
+        )}
+        {overflow > 0 ? (
+          <p
+            style={{
+              margin: "14px 0 0",
+              color: V3.ink3,
+              fontFamily: FONT_MONO,
+              fontSize: 10.5,
+            }}
+          >
+            +{overflow} more finding{overflow === 1 ? "" : "s"} in Rule matrix
+          </p>
+        ) : null}
+      </Panel>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
+          gap: 20,
+        }}
+      >
+        <Panel label="Static coverage">
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gap: 12,
+            }}
+          >
+            <StaticMetric label="Discovered" value={report.coverage.filesDiscovered} />
+            <StaticMetric label="Scanned" value={report.coverage.filesScanned} />
+            <StaticMetric label="Parsed" value={report.coverage.filesParsed} />
+          </div>
+          {report.coverage.reasons.length ? (
+            <p
+              style={{
+                margin: "14px 0 0",
+                color: V3.warn,
+                fontFamily: FONT_MONO,
+                fontSize: 10.5,
+              }}
+            >
+              {report.coverage.reasons.join(", ")}
+            </p>
+          ) : null}
+        </Panel>
+
+        <Panel label="Static tools">
+          <div
+            aria-label="Static tool executions"
+            style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+          >
+            {report.toolStatuses.map((tool) => (
+              <Badge
+                key={tool.tool}
+                tone={
+                  tool.status === "ok"
+                    ? "ok"
+                    : tool.status === "error" || tool.status === "timeout"
+                      ? "danger"
+                      : "warn"
+                }
+              >
+                {tool.tool} · {tool.status}
+                {tool.errorCount ? ` · ${tool.errorCount} err` : ""}
+              </Badge>
+            ))}
+          </div>
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function StaticMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div
+      aria-label={`${label}: ${value}`}
+      style={{
+        border: `1px solid ${V3.rule}`,
+        padding: "12px",
+        background: V3.paper3,
+      }}
+    >
+      <Eyebrow>{label}</Eyebrow>
+      <div
+        style={{
+          marginTop: 8,
+          color: V3.ink,
+          fontSize: 20,
+          fontWeight: 650,
+        }}
+      >
+        {formatNumber(value)}
       </div>
     </div>
   );

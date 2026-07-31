@@ -94,6 +94,14 @@ important distinction is:
 The UI presents these as analyst-facing evidence, not as a binary "safe" or
 "malware" label.
 
+When dynamic analysis is disabled, the `latest` Reports view resolves the
+newest completed static artifact independently. It does not attach the static
+result to an unrelated activation report. Overview shows the static decision,
+gate reasons, findings, coverage, and analyzer status; sandbox-only evidence
+search, Interactions, Timeline, Event ledger, and Audit are visibly disabled.
+An explicitly selected historical activation report remains available for
+forensic review and retains its own recorded runtime evidence.
+
 ## Major Components
 
 | Component | Purpose |

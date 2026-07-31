@@ -3,7 +3,8 @@
 `Last Updated: 2026-07-31`
 
 `Status: ACTIVE — SAP-0 through SAP-3 initial precision slice implemented and
-validated locally on codex/static-analysis-artifact-precision.`
+validated on codex/static-analysis-artifact-precision. The branch also carries
+the static-only Reports presentation correction described in section 3.`
 
 `Parent: static-analysis-improvement-roadmap.md Increment B / SAR-2.`
 
@@ -64,8 +65,14 @@ Gate policy stays unchanged: `BLOCK > INCONCLUSIVE > WARN > ALLOW`.
 - The machine rule inventory now records the SAP-2/SAP-3 artifact roles and
   remaining false-positive boundaries instead of the resolved PNG/docs
   baseline limitations.
+- When dynamic analysis is off, Reports `latest` now consumes the independent
+  latest-static artifact in both Overview and Rule matrix. Overview renders the
+  static decision, gate reasons, findings, coverage, and tool status; dynamic-
+  only search, filters, Interactions, Timeline, Event ledger, and Audit are
+  disabled. Historical activation reports remain explicitly selectable and
+  are never merged with an unrelated static run.
 - No severity, confidence, blocker membership, timeout, dependency, DB schema,
-  or dynamic behavior changed.
+  or dynamic execution behavior changed.
 
 ## 4. Acceptance Evidence
 
@@ -74,6 +81,9 @@ Focused host checks:
 ```text
 focused artifact/S3/S5/runner/inventory lane: 73 passed
 architecture/state pointer lane: 14 passed
+Reports UI suite: 178 passed, including latest-static Overview, disabled
+dynamic deep-link redirect, latest-static API failure, and historical-report
+retention
 make test-security: 434 passed
 make -e check-all with postgres_test: 2844 passed / 11 skipped / 13 deselected
 ruff: all checks passed
