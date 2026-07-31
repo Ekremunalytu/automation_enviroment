@@ -291,7 +291,10 @@ test-security:
 		tests/static_runtime/test_evaluation_metrics.py \
 		tests/static_runtime/test_static_eval_cli.py \
 		tests/static_runtime/test_scan_coverage.py \
+		tests/static_runtime/test_artifacts.py \
+		tests/static_runtime/test_s3_file_tree_heuristics.py \
 		tests/static_runtime/test_s4_blacklisted_domain.py \
+		tests/static_runtime/test_s5_network_indicators.py \
 		tests/static_runtime/test_s12_invisible_unicode.py \
 		tests/static_runtime/test_s13_native_node_loader.py \
 		tests/static_runtime/test_s14_globalstate_dormancy.py \

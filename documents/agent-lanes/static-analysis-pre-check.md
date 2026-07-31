@@ -1,6 +1,8 @@
 # Static Analysis Pre-Check Lane
 
-**Last Updated:** 2026-07-31 (active SMF measurement foundation adds
+**Last Updated:** 2026-07-31 (active artifact-precision stream consumes the
+completed SMF measurement foundation and adds bounded artifact role/header
+classification plus the first S3/S5 false-positive fixes. SMF added
 coverage-aware `INCONCLUSIVE`, deterministic rule/corpus fingerprints, the
 container-only `make static-eval` evaluator, 32 MiB bounded production-bundle
 coverage, and Node-style entrypoint resolution). Historical base: 2026-06-01
@@ -91,11 +93,16 @@ decision gate that fronts the dynamic sandbox.
   reference-only and shared Google Calendar/Gmail fallback infrastructure is
   intentionally not denylisted (pinned by `tests/security/test_ioc_safety.py`).
   The full status board is `documents/detection-design/README.md`.
-- **Measurement-foundation expansion (active):**
+- **Measurement-foundation expansion (implementation complete; unmerged):**
   `documents/active-work/static-analysis-measurement-foundation.md` owns
   SMF-0..SMF-8 acceptance. `packages/analysis_contracts/static_evaluation/`
   defines the safe corpus/evaluation contracts; `static_runtime/evaluation.py`
   invokes the production runner and policy in the same networkless container.
+- **Artifact-precision expansion (active):**
+  `documents/active-work/static-analysis-artifact-precision.md` owns
+  SAP-0..SAP-6 acceptance. `static_runtime/artifacts.py` provides bounded role
+  and magic/header classification consumed first by S3/S5; dependency
+  inventory/deep-scan selection and deduplication remain next.
 
 ## Invariants
 

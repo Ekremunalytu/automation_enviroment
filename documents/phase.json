@@ -18,8 +18,8 @@
     { "id": "W21", "pr": 30, "branch": "week21 -> main", "sha": "5dc18aa" }
   ],
   "active_stream": {
-    "id": "static-analysis-measurement-foundation",
-    "tracker": "documents/active-work/static-analysis-measurement-foundation.md"
+    "id": "static-analysis-artifact-precision",
+    "tracker": "documents/active-work/static-analysis-artifact-precision.md"
   },
-  "updated": "2026-07-30"
+  "updated": "2026-07-31"
 }

@@ -18,6 +18,7 @@ ignored to keep the rule high-signal. One MEDIUM finding aggregates the hits.
 from __future__ import annotations
 
 import ipaddress
+import json
 import re
 
 from packages.analysis_contracts.detection.enums import (
@@ -30,6 +31,7 @@ from packages.analysis_contracts.static_detection import (
     StaticDetectionFinding,
     StaticEvidenceRef,
 )
+from static_runtime.artifacts import artifact_role
 from static_runtime.context import StaticAnalysisContext
 from static_runtime.rules._common import (
     evidence_type_for,
@@ -58,6 +60,18 @@ _IGNORED_HOST_SUFFIXES = (
     ".localhost",
 )
 _IGNORED_HOSTS = frozenset({"localhost"})
+_MANIFEST_DOCUMENTATION_FIELDS = frozenset(
+    {
+        "author",
+        "bugs",
+        "contributors",
+        "funding",
+        "homepage",
+        "license",
+        "readme",
+        "repository",
+    }
+)
 
 
 def _is_routable_ipv4(candidate: str) -> bool:
@@ -80,9 +94,34 @@ def _is_flaggable_http_host(host: str) -> bool:
     return not _is_routable_ipv4(lowered)
 
 
+def _text_for_endpoint_scan(
+    context: StaticAnalysisContext,
+    relative_path: str,
+    text: str,
+) -> str:
+    """Remove parsed manifest metadata that only documents the package."""
+
+    if (
+        relative_path != context.manifest_relative_path
+        or context.manifest_status != "parsed"
+    ):
+        return text
+    runtime_manifest = {
+        key: value
+        for key, value in context.manifest.items()
+        if key.lower() not in _MANIFEST_DOCUMENTATION_FIELDS
+    }
+    return json.dumps(
+        runtime_manifest,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
 class SuspiciousNetworkEndpointRule:
     rule_id = "extrace.s5.suspicious_network_endpoint"
-    rule_version = "1.0.0"
+    rule_version = "1.1.0"
     lifecycle = RuleLifecycle.PRODUCTION
     adversary_class: AdversaryClass | None = None
     severity = Severity.MEDIUM
@@ -97,21 +136,28 @@ class SuspiciousNetworkEndpointRule:
         total_hits = 0
 
         for relative_path, text in iter_text_documents(context):
-            for match in _IP_ENDPOINT_RE.finditer(text):
+            if artifact_role(relative_path) in {
+                "documentation",
+                "license",
+                "source_map",
+            }:
+                continue
+            scan_text = _text_for_endpoint_scan(context, relative_path, text)
+            for match in _IP_ENDPOINT_RE.finditer(scan_text):
                 if not _is_routable_ipv4(match.group(1)):
                     continue
                 reasons.add("routable IPv4 endpoint")
                 total_hits += 1
                 self._add_evidence(
-                    evidence, context, relative_path, text, match.start()
+                    evidence, context, relative_path, scan_text, match.start()
                 )
-            for match in _CLEARTEXT_HTTP_RE.finditer(text):
+            for match in _CLEARTEXT_HTTP_RE.finditer(scan_text):
                 if not _is_flaggable_http_host(match.group(1)):
                     continue
                 reasons.add("cleartext http:// external host")
                 total_hits += 1
                 self._add_evidence(
-                    evidence, context, relative_path, text, match.start()
+                    evidence, context, relative_path, scan_text, match.start()
                 )
 
         if not reasons:
@@ -151,12 +197,13 @@ class SuspiciousNetworkEndpointRule:
         if len(evidence) >= _MAX_EVIDENCE:
             return
         line_number = line_number_at(text, index)
+        is_manifest = relative_path == context.manifest_relative_path
         evidence.append(
             file_evidence(
                 relative_path,
                 evidence_type_for(context, relative_path),
                 snippet=line_at(text, line_number) or "network endpoint",
-                line_number=line_number,
+                line_number=None if is_manifest else line_number,
             )
         )
 

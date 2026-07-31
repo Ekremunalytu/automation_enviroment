@@ -150,7 +150,9 @@ def _review_metadata(rule_id: str, severity: str) -> RuleReviewMetadata:
     if family in {"s1", "s2"}:
         artifact_roles = ("manifest",)
     elif family == "s3":
-        artifact_roles = ("binary_file", "source_file")
+        artifact_roles = ("asset", "archive", "native", "unknown", "wasm")
+    elif family == "s5":
+        artifact_roles = ("dependency_runtime", "first_party_runtime", "manifest")
     elif family == "s19":
         artifact_roles = ("stylesheet",)
     else:
@@ -159,12 +161,18 @@ def _review_metadata(rule_id: str, severity: str) -> RuleReviewMetadata:
     known_false_positives: tuple[str, ...] = ()
     if family == "s3":
         known_false_positives = (
-            "Binary-signature heuristics can classify media or database assets.",
+            "Declared native ABI suffixes without a recognizable header can "
+            "still require manual provenance review.",
         )
-    elif family in {"s4", "s5"}:
+    elif family == "s4":
         known_false_positives = (
             "Documentation, license, and changelog URLs can look like "
             "runtime endpoints.",
+        )
+    elif family == "s5":
+        known_false_positives = (
+            "Generated or test configuration endpoints can look runtime-reachable "
+            "until sink correlation is available.",
         )
     elif family in {"s6", "s12"}:
         known_false_positives = (

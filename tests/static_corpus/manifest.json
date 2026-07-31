@@ -70,13 +70,13 @@
       "platform": "any",
       "provenance": "Repository-authored documentation-only benign control.",
       "safety_state": "benign_control",
-      "expected_gate": "warn",
-      "must_fire": ["extrace.s5.suspicious_network_endpoint"],
+      "expected_gate": "allow",
+      "must_fire": [],
       "may_fire": [],
-      "must_not_fire": [],
+      "must_not_fire": ["extrace.s5.suspicious_network_endpoint"],
       "expected_coverage": [],
       "expected_inconclusive_reasons": [],
-      "notes": "Intentionally records current benign WARN noise."
+      "notes": "Pins the SAR-2 documentation-role precision fix."
     },
     {
       "sample_id": "tuning-obfuscation",

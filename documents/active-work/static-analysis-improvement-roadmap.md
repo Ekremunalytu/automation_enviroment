@@ -911,10 +911,11 @@ Every rule/tool package preserves:
 
 ## 21. Planning State
 
-Increment A is active as
-`documents/phase.json.active_stream = static-analysis-measurement-foundation`;
-its local acceptance implementation is complete on the named branch.
-Containment safety remains the next product/release gate. Increment B and C
-stay separately reviewable and require their own activation. AI-0 may be
-planned as a provider-free contract exercise, but AI-1 does not begin without
-an explicit owner/ADR/data-policy decision.
+Increment B is active as
+`documents/phase.json.active_stream = static-analysis-artifact-precision`,
+stacked on the committed/pushed but unmerged Increment A head. SAP-0 through
+SAP-3 implement the initial artifact-role plus S3/S5 precision slice; SAP-4
+inventory/deep-scan selection is next. Containment safety remains the next
+product/release gate. Increment C stays separately reviewable and requires its
+own activation. AI-0 may be planned as a provider-free contract exercise, but
+AI-1 does not begin without an explicit owner/ADR/data-policy decision.

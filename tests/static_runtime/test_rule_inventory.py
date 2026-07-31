@@ -47,6 +47,23 @@ def test_rule_bundle_fingerprint_is_stable_and_path_independent() -> None:
     assert all(_SHA256_RE.fullmatch(digest) for _, digest in first.semgrep_rule_sources)
 
 
+def test_s3_s5_review_metadata_matches_artifact_precision_behavior() -> None:
+    inventory = build_rule_bundle_inventory()
+    by_id = {entry.rule_id: entry for entry in inventory.inhouse_rules}
+
+    s3 = by_id["extrace.s3.embedded_native_binary"]
+    assert s3.artifact_roles == ("asset", "archive", "native", "unknown", "wasm")
+    assert "media or database assets" not in " ".join(s3.known_false_positives)
+
+    s5 = by_id["extrace.s5.suspicious_network_endpoint"]
+    assert s5.artifact_roles == (
+        "dependency_runtime",
+        "first_party_runtime",
+        "manifest",
+    )
+    assert "sink correlation" in " ".join(s5.known_false_positives)
+
+
 def test_rule_bundle_fingerprint_covers_rule_metadata_and_exact_yaml_bytes(
     monkeypatch,
 ) -> None:

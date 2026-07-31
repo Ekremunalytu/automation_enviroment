@@ -2,7 +2,7 @@
 
 `Last Updated: 2026-07-31`
 
-`Status: ACTIVE — implementation and local acceptance complete 2026-07-30; commit and branch push are authorized, PR/merge close-out is not. documents/phase.json.active_stream remains static-analysis-measurement-foundation.`
+`Status: IMPLEMENTATION COMPLETE — committed and pushed 2026-07-30; PR/merge close-out is not authorized. The locally activated static-analysis-artifact-precision successor is stacked on this unmerged head.`
 
 `Parent: static-analysis-improvement-roadmap.md Increment A / SAR-0 + SAR-1 measurement foundation.`
 
@@ -687,10 +687,12 @@ proving:
 ## 19. Activation And State
 
 The owner approved the iteration scope and separate `INCONCLUSIVE` conclusion
-on 2026-07-30. The implementation branch and active-stream pointer are open.
-Containment safety remains the release/product execution gate. Keep this tracker
-as the SMF-0..SMF-8 acceptance source; return `active_stream` to `null` only in
-an explicitly authorized merge/close-out sequence.
+on 2026-07-30. Implementation is complete and the successor
+`static-analysis-artifact-precision` was activated locally on 2026-07-31 as a
+stacked branch. Containment safety remains the release/product execution gate.
+Keep this tracker as the SMF-0..SMF-8 acceptance source; PR/merge and remote
+publication remain explicitly separate actions. Successor branch publication
+was authorized on 2026-07-31; PR/merge were not.
 
 ## 20. Implementation And Baseline Evidence
 
