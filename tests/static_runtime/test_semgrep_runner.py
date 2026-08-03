@@ -355,6 +355,145 @@ def test_generic_fallback_timeout_remains_inconclusive(
     assert result.record.coverage.structural_fallback_files == 0
 
 
+def test_generic_fallback_target_cap_leaves_excess_path_inconclusive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only 20 failed targets are retried; any excess remains a visible gap."""
+
+    targets = []
+    for index in range(semgrep_runner._MAX_PATH_DETAILS + 1):
+        target = tmp_path / f"bundle-{index:02d}.js"
+        target.write_text("eval(payload)", encoding="utf-8")
+        targets.append(target)
+    calls: list[list[str]] = []
+
+    def fake_run(argv: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        errors = (
+            [
+                {
+                    "code": 3,
+                    "type": "Syntax error",
+                    "path": str(target),
+                }
+                for target in targets
+            ]
+            if len(calls) == 1
+            else []
+        )
+        return subprocess.CompletedProcess(
+            argv,
+            0,
+            stdout=json.dumps({"results": [], "errors": errors}),
+        )
+
+    monkeypatch.setattr(semgrep_runner.subprocess, "run", fake_run)
+
+    result = semgrep_runner.run_semgrep(vsix_dir=str(tmp_path), wall_timeout_s=20)
+
+    assert len(calls) == 2
+    retried_paths = {str(target) for target in targets} & set(calls[1])
+    assert len(retried_paths) == semgrep_runner._MAX_PATH_DETAILS
+    assert str(targets[-1]) not in retried_paths
+    assert result.record.status == "partial"
+    assert result.record.error_count == 1
+    assert result.record.coverage.coverage_reasons == ["parser_error"]
+    assert result.record.coverage.structural_fallback_files == 20
+    assert len(result.record.coverage.structural_fallback_paths) == 20
+
+
+def test_oversized_structural_error_target_is_not_retried(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fallback never bypasses the shared per-file byte ceiling."""
+
+    target = tmp_path / "oversized.js"
+    target.write_text("eval(data)", encoding="utf-8")
+    monkeypatch.setattr(semgrep_runner, "_MAX_TARGET_BYTES", 8)
+    calls = 0
+
+    def fake_run(argv: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal calls
+        calls += 1
+        return subprocess.CompletedProcess(
+            argv,
+            0,
+            stdout=json.dumps(
+                {
+                    "results": [],
+                    "errors": [
+                        {
+                            "code": 3,
+                            "type": "Syntax error",
+                            "path": str(target),
+                        }
+                    ],
+                }
+            ),
+        )
+
+    monkeypatch.setattr(semgrep_runner.subprocess, "run", fake_run)
+
+    result = semgrep_runner.run_semgrep(vsix_dir=str(tmp_path), wall_timeout_s=20)
+
+    assert calls == 1
+    assert result.record.status == "partial"
+    assert result.record.error_count == 1
+    assert set(result.record.coverage.coverage_reasons) == {
+        "parser_error",
+        "target_too_large",
+    }
+    assert result.record.coverage.files_skipped_by_reason == {"target_too_large": 1}
+    assert result.record.coverage.structural_fallback_files == 0
+
+
+def test_exhausted_shared_budget_prevents_fallback_and_remains_inconclusive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A parser gap near the deadline is never relabeled as fully scanned."""
+
+    target = tmp_path / "bundle.js"
+    target.write_text("eval(payload)", encoding="utf-8")
+    calls = 0
+
+    def fake_run(argv: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal calls
+        calls += 1
+        return subprocess.CompletedProcess(
+            argv,
+            0,
+            stdout=json.dumps(
+                {
+                    "results": [],
+                    "errors": [
+                        {
+                            "code": 3,
+                            "type": "Syntax error",
+                            "path": str(target),
+                        }
+                    ],
+                }
+            ),
+        )
+
+    monotonic_values = iter((0.0, 17.0, 18.0))
+    monkeypatch.setattr(semgrep_runner.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        semgrep_runner.time, "monotonic", lambda: next(monotonic_values)
+    )
+
+    result = semgrep_runner.run_semgrep(vsix_dir=str(tmp_path), wall_timeout_s=20)
+
+    assert calls == 1
+    assert result.record.status == "partial"
+    assert result.record.error_count == 1
+    assert set(result.record.coverage.coverage_reasons) == {
+        "budget_stop",
+        "parser_error",
+    }
+    assert result.record.coverage.structural_fallback_files == 0
+
+
 def test_duplicate_result_across_semgrep_passes_is_emitted_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

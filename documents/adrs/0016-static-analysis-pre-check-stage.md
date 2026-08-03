@@ -273,9 +273,16 @@ coverage. Targets above the cap, invalid entrypoints, parser errors, timeouts,
 and other real coverage loss remain inconclusive. When Semgrep's structural
 JavaScript pass rejects or reaches its per-rule timeout on an otherwise eligible
 bounded target, the runner retries that exact path under the same deadline with
-a generic-language mirror of all 16 logical rule IDs. A successful fallback
-records its bounded file count and paths and resolves that structural gap; any
-fallback failure stays inconclusive.
+a generic-language mirror of all 16 logical rule IDs. The retry set is capped at
+20 eligible paths of at most 32 MiB each. A successful fallback records its file
+count and paths and resolves that structural gap; excess paths, oversized paths,
+budget exhaustion, or fallback failure stay inconclusive.
+
+Coverage counters do not collapse unlike layers into a universal code-execution
+claim. Aggregate `files_discovered` / `files_scanned` account for retained
+artifacts, in-house `files_parsed` covers supported bounded text, and Semgrep
+reports its JavaScript/TypeScript scope independently. A displayed `106/106` is
+conclusive only when supported-path skips and coverage reasons are empty.
 
 ## References
 

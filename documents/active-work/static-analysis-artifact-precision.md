@@ -102,6 +102,13 @@ Gate policy stays unchanged: `BLOCK > INCONCLUSIVE > WARN > ALLOW`.
   inventory reuse one cached analysis context. The existing 50,000-file and
   32 MiB per-target limits remain authoritative; unreadable and oversized files
   are explicit `skipped` entries.
+- Coverage language is layer-specific: `files_discovered` / `files_scanned`
+  account for every retained artifact, while `files_parsed` proves bounded
+  in-house parsing of supported text formats and Semgrep reports its own
+  JavaScript/TypeScript eligibility separately. Therefore `106/106` is a true
+  complete result only when the aggregate has no coverage reason or skipped
+  supported path; it is not a claim that binary or unsupported formats were
+  executed as source code.
 - Semgrep preserves its first-party pass and exclusions, then uses the remaining
   shared 600-second deadline for at most 256 exact dependency/minified paths
   selected by direct manifest entrypoint, in-house evidence, or extension/header
@@ -118,10 +125,11 @@ Gate policy stays unchanged: `BLOCK > INCONCLUSIVE > WARN > ALLOW`.
   ceiling; network/capability/non-root boundaries remain unchanged.
 - A Semgrep structural-parser error or per-rule timeout now triggers one
   exact-path, same-deadline generic-language fallback carrying the same 16 rule
-  IDs. Successful fallback paths are bounded and recorded as
+  IDs. At most 20 eligible failed paths, each no larger than 32 MiB, enter that
+  fallback. Successful fallback paths are recorded as
   `structural_fallback_files` / paths; a fallback timeout, tool error, unhandled
-  path, or remaining parser error still degrades the report instead of being
-  relabeled clean.
+  or excess path, exhausted shared budget, or remaining parser error still
+  degrades the report instead of being relabeled clean.
 - Base-pass dependency exclusions now cover node_modules, vendor/vendors, and
   all supported minified JavaScript/TypeScript suffixes through the shared
   artifact policy. Dedupe remains location-aware, so identical code on distinct
@@ -153,13 +161,14 @@ focused SAP-4 contract/runtime lane: 122 passed
 focused worker-session isolation regression: 6 passed
 focused timeout/resource contract lane: 101 passed
 focused structural-fallback lane: 103 passed
+coverage-completeness boundary regressions: 4 passed
 focused SAP-4 UI lane: 5 passed
 full UI suite: 189 passed
 UI production build: passed
 rendered browser QA: desktop + 390x844 mobile, no horizontal overflow or
 console errors; inventory search/filter and responsive table interactions passed
 make test-security: 535 passed
-make check-all: 2929 passed / 11 skipped / 14 deselected
+make check-all: 2933 passed / 11 skipped / 14 deselected
 make test-smoke: 13 passed / 1 unavailable fixture skipped
 ruff: all checks passed
 git diff --check: passed
@@ -200,7 +209,11 @@ final report: partial=false; coverage reasons=[]; decision=WARN
 
 The resource change removes artificial time/memory exhaustion. The generic
 fallback then runs the rule set over the parser-incompatible source instead of
-accepting an unscanned gap; its use remains explicit in the report.
+accepting an unscanned gap; its use remains explicit in the report. Here,
+`106/106` means all 106 retained artifacts were accounted for by the aggregate
+in-house coverage, every supported text artifact parsed, and Semgrep's one
+structural failure was resolved by fallback. Any residual parser, size, target,
+or budget gap would make the conclusion partial/INCONCLUSIVE instead.
 
 Live in-house production-bundle regression (local unpacked artifacts):
 
@@ -233,6 +246,10 @@ in SAR-4 rather than being inferred in SAP-5.
 - The second Semgrep pass is limited to 256 exact targets and the unchanged
   shared deadline. A cap or budget stop deliberately degrades coverage to
   partial/INCONCLUSIVE when no stronger blocker exists.
+- Structural fallback is limited to 20 eligible paths and 32 MiB per path under
+  that same deadline. The boundary tests require the 21st path, an oversized
+  path, and a path reached after budget exhaustion to remain visibly partial;
+  there is no universal or unbounded "all files" claim.
 - S5 currently proves runtime binding with bounded lexical context, not full
   URL-to-sink taint. Full reachability remains part of SAP-5/SAR-3 preparation.
 - Native suffixes remain evidence for declared ABI inventory, while S13 owns the

@@ -133,8 +133,12 @@ decision gate that fronts the dynamic sandbox.
   inventory-visible but are not alone a degraded tool state; in-house rules
   retain bounded text coverage. A structural parser error or per-rule timeout on
   an eligible target invokes the same 16 logical Semgrep rules through a bounded
-  exact-path generic-language fallback. Fallback use is report-visible; failure
-  or incomplete fallback remains `INCONCLUSIVE`.
+  exact-path generic-language fallback. The retry accepts at most 20 paths, each
+  at most 32 MiB, under the same shared deadline. Fallback use is report-visible;
+  excess paths, budget exhaustion, or incomplete fallback remain
+  `INCONCLUSIVE`. Aggregate `files_scanned` means every retained artifact was
+  accounted for; only supported bounded text contributes to in-house
+  `files_parsed`, and Semgrep maintains separate JavaScript/TypeScript coverage.
 - **Container isolation.** The static analyzer runs with `network_mode:
   none`, `cap_drop: [ALL]`, `no-new-privileges`, non-root, no
   `docker.sock` — never inline on the host or in the executor. Its current

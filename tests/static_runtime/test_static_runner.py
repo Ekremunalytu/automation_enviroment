@@ -108,6 +108,41 @@ def test_runner_report_round_trips_through_contract(tmp_path: Path) -> None:
     assert any(f["rule_id"] == "extrace.s2.typosquat" for f in doc["findings"])
 
 
+def test_runner_accounts_for_all_106_supported_files(tmp_path: Path) -> None:
+    """The Copilot-sized supported-text shape has no hidden coverage gap."""
+
+    (tmp_path / "package.json").write_text(
+        json.dumps(
+            {
+                "publisher": "trusted-publisher",
+                "name": "complete-tree",
+                "main": "src/file-000.js",
+            }
+        ),
+        encoding="utf-8",
+    )
+    source_dir = tmp_path / "src"
+    source_dir.mkdir()
+    for index in range(105):
+        (source_dir / f"file-{index:03d}.js").write_text(
+            "module.exports = {};\n",
+            encoding="utf-8",
+        )
+
+    report = _inhouse_only(
+        vsix_dir=str(tmp_path), rules_version="1.0.0", timeout_budget_s=600
+    )
+
+    assert report.partial is False
+    assert report.coverage.files_discovered == 106
+    assert report.coverage.files_selected == 106
+    assert report.coverage.files_scanned == 106
+    assert report.coverage.files_parsed == 106
+    assert report.coverage.files_skipped_by_reason == {}
+    assert report.coverage.coverage_reasons == []
+    assert len(report.artifact_inventory) == 106
+
+
 def test_runner_zero_budget_runs_all_rules(tmp_path: Path) -> None:
     # timeout_budget_s == 0 means "no soft budget" -> every rule still runs.
     report = _inhouse_only(
