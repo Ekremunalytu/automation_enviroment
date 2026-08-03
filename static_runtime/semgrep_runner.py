@@ -38,6 +38,7 @@ from packages.analysis_contracts.static_detection import (
     StaticScanCoverage,
     StaticToolExecutionRecord,
 )
+from static_runtime.artifacts import is_minified_path, is_vendor_path
 from static_runtime.rules._common import MAX_TEXT_BYTES, file_evidence
 
 # The interpreter that launched ``python -m static_runtime`` — in the hardened
@@ -86,6 +87,17 @@ _SEMGREP_OK_RETURNCODES = frozenset({0, 1})
 # Mirror of StaticToolExecutionRecord.status's Literal.
 _ToolStatus = Literal["ok", "partial", "error", "timeout"]
 _SEMGREP_SOURCE_SUFFIXES = frozenset({".js", ".jsx", ".ts", ".tsx", ".cjs", ".mjs"})
+_BASE_EXCLUDED_PATTERNS = (
+    "node_modules",
+    "vendor",
+    "vendors",
+    "*.min.js",
+    "*.min.jsx",
+    "*.min.ts",
+    "*.min.tsx",
+    "*.min.cjs",
+    "*.min.mjs",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -392,6 +404,8 @@ def run_semgrep(
     vsix_dir: str,
     wall_timeout_s: int,
     per_rule_timeout_s: int = _SEMGREP_PER_RULE_TIMEOUT_S,
+    deep_scan_targets: tuple[str, ...] = (),
+    deep_scan_target_cap_reached: bool = False,
 ) -> SemgrepRunResult:
     """Run Semgrep over ``vsix_dir`` and return mapped findings + a tool record.
 
@@ -404,49 +418,58 @@ def run_semgrep(
     its findings reproducible), not the in-house ruleset version.
     """
     start = time.monotonic()
+    deadline = start + max(_MIN_WALL_TIMEOUT_S, wall_timeout_s)
     vsix_root = Path(vsix_dir)
     rules_loaded = _count_rules()
     version = _SEMGREP_VERSION
 
-    argv = _build_argv(vsix_dir=vsix_dir, per_rule_timeout_s=per_rule_timeout_s)
-    try:
-        completed = subprocess.run(  # noqa: S603  # nosec B603
-            argv,
-            capture_output=True,
-            text=True,
-            timeout=max(_MIN_WALL_TIMEOUT_S, wall_timeout_s),
-            env=_build_env(),
-            check=False,
-        )
-    except subprocess.TimeoutExpired:
+    base_status, results, errors = _invoke_semgrep(
+        _build_argv(
+            targets=(vsix_dir,),
+            per_rule_timeout_s=per_rule_timeout_s,
+            exclude_inventory_only=True,
+        ),
+        timeout_s=max(_MIN_WALL_TIMEOUT_S, wall_timeout_s),
+    )
+    if base_status == "timeout":
         return _failure_result(
             version=version, rules_loaded=rules_loaded, start=start, status="timeout"
         )
-    except OSError:
-        # Launcher missing / not executable in this environment — degrade,
-        # never crash the static pass.
+    if base_status == "error":
         return _failure_result(
             version=version, rules_loaded=rules_loaded, start=start, status="error"
         )
 
-    if completed.returncode not in _SEMGREP_OK_RETURNCODES:
-        return _failure_result(
-            version=version, rules_loaded=rules_loaded, start=start, status="error"
-        )
-
-    try:
-        results, errors = _parse_results(completed.stdout)
-    except (json.JSONDecodeError, ValueError):
-        return _failure_result(
-            version=version, rules_loaded=rules_loaded, start=start, status="error"
-        )
+    deep_status: _ToolStatus | None = None
+    deep_budget_stopped = False
+    if deep_scan_targets:
+        remaining = int(deadline - time.monotonic())
+        if remaining < _MIN_WALL_TIMEOUT_S:
+            deep_budget_stopped = True
+        else:
+            deep_status, deep_results, deep_errors = _invoke_semgrep(
+                _build_argv(
+                    targets=deep_scan_targets,
+                    per_rule_timeout_s=per_rule_timeout_s,
+                    exclude_inventory_only=False,
+                ),
+                timeout_s=remaining,
+            )
+            if deep_status is None:
+                results.extend(deep_results)
+                errors.extend(deep_errors)
 
     findings: list[StaticDetectionFinding] = []
+    finding_fingerprints: set[tuple[str, str, str, str, int, str]] = set()
     for raw in results:
         if len(findings) >= _MAX_FINDINGS:
             break
         finding = _map_result_to_finding(raw, vsix_root)
         if finding is not None:
+            fingerprint = _finding_fingerprint(finding)
+            if fingerprint in finding_fingerprints:
+                continue
+            finding_fingerprints.add(fingerprint)
             findings.append(finding)
 
     duration_ms = int((time.monotonic() - start) * 1000)
@@ -454,7 +477,26 @@ def run_semgrep(
         vsix_root,
         raw_result_count=len(results),
         error_count=len(errors),
+        deep_scan_targets=deep_scan_targets,
+        deep_scan_skip_reason=(
+            "budget_stop"
+            if deep_budget_stopped
+            else "tool_timeout"
+            if deep_status == "timeout"
+            else "tool_error"
+            if deep_status == "error"
+            else None
+        ),
+        deep_scan_target_cap_reached=deep_scan_target_cap_reached,
     )
+    extra_reasons = set(coverage.coverage_reasons)
+    if deep_budget_stopped:
+        extra_reasons.add("budget_stop")
+    if deep_status == "timeout":
+        extra_reasons.add("tool_timeout")
+    elif deep_status == "error":
+        extra_reasons.add("tool_error")
+    coverage.coverage_reasons = sorted(extra_reasons)
     record = StaticToolExecutionRecord(
         tool="semgrep",
         version=version,
@@ -463,7 +505,11 @@ def run_semgrep(
         duration_ms=duration_ms,
         # Per-file parse errors / rule timeouts mean incomplete coverage — mark
         # the run partial (and surface the count) without failing it.
-        status="partial" if (errors or coverage.coverage_reasons) else "ok",
+        status=(
+            "partial"
+            if (errors or coverage.coverage_reasons or deep_status is not None)
+            else "ok"
+        ),
         error_count=len(errors),
         errored_rule_ids=_collect_error_rule_ids(errors),
         coverage=coverage,
@@ -471,8 +517,13 @@ def run_semgrep(
     return SemgrepRunResult(findings=findings, record=record)
 
 
-def _build_argv(*, vsix_dir: str, per_rule_timeout_s: int) -> list[str]:
-    return [
+def _build_argv(
+    *,
+    targets: tuple[str, ...],
+    per_rule_timeout_s: int,
+    exclude_inventory_only: bool,
+) -> list[str]:
+    argv = [
         _SEMGREP_BIN,
         "scan",
         "--config",
@@ -492,12 +543,37 @@ def _build_argv(*, vsix_dir: str, per_rule_timeout_s: int) -> list[str]:
         str(per_rule_timeout_s),
         "--timeout-threshold",
         "0",
-        "--exclude",
-        "node_modules",
-        "--exclude",
-        "*.min.js",
-        vsix_dir,
     ]
+    if exclude_inventory_only:
+        for pattern in _BASE_EXCLUDED_PATTERNS:
+            argv.extend(["--exclude", pattern])
+    argv.extend(targets)
+    return argv
+
+
+def _invoke_semgrep(
+    argv: list[str], *, timeout_s: int
+) -> tuple[_ToolStatus | None, list[dict], list[dict]]:
+    try:
+        completed = subprocess.run(  # noqa: S603  # nosec B603
+            argv,
+            capture_output=True,
+            text=True,
+            timeout=max(_MIN_WALL_TIMEOUT_S, timeout_s),
+            env=_build_env(),
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return "timeout", [], []
+    except OSError:
+        return "error", [], []
+    if completed.returncode not in _SEMGREP_OK_RETURNCODES:
+        return "error", [], []
+    try:
+        results, errors = _parse_results(completed.stdout)
+    except (json.JSONDecodeError, ValueError):
+        return "error", [], []
+    return None, results, errors
 
 
 def _build_env() -> dict[str, str]:
@@ -514,6 +590,24 @@ def _build_env() -> dict[str, str]:
         "XDG_CACHE_HOME": "/home/static/.cache",
         "PYTHONUNBUFFERED": "1",
     }
+
+
+def _finding_fingerprint(
+    finding: StaticDetectionFinding,
+) -> tuple[str, str, str, str, int, str]:
+    """Return the canonical SMF-shaped fingerprint for a mapped finding."""
+
+    evidence = finding.evidence[0] if finding.evidence else None
+    snippet = evidence.snippet if evidence is not None else ""
+    match_shape = hashlib.sha256((snippet or "").encode("utf-8")).hexdigest()[:16]
+    return (
+        finding.rule_id,
+        finding.rule_version,
+        evidence.relative_path if evidence is not None else "<report>",
+        evidence.type if evidence is not None else "none",
+        evidence.line_number if evidence is not None and evidence.line_number else 0,
+        match_shape,
+    )
 
 
 def _parse_results(stdout: str) -> tuple[list[dict], list[dict]]:
@@ -639,7 +733,13 @@ def _count_rules() -> int:
 
 
 def _build_semgrep_coverage(
-    root: Path, *, raw_result_count: int, error_count: int
+    root: Path,
+    *,
+    raw_result_count: int,
+    error_count: int,
+    deep_scan_targets: tuple[str, ...] = (),
+    deep_scan_skip_reason: StaticCoverageReason | None = None,
+    deep_scan_target_cap_reached: bool = False,
 ) -> StaticScanCoverage:
     """Build bounded target accounting from Semgrep's deterministic selection policy."""
 
@@ -651,6 +751,12 @@ def _build_semgrep_coverage(
     skipped: dict[str, int] = {}
     skipped_path_details: dict[str, list[str]] = {}
     unsupported: dict[str, int] = {}
+    deep_relative_paths: set[str] = set()
+    for target in deep_scan_targets:
+        try:
+            deep_relative_paths.add(Path(target).relative_to(root).as_posix())
+        except ValueError:
+            continue
     if root.is_dir():
         for path in root.rglob("*"):
             if path.is_symlink() or not path.is_file():
@@ -658,7 +764,11 @@ def _build_semgrep_coverage(
             discovered += 1
             relative = path.relative_to(root)
             suffix = path.suffix.lower() or "<none>"
-            if "node_modules" in relative.parts or path.name.endswith(".min.js"):
+            relative_posix = relative.as_posix()
+            inventory_excluded = is_vendor_path(relative_posix) or is_minified_path(
+                relative_posix
+            )
+            if inventory_excluded and relative_posix not in deep_relative_paths:
                 skipped["excluded_inventory_only"] = (
                     skipped.get("excluded_inventory_only", 0) + 1
                 )
@@ -670,6 +780,14 @@ def _build_semgrep_coverage(
                 unsupported[suffix] = unsupported.get(suffix, 0) + 1
                 continue
             eligible += 1
+            if relative_posix in deep_relative_paths and deep_scan_skip_reason:
+                skipped[deep_scan_skip_reason] = (
+                    skipped.get(deep_scan_skip_reason, 0) + 1
+                )
+                skipped_path_details.setdefault(deep_scan_skip_reason, []).append(
+                    relative_posix
+                )
+                continue
             try:
                 size = path.stat().st_size
             except OSError:
@@ -693,6 +811,14 @@ def _build_semgrep_coverage(
         reasons.append("target_too_large")
     if skipped.get("parser_error") or error_count:
         reasons.append("parser_error")
+    if skipped.get("budget_stop"):
+        reasons.append("budget_stop")
+    if skipped.get("tool_timeout"):
+        reasons.append("tool_timeout")
+    if skipped.get("tool_error"):
+        reasons.append("tool_error")
+    if deep_scan_target_cap_reached:
+        reasons.append("deep_scan_target_cap")
     finding_cap_reached = raw_result_count > _MAX_FINDINGS
     if finding_cap_reached:
         reasons.append("finding_cap")

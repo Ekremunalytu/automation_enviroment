@@ -763,6 +763,10 @@ def test_run_analysis_job_marks_failure_and_closes_session() -> None:
         ),
         patch("workflows.marketplace.analysis_service.job_service.update_job"),
         patch(
+            "workflows.marketplace.analysis_service.job_service.is_job_cancelled",
+            return_value=False,
+        ),
+        patch(
             "workflows.marketplace.analysis_service.job_service.fail_job"
         ) as mock_fail,
         patch(
@@ -793,6 +797,10 @@ def test_run_analysis_job_persists_trigger_error_code() -> None:
             return_value={"job_id": "job-1", "report_path": "saved-report.json"},
         ),
         patch("workflows.marketplace.analysis_service.job_service.update_job"),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.is_job_cancelled",
+            return_value=False,
+        ),
         patch(
             "workflows.marketplace.analysis_service.job_service.fail_job"
         ) as mock_fail,
@@ -930,6 +938,10 @@ def test_run_analysis_job_marks_value_error_failure() -> None:
         ),
         patch("workflows.marketplace.analysis_service.job_service.update_job"),
         patch(
+            "workflows.marketplace.analysis_service.job_service.is_job_cancelled",
+            return_value=False,
+        ),
+        patch(
             "workflows.marketplace.analysis_service.job_service.fail_job"
         ) as mock_fail,
         patch(
@@ -969,6 +981,9 @@ def test_run_analysis_job_swallows_cancellation_without_calling_fail_job() -> No
             "workflows.marketplace.analysis_service.job_service.complete_job"
         ) as mock_complete,
         patch(
+            "workflows.marketplace.analysis_service.job_service.finalize_cancelled_job"
+        ) as mock_finalize_cancelled,
+        patch(
             "workflows.marketplace.analysis_service.execute_analysis_request",
             side_effect=analysis_service.AnalysisCancelledError("cancelled"),
         ),
@@ -977,6 +992,7 @@ def test_run_analysis_job_swallows_cancellation_without_calling_fail_job() -> No
 
     mock_fail.assert_not_called()
     mock_complete.assert_not_called()
+    mock_finalize_cancelled.assert_called_once_with("job-c1")
     session.close.assert_called_once_with()
 
 
@@ -1004,6 +1020,9 @@ def test_run_analysis_job_skips_fail_job_when_cancelled_during_executor_error() 
             "workflows.marketplace.analysis_service.job_service.fail_job"
         ) as mock_fail,
         patch(
+            "workflows.marketplace.analysis_service.job_service.finalize_cancelled_job"
+        ) as mock_finalize_cancelled,
+        patch(
             "workflows.marketplace.analysis_service.execute_analysis_request",
             side_effect=ExecutorError("sandbox reset interrupted run"),
         ),
@@ -1011,6 +1030,7 @@ def test_run_analysis_job_skips_fail_job_when_cancelled_during_executor_error() 
         analysis_service.run_analysis_job("job-c2", request)
 
     mock_fail.assert_not_called()
+    mock_finalize_cancelled.assert_called_once_with("job-c2")
     session.close.assert_called_once_with()
 
 
@@ -1049,6 +1069,9 @@ def test_run_analysis_job_progress_update_swallows_keyerror_when_job_vanishes() 
             side_effect=KeyError("job-c3"),
         ) as mock_update_step,
         patch(
+            "workflows.marketplace.analysis_service.job_service.finalize_cancelled_job"
+        ) as mock_finalize_cancelled,
+        patch(
             "workflows.marketplace.analysis_service.execute_analysis_request",
             side_effect=fake_execute,
         ),
@@ -1057,6 +1080,7 @@ def test_run_analysis_job_progress_update_swallows_keyerror_when_job_vanishes() 
         analysis_service.run_analysis_job("job-c3", request)
 
     assert mock_update_step.call_count >= 1
+    mock_finalize_cancelled.assert_called_once_with("job-c3")
     session.close.assert_called_once_with()
 
 

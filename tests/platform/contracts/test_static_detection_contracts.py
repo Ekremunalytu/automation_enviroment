@@ -37,6 +37,7 @@ from packages.analysis_contracts.detection.enums import (
 )
 from packages.analysis_contracts.detection.finding import DetectionFinding
 from packages.analysis_contracts.static_detection import (
+    StaticArtifactInventoryEntry,
     StaticDetectionFinding,
     StaticDetectionReport,
     StaticEvidenceRef,
@@ -169,6 +170,104 @@ def test_report_schema_v2_and_partial_flag() -> None:
     # extra=forbid still holds on the extended model.
     with pytest.raises(ValidationError):
         StaticDetectionReport.model_validate({"schema_version": "2", "bogus": 1})
+
+
+def test_artifact_inventory_is_additive_bounded_and_deterministic() -> None:
+    first = StaticArtifactInventoryEntry(
+        relative_path=r"node_modules\pkg\index.js",
+        role="dependency_runtime",
+        format="text",
+        size_bytes=12,
+        header_sha256="a" * 64,
+        header_bytes_read=12,
+        extension_header_match=True,
+        dependency_owner="pkg",
+        is_vendor=True,
+        disposition="inventory_only",
+        disposition_reasons=["dependency_inventory_only"],
+    )
+    second = StaticArtifactInventoryEntry(
+        relative_path="dist/main.js",
+        role="first_party_runtime",
+        format="text",
+        size_bytes=4,
+        header_sha256="b" * 64,
+        header_bytes_read=4,
+        extension_header_match=True,
+        entrypoint_reachability="direct",
+        disposition="deep_scan",
+        disposition_reasons=["first_party_runtime", "direct_manifest_entrypoint"],
+    )
+    report = StaticDetectionReport(artifact_inventory=[first, second])
+    assert [entry.relative_path for entry in report.artifact_inventory] == [
+        "dist/main.js",
+        "node_modules/pkg/index.js",
+    ]
+    assert (
+        StaticDetectionReport.model_validate({"schema_version": "2"}).artifact_inventory
+        == []
+    )
+
+
+def test_artifact_inventory_normalizes_safe_relative_paths() -> None:
+    entry = StaticArtifactInventoryEntry(
+        relative_path="./dist//main.js",
+        role="first_party_runtime",
+        format="text",
+        size_bytes=4,
+        disposition="deep_scan",
+        disposition_reasons=["first_party_runtime"],
+    )
+    assert entry.relative_path == "dist/main.js"
+
+
+def test_artifact_inventory_rejects_duplicate_normalized_paths() -> None:
+    entry = StaticArtifactInventoryEntry(
+        relative_path="dist/main.js",
+        role="first_party_runtime",
+        format="text",
+        size_bytes=4,
+        disposition="deep_scan",
+        disposition_reasons=["first_party_runtime"],
+    )
+    duplicate = StaticArtifactInventoryEntry(
+        relative_path=r"dist\main.js",
+        role="first_party_runtime",
+        format="text",
+        size_bytes=4,
+        disposition="deep_scan",
+        disposition_reasons=["first_party_runtime"],
+    )
+
+    with pytest.raises(ValidationError, match="paths must be unique"):
+        StaticDetectionReport(artifact_inventory=[entry, duplicate])
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"relative_path": "../escape.js"},
+        {"size_bytes": -1},
+        {"header_sha256": "ABC"},
+        {"disposition_reasons": ["first_party_runtime"] * 9},
+    ],
+)
+def test_artifact_inventory_rejects_unsafe_or_unbounded_values(
+    overrides: dict[str, object],
+) -> None:
+    payload: dict[str, object] = {
+        "relative_path": "dist/main.js",
+        "role": "first_party_runtime",
+        "format": "text",
+        "size_bytes": 4,
+        "header_sha256": "a" * 64,
+        "header_bytes_read": 4,
+        "disposition": "deep_scan",
+        "disposition_reasons": ["first_party_runtime"],
+    }
+    payload.update(overrides)
+    with pytest.raises(ValidationError):
+        StaticArtifactInventoryEntry(**payload)
 
 
 def test_severity_counts_parity_with_severity_enum() -> None:

@@ -9,6 +9,9 @@ from typing import Literal, cast
 from pydantic import Field, field_validator
 
 from packages.analysis_contracts.contracts import StrictContractModel
+from packages.analysis_contracts.static_detection.artifact import (
+    StaticArtifactInventoryEntry,
+)
 from packages.analysis_contracts.static_detection.finding import StaticDetectionFinding
 
 _UTC_FALLBACK = timezone.utc  # noqa: UP017
@@ -35,6 +38,7 @@ StaticCoverageReason = Literal[
     "finding_cap",
     "budget_stop",
     "excluded_inventory_only",
+    "deep_scan_target_cap",
 ]
 StaticManifestStatus = Literal[
     "parsed",
@@ -183,6 +187,9 @@ class StaticDetectionReport(StrictContractModel):
     # knows the report's coverage is incomplete rather than confidently clean.
     partial: bool = False
     coverage: StaticScanCoverage = Field(default_factory=StaticScanCoverage)
+    artifact_inventory: list[StaticArtifactInventoryEntry] = Field(
+        default_factory=list, max_length=50_000
+    )
     generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     # W26 / Stream 3 (B5 `[GOAL vsix-content-sha256-provenance]`): SHA-256 of the
     # analyzed .vsix archive (canonical 64-char lowercase), threaded into the
@@ -192,6 +199,17 @@ class StaticDetectionReport(StrictContractModel):
     # agree. Default-empty so legacy reports validate; schema_version stays "2"
     # (additive-optional, no strict version-match validator on this contract).
     vsix_sha256: str = ""
+
+    @field_validator("artifact_inventory")
+    @classmethod
+    def normalize_artifact_inventory(
+        cls, value: list[StaticArtifactInventoryEntry]
+    ) -> list[StaticArtifactInventoryEntry]:
+        ordered = sorted(value, key=lambda entry: entry.relative_path)
+        paths = [entry.relative_path for entry in ordered]
+        if len(paths) != len(set(paths)):
+            raise ValueError("artifact inventory paths must be unique")
+        return ordered
 
 
 __all__ = [

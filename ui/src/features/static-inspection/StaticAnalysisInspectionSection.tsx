@@ -21,6 +21,7 @@ import {
   evidenceLocation,
   filterStaticFindings,
 } from "./buildStaticInspection";
+import { ArtifactInventoryPanel } from "./ArtifactInventoryPanel";
 import {
   EvidenceFootprint,
   FileInspectionField,
@@ -340,6 +341,8 @@ function InspectionWorkspace({
           </div>
         </Panel>
       ) : null}
+
+      <ArtifactInventoryPanel entries={detection.artifact_inventory ?? []} />
 
       <section aria-labelledby="static-findings-title">
         <div

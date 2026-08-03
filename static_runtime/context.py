@@ -71,7 +71,7 @@ def _resolve_entrypoint(
     )
     rooted = (manifest_parent / PurePosixPath(declared)).as_posix()
     candidates = [rooted]
-    if not PurePosixPath(rooted).suffix:
+    if PurePosixPath(rooted).suffix.lower() not in _ENTRYPOINT_SUFFIXES:
         candidates.extend(f"{rooted}{suffix}" for suffix in _ENTRYPOINT_SUFFIXES)
         candidates.extend(f"{rooted}/index{suffix}" for suffix in _ENTRYPOINT_SUFFIXES)
     return next(
@@ -157,6 +157,37 @@ class StaticAnalysisContext:
         for relative_path, path, _ in self._files:
             yield relative_path, path
 
+    def iter_file_records(self) -> Iterator[tuple[str, Path, int]]:
+        """Yield cached ``(relative_path, absolute_path, size)`` records."""
+
+        if not self.vsix_dir.is_dir():
+            return
+        self._load_files()
+        yield from self._files
+
+    def resolved_entrypoints(self) -> tuple[str, ...]:
+        """Return normalized, Node-style-resolved ``main``/``browser`` paths."""
+
+        self._load_files()
+        declared: list[str] = []
+        for field_name in ("main", "browser"):
+            normalized = _normalized_entrypoint(self.manifest.get(field_name))
+            if normalized is not None:
+                declared.append(normalized)
+        available = {relative_path for relative_path, _, _ in self._files}
+        return tuple(
+            sorted(
+                {
+                    _resolve_entrypoint(
+                        item,
+                        manifest_relative_path=self.manifest_relative_path,
+                        available=available,
+                    )
+                    for item in declared
+                }
+            )
+        )
+
     def build_coverage(
         self, *, text_suffixes: frozenset[str], max_text_bytes: int
     ) -> StaticScanCoverage:
@@ -204,24 +235,18 @@ class StaticAnalysisContext:
                 relative_path
             )
 
-        declared_entrypoints: list[str] = []
         invalid_entrypoint_count = 0
         for field_name in ("main", "browser"):
             raw_entrypoint = self.manifest.get(field_name)
             normalized = _normalized_entrypoint(raw_entrypoint)
-            if normalized is not None:
-                declared_entrypoints.append(normalized)
-            elif isinstance(raw_entrypoint, str) and raw_entrypoint:
+            if (
+                normalized is None
+                and isinstance(raw_entrypoint, str)
+                and raw_entrypoint
+            ):
                 invalid_entrypoint_count += 1
         available = {relative_path for relative_path, _, _ in self._files}
-        entrypoints = [
-            _resolve_entrypoint(
-                declared,
-                manifest_relative_path=self.manifest_relative_path,
-                available=available,
-            )
-            for declared in declared_entrypoints
-        ]
+        entrypoints = list(self.resolved_entrypoints())
         parsed_entrypoints = sorted(
             path for path in entrypoints if path in parsed_paths
         )

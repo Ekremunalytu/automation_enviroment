@@ -714,6 +714,22 @@ export interface StaticEvidenceRefDto {
   rule_match_id?: string | null;
 }
 
+export interface StaticArtifactInventoryEntryDto {
+  relative_path: string;
+  role: "manifest" | "first_party_runtime" | "dependency_runtime" | "documentation" | "license" | "test" | "asset" | "source_map" | "configuration" | "native" | "wasm" | "archive" | "unknown";
+  format: "text" | "png" | "jpeg" | "gif" | "webp" | "font" | "sqlite" | "zip" | "gzip" | "7z" | "rar" | "tar" | "pe" | "elf" | "mach_o" | "wasm" | "opaque_binary" | "unknown";
+  size_bytes: number;
+  header_sha256?: string | null;
+  header_bytes_read?: number;
+  extension_header_match?: boolean | null;
+  dependency_owner?: string | null;
+  is_vendor?: boolean;
+  is_minified?: boolean;
+  entrypoint_reachability?: "direct" | "none" | "unknown";
+  disposition: "deep_scan" | "inventory_only" | "skipped";
+  disposition_reasons: ("first_party_runtime" | "direct_manifest_entrypoint" | "inhouse_finding_evidence" | "format_extension_mismatch" | "dependency_inventory_only" | "vendor_inventory_only" | "minified_inventory_only" | "non_runtime_artifact" | "unsupported_format" | "target_too_large" | "read_error" | "deep_scan_target_cap")[];
+}
+
 export interface StaticDetectionFindingDto {
   id?: string;
   rule_id: string;
@@ -758,7 +774,7 @@ export interface StaticScanCoverageDto {
   file_cap_reached?: boolean;
   finding_cap_reached?: boolean;
   unsupported_formats?: Record<string, number>;
-  coverage_reasons?: ("file_cap" | "target_too_large" | "text_truncated" | "undecodable" | "unsupported_suffix" | "parser_error" | "manifest_missing" | "manifest_malformed" | "manifest_too_large" | "critical_entrypoint_missing" | "critical_entrypoint_unparsed" | "rule_timeout" | "tool_timeout" | "tool_error" | "finding_cap" | "budget_stop" | "excluded_inventory_only")[];
+  coverage_reasons?: ("file_cap" | "target_too_large" | "text_truncated" | "undecodable" | "unsupported_suffix" | "parser_error" | "manifest_missing" | "manifest_malformed" | "manifest_too_large" | "critical_entrypoint_missing" | "critical_entrypoint_unparsed" | "rule_timeout" | "tool_timeout" | "tool_error" | "finding_cap" | "budget_stop" | "excluded_inventory_only" | "deep_scan_target_cap")[];
 }
 
 export interface StaticSeverityCountsDto {
@@ -776,6 +792,7 @@ export interface StaticDetectionReportDto {
   severity_counts?: StaticSeverityCountsDto;
   partial?: boolean;
   coverage?: StaticScanCoverageDto;
+  artifact_inventory?: StaticArtifactInventoryEntryDto[];
   generated_at?: string;
   vsix_sha256?: string;
 }

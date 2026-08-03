@@ -6,6 +6,14 @@ dedicated subpackage (not re-exported through the top-level
 coverage circular-import ordering in ``contracts.py`` is left untouched.
 """
 
+from packages.analysis_contracts.static_detection.artifact import (
+    StaticArtifactDisposition,
+    StaticArtifactDispositionReason,
+    StaticArtifactEntrypointReachability,
+    StaticArtifactFormat,
+    StaticArtifactInventoryEntry,
+    StaticArtifactRole,
+)
 from packages.analysis_contracts.static_detection.finding import (
     StaticDetectionFinding,
     StaticEvidenceRef,
@@ -26,6 +34,12 @@ from packages.analysis_contracts.static_detection.report import (
 )
 
 __all__ = [
+    "StaticArtifactDisposition",
+    "StaticArtifactDispositionReason",
+    "StaticArtifactEntrypointReachability",
+    "StaticArtifactFormat",
+    "StaticArtifactInventoryEntry",
+    "StaticArtifactRole",
     "StaticCoverageReason",
     "StaticDetectionFinding",
     "StaticDetectionReport",

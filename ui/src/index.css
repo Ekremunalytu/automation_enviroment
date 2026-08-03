@@ -516,6 +516,10 @@
   }
 }
 
+.static-inventory-filterbar {
+  grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(150px, 220px));
+}
+
 @media (max-width: 820px) {
   .settings-layout,
   .system-detail-layout,
@@ -523,6 +527,7 @@
   .static-inspection-analytics,
   .static-inspection-findings,
   .static-inspection-filterbar,
+  .static-inventory-filterbar,
   .static-inspection-tool-row {
     grid-template-columns: 1fr;
   }

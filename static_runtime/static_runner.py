@@ -24,6 +24,7 @@ from packages.analysis_contracts.static_detection import (
     StaticSeverityCounts,
     StaticToolExecutionRecord,
 )
+from static_runtime.artifact_inventory import build_artifact_inventory
 from static_runtime.context import StaticAnalysisContext
 from static_runtime.rules._common import MAX_TEXT_BYTES, TEXT_SUFFIXES
 from static_runtime.rules.registry import get_production_rules
@@ -181,11 +182,18 @@ def run_static_detection_engine(
     findings: list[StaticDetectionFinding] = list(inhouse_findings)
     tool_executions: list[StaticToolExecutionRecord] = [inhouse_record]
     partial = inhouse_record.status != "ok"
+    inventory = build_artifact_inventory(
+        context,
+        findings=inhouse_findings,
+        max_target_bytes=MAX_TEXT_BYTES,
+    )
 
     if semgrep_enabled:
         semgrep_result = run_semgrep(
             vsix_dir=vsix_dir,
             wall_timeout_s=_semgrep_wall_timeout(timeout_budget_s, start),
+            deep_scan_targets=inventory.extra_deep_scan_targets,
+            deep_scan_target_cap_reached=inventory.target_cap_reached,
         )
         findings.extend(semgrep_result.findings)
         tool_executions.append(semgrep_result.record)
@@ -197,6 +205,7 @@ def run_static_detection_engine(
         severity_counts=_rollup_severity(findings),
         partial=partial,
         coverage=_merge_coverage(tool_executions),
+        artifact_inventory=list(inventory.entries),
         # W26 / Stream 3 (B5): bind the static report to the analyzed bytes.
         vsix_sha256=vsix_sha256,
     )

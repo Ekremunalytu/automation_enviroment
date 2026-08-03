@@ -1,6 +1,6 @@
 # Testing Guide
 
-`Last Updated: 2026-07-31 — active static-analysis-measurement-foundation validation includes deterministic corpus evaluation, coverage/gate regressions, container smoke, security lane, UI, and test-DB-backed check-all. Historical W22 counts remain in its frozen tracker.`
+`Last Updated: 2026-08-03 — active static-analysis-artifact-precision validation includes deterministic corpus evaluation, bounded artifact inventory/deep-scan selection, coverage/gate regressions, container smoke, security lane, UI, and test-DB-backed check-all. Historical W22 counts remain in its frozen tracker.`
 
 Test layers, fixtures, and commands. **Slim canonical** — per-domain
 deep dives split out:
@@ -134,7 +134,7 @@ CDP reconnect stalls are the dominant failure mode).
   hand-written — drift if generation is skipped.
 - Current `make test-security`, `make check-all`, UI, smoke, fingerprint, and
   runtime counts live in
-  [`active-work/static-analysis-measurement-foundation.md`](active-work/static-analysis-measurement-foundation.md)
+  [`active-work/static-analysis-artifact-precision.md`](active-work/static-analysis-artifact-precision.md)
   so this slim guide does not drift with every added case. The W22 frozen
   tracker preserves its historical 228-case bar. Live
   `make test-security-live` + Docker-based A1 canary structural diff are

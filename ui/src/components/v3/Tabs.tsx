@@ -22,9 +22,13 @@ export function Tabs<V extends string>({ tabs, value, onChange, style, ariaLabel
     <div
       role="tablist"
       aria-label={ariaLabel}
+      className="v3-scrollbar"
       style={{
         display: "flex",
         gap: 0,
+        maxWidth: "100%",
+        minWidth: 0,
+        overflowX: "auto",
         borderBottom: `1px solid ${V3.rule2}`,
         ...style,
       }}

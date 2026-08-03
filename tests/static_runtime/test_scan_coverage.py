@@ -97,6 +97,21 @@ def test_extensionless_entrypoints_resolve_to_scanned_node_files(
     ]
 
 
+def test_dotted_extensionless_entrypoint_resolves_like_node(tmp_path: Path) -> None:
+    (tmp_path / "package.json").write_text(
+        json.dumps({"main": "dist/extension.min"}), encoding="utf-8"
+    )
+    entrypoint = tmp_path / "dist/extension.min.js"
+    entrypoint.parent.mkdir()
+    entrypoint.write_text("module.exports = {};", encoding="utf-8")
+
+    coverage = _coverage(tmp_path)
+
+    assert coverage.critical_entrypoints == ["dist/extension.min.js"]
+    assert coverage.critical_entrypoints_parsed == ["dist/extension.min.js"]
+    assert "critical_entrypoint_missing" not in coverage.coverage_reasons
+
+
 def test_raw_vsix_entrypoint_resolves_relative_to_manifest(tmp_path: Path) -> None:
     extension = tmp_path / "extension"
     dist = extension / "dist"

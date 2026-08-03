@@ -18,7 +18,7 @@ from packages.analysis_contracts.static_detection import (
     StaticDetectionReport,
     StaticToolExecutionRecord,
 )
-from static_runtime import static_runner
+from static_runtime import artifact_inventory, static_runner
 from static_runtime.semgrep_runner import SemgrepRunResult
 from static_runtime.static_runner import run_static_detection_engine
 
@@ -101,6 +101,9 @@ def test_runner_report_round_trips_through_contract(tmp_path: Path) -> None:
     doc = json.loads(report.model_dump_json())
     StaticDetectionReport.model_validate(doc)
     assert doc["schema_version"] == "2"
+    assert [entry["relative_path"] for entry in doc["artifact_inventory"]] == [
+        "package.json"
+    ]
     assert any(f["rule_id"] == "extrace.s2.typosquat" for f in doc["findings"])
 
 
@@ -289,3 +292,44 @@ def test_runner_partial_when_semgrep_times_out(
     assert report.partial is True
     assert report.tool_executions[1].tool == "semgrep"
     assert report.tool_executions[1].status == "timeout"
+
+
+def test_runner_forwards_bounded_inventory_selection_to_semgrep(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "package.json").write_text(
+        json.dumps(
+            {
+                "publisher": "trusted",
+                "main": "dist/a.min.js",
+                "browser": "dist/b.min.js",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "dist").mkdir()
+    for name in ("a.min.js", "b.min.js"):
+        (tmp_path / "dist" / name).write_text("module.exports = {};", encoding="utf-8")
+
+    monkeypatch.setattr(artifact_inventory, "MAX_EXTRA_DEEP_SCAN_TARGETS", 1)
+    captured: dict[str, object] = {}
+
+    def fake_semgrep(**kwargs: object) -> SemgrepRunResult:
+        captured.update(kwargs)
+        return _fake_semgrep_result(status="partial")
+
+    monkeypatch.setattr(static_runner, "run_semgrep", fake_semgrep)
+    report = run_static_detection_engine(
+        vsix_dir=str(tmp_path), rules_version="1.0.0", timeout_budget_s=30
+    )
+
+    targets = captured["deep_scan_targets"]
+    assert isinstance(targets, tuple)
+    assert [Path(path).name for path in targets] == ["a.min.js"]
+    assert captured["deep_scan_target_cap_reached"] is True
+    inventory_by_path = {
+        entry.relative_path: entry for entry in report.artifact_inventory
+    }
+    assert inventory_by_path["dist/a.min.js"].disposition == "deep_scan"
+    assert inventory_by_path["dist/b.min.js"].disposition == "skipped"
+    assert report.partial is True

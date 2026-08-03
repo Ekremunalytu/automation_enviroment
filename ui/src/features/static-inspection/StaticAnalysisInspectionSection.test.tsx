@@ -1,7 +1,50 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
-import type { StaticReportArtifactDto } from "../../lib/types/contracts";
+import type {
+  StaticArtifactInventoryEntryDto,
+  StaticReportArtifactDto,
+} from "../../lib/types/contracts";
 import { StaticAnalysisInspectionSection } from "./StaticAnalysisInspectionSection";
+
+const artifactInventory: StaticArtifactInventoryEntryDto[] = Array.from(
+  { length: 52 },
+  (_, index) => {
+    if (index === 0) {
+      return {
+        relative_path: "node_modules/@scope/pkg/index.js",
+        role: "dependency_runtime",
+        format: "text",
+        size_bytes: 512,
+        dependency_owner: "@scope/pkg",
+        is_vendor: true,
+        is_minified: true,
+        entrypoint_reachability: "none",
+        disposition: "deep_scan",
+        disposition_reasons: ["inhouse_finding_evidence"],
+      };
+    }
+    if (index === 1) {
+      return {
+        relative_path: "dist/oversized.js",
+        role: "first_party_runtime",
+        format: "text",
+        size_bytes: 40 * 1024 * 1024,
+        entrypoint_reachability: "direct",
+        disposition: "skipped",
+        disposition_reasons: ["target_too_large"],
+      };
+    }
+    return {
+      relative_path: `docs/file-${String(index).padStart(2, "0")}-${"x".repeat(40)}.md`,
+      role: "documentation",
+      format: "text",
+      size_bytes: index,
+      entrypoint_reachability: "none",
+      disposition: "inventory_only",
+      disposition_reasons: ["non_runtime_artifact"],
+    };
+  },
+);
 
 const artifact: StaticReportArtifactDto = {
   filename: "static_report_inspection.json",
@@ -50,6 +93,7 @@ const artifact: StaticReportArtifactDto = {
           error_count: 1,
         },
       ],
+      artifact_inventory: artifactInventory,
       findings: [
         {
           id: "finding-reverse-shell",
@@ -196,6 +240,73 @@ describe("StaticAnalysisInspectionSection", () => {
     expect(within(evidence).getByText("dist/extension.js:44")).toBeInTheDocument();
     expect(within(evidence).getByText("socket.pipe(proc.stdin)")).toBeInTheDocument();
     expect(within(evidence).getByText("proc.stdout.pipe(socket)")).toBeInTheDocument();
+  });
+
+  it("filters and paginates the bounded artifact inventory", async () => {
+    renderPage();
+
+    const inventory = await screen.findByRole("table", {
+      name: "Artifact inventory",
+    });
+    expect(screen.getByLabelText("Artifact inventory summary")).toHaveTextContent(
+      "Deep scan 1",
+    );
+    expect(within(inventory).getByText("node_modules/@scope/pkg/index.js")).toBeInTheDocument();
+    expect(within(inventory).queryByText(/file-51-/u)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next inventory page" }));
+    expect(await within(inventory).findByText(/file-51-/u)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Artifact disposition"), {
+      target: { value: "skipped" },
+    });
+    await waitFor(() => {
+      expect(within(inventory).getByText("dist/oversized.js")).toBeInTheDocument();
+    });
+    expect(within(inventory).queryByText("node_modules/@scope/pkg/index.js")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Artifact disposition"), {
+      target: { value: "all" },
+    });
+    fireEvent.change(screen.getByLabelText("Search artifact inventory"), {
+      target: { value: "@SCOPE/PKG" },
+    });
+    await waitFor(() => {
+      expect(within(inventory).getByText("node_modules/@scope/pkg/index.js")).toBeInTheDocument();
+    });
+    expect(within(inventory).queryByText("dist/oversized.js")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Search artifact inventory"), {
+      target: { value: "" },
+    });
+    fireEvent.change(screen.getByLabelText("Artifact role"), {
+      target: { value: "dependency_runtime" },
+    });
+    await waitFor(() => {
+      expect(within(inventory).getByText("node_modules/@scope/pkg/index.js")).toBeInTheDocument();
+    });
+    expect(within(inventory).queryByText(/file-02-/u)).not.toBeInTheDocument();
+  });
+
+  it("renders a legacy static report with no artifact inventory", async () => {
+    render(
+      <StaticAnalysisInspectionSection
+        artifact={{
+          ...artifact,
+          static_report: {
+            ...artifact.static_report,
+            detection_report: {
+              ...artifact.static_report.detection_report,
+              artifact_inventory: undefined,
+            },
+          },
+        }}
+      />,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Artifact inventory" })).toBeInTheDocument();
+    expect(screen.getByText("0 discovered")).toBeInTheDocument();
+    expect(screen.getByText("No artifact matches the active inventory filters.")).toBeInTheDocument();
   });
 
 });

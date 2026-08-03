@@ -1,8 +1,9 @@
 # Static Analysis Pre-Check Lane
 
-**Last Updated:** 2026-07-31 (active artifact-precision stream consumes the
-completed SMF measurement foundation and adds bounded artifact role/header
-classification plus the first S3/S5 false-positive fixes. SMF added
+**Last Updated:** 2026-08-03 (active artifact-precision stream consumes the
+completed SMF measurement foundation and now includes SAP-4's bounded per-file
+inventory plus explicit dependency/minified deep-scan selection; SAP-5
+reachability and echo deduplication are next. SMF added
 coverage-aware `INCONCLUSIVE`, deterministic rule/corpus fingerprints, the
 container-only `make static-eval` evaluator, 32 MiB bounded production-bundle
 coverage, and Node-style entrypoint resolution). Historical base: 2026-06-01
@@ -101,8 +102,11 @@ decision gate that fronts the dynamic sandbox.
 - **Artifact-precision expansion (active):**
   `documents/active-work/static-analysis-artifact-precision.md` owns
   SAP-0..SAP-6 acceptance. `static_runtime/artifacts.py` provides bounded role
-  and magic/header classification consumed first by S3/S5; dependency
-  inventory/deep-scan selection and deduplication remain next.
+  and magic/header classification consumed first by S3/S5;
+  `static_runtime/artifact_inventory.py` emits the bounded report inventory and
+  selects at most 256 justified dependency/minified Semgrep targets under the
+  shared deadline. Transitive reachability and source-map/vendor echo
+  deduplication remain in SAP-5.
 
 ## Invariants
 

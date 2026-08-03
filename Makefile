@@ -291,6 +291,7 @@ test-security:
 		tests/static_runtime/test_evaluation_metrics.py \
 		tests/static_runtime/test_static_eval_cli.py \
 		tests/static_runtime/test_scan_coverage.py \
+		tests/static_runtime/test_artifact_inventory.py \
 		tests/static_runtime/test_artifacts.py \
 		tests/static_runtime/test_s1_manifest_red_flags.py \
 		tests/static_runtime/test_s3_file_tree_heuristics.py \

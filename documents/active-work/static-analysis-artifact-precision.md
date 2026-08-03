@@ -1,12 +1,12 @@
 # Static Analysis Artifact Precision
 
-`Last Updated: 2026-07-31`
+`Last Updated: 2026-08-03`
 
-`Status: ACTIVE — SAP-0 through SAP-3 and the production-bundle precision
+`Status: ACTIVE — SAP-0 through SAP-4 and the production-bundle precision
 follow-up are implemented on codex/static-analysis-artifact-precision. The
 branch also carries the static-only Reports presentation correction described
 in section 3, the Reports-integrated Static analysis inspection tab, and the
-pre-SAP-4 Rules whitelist visibility/normalization follow-up.`
+Rules whitelist visibility/normalization follow-up. SAP-5 is next.`
 
 `Parent: static-analysis-improvement-roadmap.md Increment B / SAR-2.`
 
@@ -41,8 +41,8 @@ Gate policy stays unchanged: `BLOCK > INCONCLUSIVE > WARN > ALLOW`.
 | SAP-1 | Artifact role and header classifier | bounded stdlib classifier; role/magic tests | DONE |
 | SAP-2 | S3 native precision | PNG/font/database/archive/WASM/opaque distinctions; renamed PE/ELF still fire | DONE |
 | SAP-3 | S5 and production-bundle context | docs/license/source-map/test and manifest metadata URLs silent; runtime literal remains visible; unrelated bundle regions cannot form attack chains | DONE |
-| SAP-4 | Inventory and deep-scan selection | dependency/minified inventory plus explicit selection reasons | NEXT |
-| SAP-5 | Reachability and deduplication | entrypoint/loader selection; source-map/vendor dedupe | PENDING |
+| SAP-4 | Inventory and deep-scan selection | dependency/minified inventory plus explicit selection reasons | DONE |
+| SAP-5 | Reachability and deduplication | entrypoint/loader selection; source-map/vendor dedupe | NEXT |
 | SAP-6 | Full delta and close-out | tuning/holdout report, runtime budget, full gates, handoff | PENDING |
 
 ## 3. Implemented Initial Slice
@@ -92,6 +92,33 @@ Gate policy stays unchanged: `BLOCK > INCONCLUSIVE > WARN > ALLOW`.
   coverage, severity distribution, tool execution time/status, coverage gaps,
   filterable findings, evidence-file footprint, and exact source snippets.
   INFO inventory remains visible without being presented as actionable risk.
+- Every retained VSIX file now emits a schema-v2-compatible artifact inventory
+  entry with a normalized path, role/format, size, SHA-256 of at most the first
+  512 bytes, header-byte count, extension/header agreement, nearest scoped or
+  nested dependency owner, vendor/minified flags, direct-entrypoint status,
+  disposition, and bounded deterministic reasons. Legacy reports default to an
+  empty inventory.
+- File discovery, manifest entrypoint resolution, classification, coverage, and
+  inventory reuse one cached analysis context. The existing 50,000-file and
+  32 MiB per-target limits remain authoritative; unreadable and oversized files
+  are explicit `skipped` entries.
+- Semgrep preserves its first-party pass and exclusions, then uses the remaining
+  shared 30-second deadline for at most 256 exact dependency/minified paths
+  selected by direct manifest entrypoint, in-house evidence, or extension/header
+  mismatch. Findings are fingerprint-deduplicated into one tool record; a target
+  cap or exhausted second-pass budget is visible as partial coverage rather than
+  silent ALLOW.
+- Base-pass dependency exclusions now cover node_modules, vendor/vendors, and
+  all supported minified JavaScript/TypeScript suffixes through the shared
+  artifact policy. Dedupe remains location-aware, so identical code on distinct
+  source lines stays visible.
+- Node-style manifest entrypoints with dotted but extensionless paths still
+  receive the bounded supported-suffix resolution pass before inventory and
+  deep-target selection.
+- Static inspection now shows disposition/vendor/minified summaries, accessible
+  path/owner/reason search, role/disposition filters, the selection-evidence
+  table, and 50-row client pagination. Its table and report tabs remain locally
+  scrollable at the 390x844 mobile acceptance size without widening the page.
 - Rules now exposes the shipped whitelist as a read-only operator surface:
   trusted network domains include reviewed owner/purpose metadata, organization
   cards expose publisher namespaces and exact typosquat-baseline identities,
@@ -108,13 +135,17 @@ Gate policy stays unchanged: `BLOCK > INCONCLUSIVE > WARN > ALLOW`.
 Focused host checks:
 
 ```text
-focused production-bundle rule regression lane: 101 passed
-focused Reports/Rules UI regression lane: 23 passed
-full UI suite: 186 passed
+focused SAP-4 contract/runtime lane: 122 passed
+focused worker-session isolation regression: 6 passed
+focused SAP-4 UI lane: 5 passed
+full UI suite: 189 passed
+UI production build: passed
 rendered browser QA: desktop + 390x844 mobile, no horizontal overflow or
-console errors; severity/search/evidence interactions passed
-make test-security: 505 passed
-make check-all: 2857 passed / 11 skipped / 13 deselected
+console errors; inventory search/filter and responsive table interactions passed
+make test-security: 530 passed
+make check-all: 2904 passed / 11 skipped / 13 deselected
+make test-smoke: 4 static-container checks passed / 9 executor-only checks
+skipped because the executor service was not running
 ruff: all checks passed
 git diff --check: passed
 ```
@@ -122,7 +153,7 @@ git diff --check: passed
 Hardened-container evaluation after rebuilding the image:
 
 ```text
-make static-eval SPLIT=tuning: passed
+make static-eval SPLIT=tuning: 8/8 passed
 make static-eval SPLIT=all: 12/12 passed
 rules bundle: a22f07391424da90c6fc142bac01c357b4cc8878c866a9c7780f922e914a4d18
 corpus bundle: 6e1c71a6d12965ee6184883e284c94a0a9b1b51c4a6a4c6f3c6d6e5c4a3162b7
@@ -132,7 +163,7 @@ sample recall: 1.0
 sample false-positive rate/noise: 0.0 / 0.0
 S3 precision/recall: 1.0 / 1.0
 S5 precision/recall: 1.0 / 1.0
-runtime: p50 1407 ms / p95 1740 ms / total 17224 ms
+runtime: p50 1232 ms / p95 1507 ms / total 15055 ms
 ```
 
 The documentation control changed WARN → ALLOW. Native presence is now an INFO
@@ -150,24 +181,27 @@ esbenp.prettier-vscode-12.4.0          WARN 3   -> ALLOW 2 INFO
 ms-python.python-2026.5.2026070801      BLOCK 8  -> ALLOW 4 INFO
 ```
 
-## 5. Next Slice — SAP-4
+## 5. Next Slice — SAP-5
 
-Add an inventory record for every discovered file, including:
+Extend the bounded selection model with:
 
-- normalized path, role, format, size, and bounded hash/header evidence;
-- dependency ownership and minified/vendor status;
-- manifest/entrypoint reachability;
-- explicit `deep_scan`, `inventory_only`, or `skipped` disposition with reason.
+- transitive import and loader-graph reachability beyond direct manifest
+  entrypoints;
+- source-map and vendor-echo deduplication without suppressing unique evidence;
+- deterministic provenance for each reachability and deduplication decision.
 
 Deep analysis remains bounded to first-party code plus dependency/minified
-artifacts selected by reachability, change/provenance mismatch, loader
-relationship, extension/header mismatch, or another recorded suspicious
-signal. No blanket `node_modules` scan is allowed.
+artifacts selected by recorded evidence. No blanket `node_modules` scan is
+allowed. Lockfile resolution, real provenance comparison, and version diff stay
+in SAR-4 rather than being inferred in SAP-5.
 
 ## 6. Risks And Assumptions
 
-- Role/format classification is currently consumed by S3/S5 but is not yet
-  emitted as report inventory; SAP-4 owns that contract and producer change.
+- Artifact inventory can materially enlarge a report, so path/reason bounds,
+  the shared 50,000-file cap, and deterministic ordering remain mandatory.
+- The second Semgrep pass is limited to 256 exact targets and the unchanged
+  shared deadline. A cap or budget stop deliberately degrades coverage to
+  partial/INCONCLUSIVE when no stronger blocker exists.
 - S5 currently proves runtime binding with bounded lexical context, not full
   URL-to-sink taint. Full reachability remains part of SAP-5/SAR-3 preparation.
 - Native suffixes remain evidence for declared ABI inventory, while S13 owns the

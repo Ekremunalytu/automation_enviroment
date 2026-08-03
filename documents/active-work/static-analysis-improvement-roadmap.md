@@ -1,8 +1,8 @@
 # Static Analysis Improvement Roadmap
 
-`Last Updated: 2026-07-31`
+`Last Updated: 2026-08-03`
 
-`Status: ACTIVE ROADMAP — Increment A is open as static-analysis-measurement-foundation (SMF-0..SMF-8) in documents/phase.json.active_stream. Later increments, dependencies, detector/blocker changes, and AI work still require their normal owner decision and ADR process.`
+`Status: ACTIVE ROADMAP — Increment A (SMF-0..SMF-8) is implemented and its unmerged head underlies the active Increment B static-analysis-artifact-precision stream. SAP-0..SAP-4 are complete and SAP-5 is next. Later increments, dependencies, detector/blocker changes, and AI work still require their normal owner decision and ADR process.`
 
 `Scope: Stream 6 measured-catch-rate and static-primary/threat-directed-dynamic strategy. Product execution order remains containment safety first, then measured detection.`
 

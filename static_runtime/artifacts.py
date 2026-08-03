@@ -8,45 +8,17 @@ is a native executable.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Literal
 
-ArtifactRole = Literal[
-    "manifest",
-    "first_party_runtime",
-    "dependency_runtime",
-    "documentation",
-    "license",
-    "test",
-    "asset",
-    "source_map",
-    "configuration",
-    "native",
-    "wasm",
-    "archive",
-    "unknown",
-]
-ArtifactFormat = Literal[
-    "text",
-    "png",
-    "jpeg",
-    "gif",
-    "webp",
-    "font",
-    "sqlite",
-    "zip",
-    "gzip",
-    "7z",
-    "rar",
-    "tar",
-    "pe",
-    "elf",
-    "mach_o",
-    "wasm",
-    "opaque_binary",
-    "unknown",
-]
+from packages.analysis_contracts.static_detection import (
+    StaticArtifactFormat,
+    StaticArtifactRole,
+)
+
+ArtifactRole = StaticArtifactRole
+ArtifactFormat = StaticArtifactFormat
 
 _HEADER_BYTES = 512
 _NATIVE_SUFFIXES = frozenset({".node", ".so", ".dylib", ".dll", ".exe"})
@@ -63,6 +35,7 @@ _CONFIG_SUFFIXES = frozenset(
 _RUNTIME_SUFFIXES = frozenset(
     {".js", ".jsx", ".ts", ".tsx", ".cjs", ".mjs", ".py", ".sh"}
 )
+DEEP_SCAN_SOURCE_SUFFIXES = frozenset({".js", ".jsx", ".ts", ".tsx", ".cjs", ".mjs"})
 _DOCUMENTATION_SUFFIXES = frozenset({".md", ".mdx", ".rst", ".adoc"})
 _DOCUMENTATION_PREFIXES = ("readme", "changelog", "history", "authors")
 _LICENSE_PREFIXES = (
@@ -95,6 +68,10 @@ class ArtifactClassification:
     role: ArtifactRole
     format: ArtifactFormat
     suffix: str
+    header_sha256: str | None
+    header_bytes_read: int
+    extension_header_match: bool | None
+    read_error: bool
 
     @property
     def is_native_executable(self) -> bool:
@@ -103,12 +80,12 @@ class ArtifactClassification:
         return self.format in {"pe", "elf", "mach_o"} or self.role == "native"
 
 
-def _read_header(path: Path) -> bytes:
+def _read_header(path: Path) -> tuple[bytes, bool]:
     try:
         with path.open("rb") as handle:
-            return handle.read(_HEADER_BYTES)
+            return handle.read(_HEADER_BYTES), False
     except OSError:
-        return b""
+        return b"", True
 
 
 def _is_pe(header: bytes) -> bool:
@@ -163,6 +140,71 @@ def _format_from_header(header: bytes) -> ArtifactFormat:
     return "unknown"
 
 
+def _extension_header_match(suffix: str, format_name: ArtifactFormat) -> bool | None:
+    expected: dict[str, frozenset[ArtifactFormat]] = {
+        ".png": frozenset({"png"}),
+        ".jpg": frozenset({"jpeg"}),
+        ".jpeg": frozenset({"jpeg"}),
+        ".gif": frozenset({"gif"}),
+        ".webp": frozenset({"webp"}),
+        ".ttf": frozenset({"font"}),
+        ".otf": frozenset({"font"}),
+        ".woff": frozenset({"font"}),
+        ".woff2": frozenset({"font"}),
+        ".sqlite": frozenset({"sqlite"}),
+        ".db": frozenset({"sqlite"}),
+        ".zip": frozenset({"zip"}),
+        ".vsix": frozenset({"zip"}),
+        ".jar": frozenset({"zip"}),
+        ".gz": frozenset({"gzip"}),
+        ".tgz": frozenset({"gzip"}),
+        ".7z": frozenset({"7z"}),
+        ".rar": frozenset({"rar"}),
+        ".tar": frozenset({"tar"}),
+        ".exe": frozenset({"pe"}),
+        ".dll": frozenset({"pe"}),
+        ".so": frozenset({"elf"}),
+        ".dylib": frozenset({"mach_o"}),
+        ".node": frozenset({"pe", "elf", "mach_o"}),
+        ".wasm": frozenset({"wasm"}),
+    }
+    if suffix in DEEP_SCAN_SOURCE_SUFFIXES:
+        return format_name == "text" if format_name != "unknown" else None
+    allowed = expected.get(suffix)
+    if allowed is None or format_name == "unknown":
+        return None
+    return format_name in allowed
+
+
+def dependency_owner(relative_path: str) -> str | None:
+    """Return the nearest npm package owning a path under ``node_modules``."""
+
+    parts = PurePosixPath(relative_path.replace("\\", "/")).parts
+    owner: str | None = None
+    for index, part in enumerate(parts):
+        if part.lower() != "node_modules" or index + 1 >= len(parts):
+            continue
+        first = parts[index + 1]
+        if first.startswith("@") and index + 2 < len(parts):
+            owner = f"{first}/{parts[index + 2]}"
+        else:
+            owner = first
+    return owner
+
+
+def is_vendor_path(relative_path: str) -> bool:
+    parts = tuple(
+        part.lower()
+        for part in PurePosixPath(relative_path.replace("\\", "/")).parts[:-1]
+    )
+    return "node_modules" in parts or "vendor" in parts or "vendors" in parts
+
+
+def is_minified_path(relative_path: str) -> bool:
+    name = PurePosixPath(relative_path.replace("\\", "/")).name.lower()
+    return ".min." in name
+
+
 def artifact_role(relative_path: str) -> ArtifactRole:
     """Classify a normalized extension-relative path without reading content."""
 
@@ -212,7 +254,8 @@ def classify_artifact(relative_path: str, path: Path) -> ArtifactClassification:
 
     suffix = PurePosixPath(relative_path.replace("\\", "/")).suffix.lower()
     role = artifact_role(relative_path)
-    format_name = _format_from_header(_read_header(path))
+    header, read_error = _read_header(path)
+    format_name = _format_from_header(header)
     if format_name == "wasm":
         role = "wasm"
     elif format_name in {"pe", "elf", "mach_o"}:
@@ -221,13 +264,25 @@ def classify_artifact(relative_path: str, path: Path) -> ArtifactClassification:
         role = "archive"
     elif format_name in {"png", "jpeg", "gif", "webp", "font"}:
         role = "asset"
-    return ArtifactClassification(role=role, format=format_name, suffix=suffix)
+    return ArtifactClassification(
+        role=role,
+        format=format_name,
+        suffix=suffix,
+        header_sha256=None if read_error else hashlib.sha256(header).hexdigest(),
+        header_bytes_read=len(header),
+        extension_header_match=_extension_header_match(suffix, format_name),
+        read_error=read_error,
+    )
 
 
 __all__ = [
+    "DEEP_SCAN_SOURCE_SUFFIXES",
     "ArtifactClassification",
     "ArtifactFormat",
     "ArtifactRole",
     "artifact_role",
     "classify_artifact",
+    "dependency_owner",
+    "is_minified_path",
+    "is_vendor_path",
 ]

@@ -1,10 +1,10 @@
 # Active Work
 
-`Last Updated: 2026-07-31`
+`Last Updated: 2026-08-03`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active named stream: static-analysis-artifact-precision (SAP-0..SAP-6), stacked on the unmerged SMF head. Latest merged named stream: verdict-provenance-reproducibility (W26), PR #38 bfb2d2d. Containment safety remains the next product/release gate.`
+`Active named stream: static-analysis-artifact-precision (SAP-0..SAP-6), stacked on the unmerged SMF head; SAP-0..SAP-4 are complete and SAP-5 is next. Latest merged named stream: verdict-provenance-reproducibility (W26), PR #38 bfb2d2d. Containment safety remains the next product/release gate.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + optional active stream; null when none is open).`
 
@@ -37,22 +37,27 @@ points to it.
     **Streams 1-3 and operator-console-honesty have shipped; Stream 3
     (`verdict-provenance-reproducibility`) is latest, merged via PR #38
     (`bfb2d2d`) on `2026-07-27`. The offline/static
-    `static-analysis-measurement-foundation` stream is active; containment
+    `static-analysis-artifact-precision` stream is active; containment
     safety remains the next product/release gate.** New stable IDs are recorded in
     [`POST_POC_BACKLOG.md`](../POST_POC_BACKLOG.md) "Newly Captured
     (v1.0 roadmap intake 2026-06-08)".
 - `static-analysis-improvement-roadmap.md`
-  - **Stream 6 implementation roadmap; Increment A is active.** Defines the
+  - **Stream 6 implementation roadmap; Increment B is active.** Defines the
     stable `SAR-0`–`SAR-7` sequence: baseline and labeled-corpus measurement,
     artifact-context precision, AST/taint, manifest/dependency/version diff,
     native/WASM/archive inspection, bounded threat-directed dynamic hints,
     measured policy calibration, research-derived detection priorities,
     tool-admission gates, and an optional gate-external `AI-0`–`AI-2` analyst
-    track. `phase.json.active_stream` points to the Increment A SMF tracker;
+    track. `phase.json.active_stream` points to the Increment B SAP tracker;
     containment safety remains the next product execution gate.
+- `static-analysis-artifact-precision.md`
+  - **ACTIVE static-analysis iteration; SAP-0..SAP-4 complete, SAP-5 next.**
+    Adds bounded per-file artifact inventory, deterministic dependency/minified
+    deep-scan selection, partial-coverage honesty, and the Reports-integrated
+    inspection surface on top of the unmerged SMF head.
 - `static-analysis-measurement-foundation.md`
-  - **ACTIVE static-analysis iteration; implementation and local acceptance
-    complete.** Turns Increment A into the SMF-0–SMF-8 execution slate:
+  - **STACKED FOUNDATION; implementation and local acceptance complete.**
+    Turns Increment A into the SMF-0–SMF-8 execution slate:
     rule/ruleset baseline, schema-first evaluation contracts, 12 harmless
     tuning/holdout fixtures, a
     container-only evaluator, explicit file/byte/parser/cap coverage,
