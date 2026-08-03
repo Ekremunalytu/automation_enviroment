@@ -726,12 +726,14 @@ close-out, and resetting `active_stream` remain separate actions.
   inventory accounting but do not alone degrade the report; Node-style
   extensionless `main`/`browser` paths resolve relative to the manifest;
   coverage paths normalize to stable relative POSIX form; host and container
-  evaluator CLIs reject non-positive budgets rather than disabling the soft
-  timeout;
+  evaluator CLIs now reject budgets outside the shared 5-600 second range
+  rather than disabling or bypassing the timeout;
 - live container regression: Prettier (4.92 MB), Copilot (12.70 MB), and
   Copilot Chat (20.57 MB) critical entrypoints were fully parsed; both tools
   reported `ok`, aggregate coverage reasons were empty, and each run stayed
-  inside the unchanged 30-second static-analysis budget;
+  inside the then-current 30-second static-analysis budget (the 2026-08-03
+  SAP-4 operational amendment later raised the bounded default/maximum to
+  600 seconds);
 - live isolation probes: UID/GID 10001, no external network, corpus mount
   read-only, results mount writable, all Linux capabilities dropped, and
   `no-new-privileges`;

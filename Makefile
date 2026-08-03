@@ -561,7 +561,7 @@ static-shell:
 # before they reach the `docker exec` argv (W14-3 pattern from sim-target).
 static-run-fixture: static-up
 	@if [ -z "$(TARGET)" ]; then \
-		echo "❌ Provide TARGET. Usage: make static-run-fixture TARGET=/extensions-input/<dir> [RULES_VERSION=0.0.0] [BUDGET=30]"; \
+		echo "❌ Provide TARGET. Usage: make static-run-fixture TARGET=/extensions-input/<dir> [RULES_VERSION=0.0.0] [BUDGET=600]"; \
 		exit 1; \
 	fi
 	@printf '%s' "$(TARGET)" | grep -qE '^[A-Za-z0-9._/-]+$$' || { \
@@ -578,7 +578,7 @@ static-run-fixture: static-up
 		--vsix-dir "$(TARGET)" \
 		--report-path "/results/static-report.json" \
 		--rules-version "$(if $(RULES_VERSION),$(RULES_VERSION),0.0.0)" \
-		--timeout-budget-s "$(if $(BUDGET),$(BUDGET),30)"
+		--timeout-budget-s "$(if $(BUDGET),$(BUDGET),600)"
 
 # Deterministic SMF corpus evaluation. The launcher only performs a docker exec;
 # fixture source stays read-only and artifacts land under ignored output/.
@@ -591,7 +591,7 @@ static-eval: static-up
 	fi
 	$(VENV)/python scripts/static_eval.py \
 		--split "$(if $(SPLIT),$(SPLIT),tuning)" \
-		--timeout-budget-s "$(if $(BUDGET),$(BUDGET),30)"
+		--timeout-budget-s "$(if $(BUDGET),$(BUDGET),600)"
 
 # =============================================================================
 # SIMULATION / AUTOMATION

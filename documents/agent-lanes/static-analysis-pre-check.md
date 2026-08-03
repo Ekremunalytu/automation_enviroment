@@ -127,20 +127,24 @@ decision gate that fronts the dynamic sandbox.
   `INCONCLUSIVE`; real warning IDs remain separate from bounded coverage causes.
   Precedence is `BLOCK > INCONCLUSIVE > WARN > ALLOW`.
 - **Bounded production bundles.** In-house text rules and Semgrep share a
-  32 MiB per-file ceiling under the unchanged 30-second outer budget. Larger
-  targets remain visible and inconclusive. Intentional Semgrep vendor/minified
-  exclusions stay inventory-visible but are not alone a degraded tool state;
-  in-house rules retain bounded text coverage.
+  32 MiB per-file ceiling under one validated 5-600 second shared budget; the
+  default and hard maximum are both 600 seconds. Larger targets remain visible
+  and inconclusive. Intentional Semgrep vendor/minified exclusions stay
+  inventory-visible but are not alone a degraded tool state; in-house rules
+  retain bounded text coverage.
 - **Container isolation.** The static analyzer runs with `network_mode:
   none`, `cap_drop: [ALL]`, `no-new-privileges`, non-root, no
-  `docker.sock` — never inline on the host or in the executor.
+  `docker.sock` — never inline on the host or in the executor. Its current
+  2 GiB/1 CPU cgroup cap contains a 1536 MiB Semgrep ceiling so large dependency
+  bundles retain parser headroom without becoming unbounded.
 - **Feature-flagged.** `settings.static_analysis.ENABLED` is **ON** (flipped at
   the ES-5 close-out, 2026-06-01, after live Docker smoke evidence passed). A
   swallowed tool error / timeout surfaces through
   `StaticToolExecutionRecord.status` + `StaticDetectionReport.partial`
   (observability v2), never a silent ALLOW. The timeout budget is
   `TIMEOUT_BUDGET_S` on both the app and executor config mirrors (env
-  `STATIC_ANALYSIS_TIMEOUT_BUDGET_S`).
+  `STATIC_ANALYSIS_TIMEOUT_BUDGET_S`); host/container CLIs enforce the same
+  5-600 second bounds and Docker receives a five-second completion grace.
 
 ## Tests And Checks
 

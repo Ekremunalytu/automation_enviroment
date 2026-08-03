@@ -165,7 +165,7 @@ services:
   # network-isolated container that (from ES-3a) parses untrusted VSIX manifests
   # and file trees off the host + off the executor. Driven from the host via
   # `docker exec` (executor/static_host.py); idles on `sleep infinity` so exec
-  # always has a live target. Feature flag (STATIC_ANALYSIS_ENABLED) OFF until ES-5.
+  # always has a live target. The feature flag has been ON since ES-5 close-out.
   static_analyzer:
     build:
       context: .
@@ -203,7 +203,7 @@ services:
       - ALL
     security_opt:
       - "no-new-privileges:true"
-    mem_limit: ${STATIC_ANALYZER_MEM_LIMIT:-1g}
+    mem_limit: ${STATIC_ANALYZER_MEM_LIMIT:-2g}
     cpus: ${STATIC_ANALYZER_CPUS:-1.0}
     stop_grace_period: 5s
 

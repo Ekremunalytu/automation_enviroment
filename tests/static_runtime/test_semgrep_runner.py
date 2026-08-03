@@ -64,6 +64,16 @@ def _run(monkeypatch: pytest.MonkeyPatch, **kw: Any) -> semgrep_runner.SemgrepRu
     return semgrep_runner.run_semgrep(vsix_dir=_VSIX, wall_timeout_s=20)
 
 
+def test_semgrep_argv_pins_memory_below_container_ceiling() -> None:
+    argv = semgrep_runner._build_argv(
+        targets=("/target.js",),
+        per_rule_timeout_s=5,
+        exclude_inventory_only=False,
+    )
+
+    assert argv[argv.index("--max-memory") + 1] == "1536"
+
+
 @pytest.mark.parametrize(
     ("bare_id", "expected_rule_id"),
     [

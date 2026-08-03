@@ -26,8 +26,14 @@ Usage:
 
 import os
 
-from pydantic import PostgresDsn, computed_field
+from pydantic import Field, PostgresDsn, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from packages.analysis_contracts.static_detection import (
+    STATIC_ANALYSIS_DEFAULT_TIMEOUT_BUDGET_S,
+    STATIC_ANALYSIS_MAX_TIMEOUT_BUDGET_S,
+    STATIC_ANALYSIS_MIN_TIMEOUT_BUDGET_S,
+)
 
 # ADR 0007 — Local Network Binding Discipline.
 # Defaults bind loopback only. Operators that genuinely need LAN exposure
@@ -216,7 +222,11 @@ class StaticAnalysisSettings(BaseSettings):
 
     ENABLED: bool = True
     RULES_VERSION: str = "0.0.0"
-    TIMEOUT_BUDGET_S: int = 30
+    TIMEOUT_BUDGET_S: int = Field(
+        default=STATIC_ANALYSIS_DEFAULT_TIMEOUT_BUDGET_S,
+        ge=STATIC_ANALYSIS_MIN_TIMEOUT_BUDGET_S,
+        le=STATIC_ANALYSIS_MAX_TIMEOUT_BUDGET_S,
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",

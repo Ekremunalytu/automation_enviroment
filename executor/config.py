@@ -13,6 +13,11 @@ from pathlib import Path
 
 from dotenv import dotenv_values
 
+from packages.analysis_contracts.static_detection import (
+    STATIC_ANALYSIS_DEFAULT_TIMEOUT_BUDGET_S,
+    validate_static_analysis_timeout_budget,
+)
+
 _ENV_FILE_PATH = Path(__file__).resolve().parents[1] / ".env"
 
 
@@ -155,7 +160,12 @@ def build_settings() -> Settings:
         ),
         static_analysis=StaticAnalysisSettings(
             ENABLED=_env_bool("STATIC_ANALYSIS_ENABLED", True),
-            TIMEOUT_BUDGET_S=_env_int("STATIC_ANALYSIS_TIMEOUT_BUDGET_S", 30),
+            TIMEOUT_BUDGET_S=validate_static_analysis_timeout_budget(
+                _env_int(
+                    "STATIC_ANALYSIS_TIMEOUT_BUDGET_S",
+                    STATIC_ANALYSIS_DEFAULT_TIMEOUT_BUDGET_S,
+                )
+            ),
         ),
     )
 

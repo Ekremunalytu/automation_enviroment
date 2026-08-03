@@ -51,14 +51,14 @@ def test_host_launcher_uses_fixed_container_paths(
     ]
 
 
-@pytest.mark.parametrize("budget", ["0", "-1"])
-def test_host_launcher_rejects_unbounded_timeout_budget(budget: str) -> None:
+@pytest.mark.parametrize("budget", ["0", "-1", "4", "601"])
+def test_host_launcher_rejects_out_of_bounds_timeout_budget(budget: str) -> None:
     with pytest.raises(SystemExit, match="2"):
         static_eval.main(["--split", "tuning", "--timeout-budget-s", budget])
 
 
-@pytest.mark.parametrize("budget", ["0", "-1"])
-def test_container_runtime_rejects_unbounded_timeout_budget(
+@pytest.mark.parametrize("budget", ["0", "-1", "4", "601"])
+def test_container_runtime_rejects_out_of_bounds_timeout_budget(
     budget: str,
     tmp_path: Path,
 ) -> None:

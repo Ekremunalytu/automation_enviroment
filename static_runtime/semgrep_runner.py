@@ -74,7 +74,10 @@ _MAX_TARGET_BYTES = MAX_TEXT_BYTES
 _MAX_FINDINGS = 200
 _MAX_PATH_DETAILS = 20
 
-_SEMGREP_MEMORY_MB = 768
+# Production bundles can contain multi-megabyte single-line dependency files.
+# Keep Semgrep below the container's 2 GiB cgroup ceiling while leaving headroom
+# for Python, report construction, and the OS.
+_SEMGREP_MEMORY_MB = 1536
 
 # Outer subprocess wall-clock floor (seconds) even when the inherited budget is
 # tiny, so semgrep always gets a fair chance to start.

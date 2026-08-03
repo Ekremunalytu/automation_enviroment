@@ -158,6 +158,6 @@ def test_static_run_fixture_quotes_operator_variables() -> None:
     assert '--rules-version "$(if $(RULES_VERSION),$(RULES_VERSION),0.0.0)"' in body, (
         "`static-run-fixture` must double-quote the RULES_VERSION interpolation."
     )
-    assert '--timeout-budget-s "$(if $(BUDGET),$(BUDGET),30)"' in body, (
+    assert '--timeout-budget-s "$(if $(BUDGET),$(BUDGET),600)"' in body, (
         "`static-run-fixture` must double-quote the BUDGET interpolation."
     )

@@ -85,7 +85,8 @@ envelope:
 
 - `network_mode: "none"`, `cap_drop: [ALL]`, `no-new-privileges: true`
 - non-root user, no `cap_add`, no `docker.sock` mount
-- `mem_limit: 1g`, `cpus: 1.0`
+- initial `mem_limit: 1g`, `cpus: 1.0` envelope, superseded by amendment A3
+  to `mem_limit: 2g`, `cpus: 1.0`
 - read-only mount of the extensions input
   (`/extensions-input:ro`); read-write mount of results (`/results:rw`)
 
@@ -258,8 +259,14 @@ precedence and dynamic analysis continues for `INCONCLUSIVE`.
 
 Production-bundle tuning keeps the resource boundary explicit: in-house text
 rules and Semgrep accept targets up to 32 MiB under the existing container
-memory/CPU and 30-second outer timeout. Node-style extensionless `main` and
-`browser` paths resolve relative to the manifest. Intentional Semgrep
+memory/CPU limits. The 2026-08-03 SAP-4 operational amendment raises the shared
+default timeout from 30 to 600 seconds and enforces 600 seconds as the hard
+configuration/CLI maximum; the Docker exec bound is the validated budget plus
+a five-second report-write grace. The same amendment raises the isolated static
+container from 1 GiB to 2 GiB (retaining 1 CPU) and gives Semgrep a 1536 MiB per-file
+ceiling, retaining headroom inside the cgroup for the runner and report writer.
+Node-style extensionless `main` and `browser` paths resolve relative to the
+manifest. Intentional Semgrep
 `node_modules`/minified exclusions remain in inventory accounting but do not
 alone degrade the result because in-house production rules retain bounded text
 coverage. Targets above the cap, invalid entrypoints, parser errors, timeouts,

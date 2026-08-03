@@ -16,8 +16,18 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from packages.analysis_contracts.static_detection import StaticDetectionReport
+from packages.analysis_contracts.static_detection import (
+    StaticDetectionReport,
+    parse_static_analysis_timeout_budget,
+)
 from static_runtime.static_runner import run_static_detection_engine
+
+
+def _timeout_budget(value: str) -> int:
+    try:
+        return parse_static_analysis_timeout_budget(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -49,8 +59,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--timeout-budget-s",
         required=True,
-        type=int,
-        help="Soft wall-clock budget (seconds) for the static pass.",
+        type=_timeout_budget,
+        help="Shared wall-clock budget in seconds (5-600; default configured by host).",
     )
     # W26 / Stream 3 (B5, ADR 0016 amendment): additive 5th flag — the SHA-256 of
     # the analyzed .vsix archive, recorded in the StaticDetectionReport so the

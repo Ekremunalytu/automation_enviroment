@@ -103,11 +103,19 @@ Gate policy stays unchanged: `BLOCK > INCONCLUSIVE > WARN > ALLOW`.
   32 MiB per-target limits remain authoritative; unreadable and oversized files
   are explicit `skipped` entries.
 - Semgrep preserves its first-party pass and exclusions, then uses the remaining
-  shared 30-second deadline for at most 256 exact dependency/minified paths
+  shared 600-second deadline for at most 256 exact dependency/minified paths
   selected by direct manifest entrypoint, in-house evidence, or extension/header
   mismatch. Findings are fingerprint-deduplicated into one tool record; a target
   cap or exhausted second-pass budget is visible as partial coverage rather than
   silent ALLOW.
+- The shared product/evaluator default is now 600 seconds, which is also the
+  validated hard maximum. App settings, the executor mirror, runtime/evaluator
+  CLIs, Make helpers, and Docker's budget-plus-five-second wall bound share one
+  contract; values outside 5-600 seconds fail closed.
+- Copilot Chat's selected 9.2 MiB dependency bundle proved the former 768 MiB
+  Semgrep / 1 GiB container envelope too small after the time-budget fix. The
+  isolated analyzer now has 2 GiB/1 CPU and Semgrep has a 1536 MiB per-file
+  ceiling; network/capability/non-root boundaries remain unchanged.
 - Base-pass dependency exclusions now cover node_modules, vendor/vendors, and
   all supported minified JavaScript/TypeScript suffixes through the shared
   artifact policy. Dedupe remains location-aware, so identical code on distinct
@@ -137,13 +145,14 @@ Focused host checks:
 ```text
 focused SAP-4 contract/runtime lane: 122 passed
 focused worker-session isolation regression: 6 passed
+focused timeout/resource contract lane: 101 passed
 focused SAP-4 UI lane: 5 passed
 full UI suite: 189 passed
 UI production build: passed
 rendered browser QA: desktop + 390x844 mobile, no horizontal overflow or
 console errors; inventory search/filter and responsive table interactions passed
-make test-security: 530 passed
-make check-all: 2904 passed / 11 skipped / 13 deselected
+make test-security: 534 passed
+make check-all: 2920 passed / 11 skipped / 13 deselected
 make test-smoke: 4 static-container checks passed / 9 executor-only checks
 skipped because the executor service was not running
 ruff: all checks passed
@@ -163,13 +172,27 @@ sample recall: 1.0
 sample false-positive rate/noise: 0.0 / 0.0
 S3 precision/recall: 1.0 / 1.0
 S5 precision/recall: 1.0 / 1.0
-runtime: p50 1232 ms / p95 1507 ms / total 15055 ms
+runtime: p50 1269 ms / p95 1594 ms / total 15788 ms
 ```
 
 The documentation control changed WARN → ALLOW. Native presence is now an INFO
 inventory signal and the native marker is a benign ALLOW control; the runtime
 network marker remains WARN. All four holdout samples preserve their expected
 conclusions.
+
+Live Copilot Chat timeout/resource regression:
+
+```text
+original: in-house 106/106; Semgrep 9/10; budget_stop on sdk/index.js
+600-second budget: Semgrep 10/10; budget_stop removed
+2 GiB container / 1536 MiB Semgrep: prior OOM removed
+Node syntax check: valid JavaScript
+Semgrep 1.164.0: parser_error on the 9.2 MiB generated bundle; still INCONCLUSIVE
+```
+
+The resource change therefore removes artificial time/memory exhaustion but
+does not relabel an unsupported Semgrep parse as clean coverage. The remaining
+gap is a Semgrep parser-compatibility limitation, not malformed extension source.
 
 Live in-house production-bundle regression (local unpacked artifacts):
 

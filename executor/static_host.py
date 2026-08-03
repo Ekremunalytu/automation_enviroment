@@ -19,6 +19,10 @@ import subprocess
 
 from executor.binary_paths import STATIC_ANALYZER_PYTHON3_PATH, docker_path
 from executor.config import settings
+from packages.analysis_contracts.static_detection import (
+    STATIC_ANALYZER_EXEC_GRACE_S,
+    validate_static_analysis_timeout_budget,
+)
 
 
 class StaticAnalyzerError(Exception):
@@ -96,6 +100,7 @@ def run_static_analysis_in_container(
     so from ES-4 — when Semgrep can make a scan long — it is the wall-clock, not
     the cancel signal, that guarantees a runaway pass terminates.
     """
+    timeout_budget_s = validate_static_analysis_timeout_budget(timeout_budget_s)
     cmd = [
         STATIC_ANALYZER_PYTHON3_PATH,
         "-m",
@@ -114,7 +119,8 @@ def run_static_analysis_in_container(
     if vsix_sha256:
         cmd.extend(["--vsix-sha256", vsix_sha256])
     exec_timeout = max(
-        settings.static_analyzer.DOCKER_EXEC_TIMEOUT, timeout_budget_s + 5
+        settings.static_analyzer.DOCKER_EXEC_TIMEOUT,
+        timeout_budget_s + STATIC_ANALYZER_EXEC_GRACE_S,
     )
     result = _run_static_docker_exec(cmd, exec_timeout)
     return result.stdout or ""

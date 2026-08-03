@@ -9,7 +9,7 @@ ADR 0016 §Decision 2 + ADR 0013. Pins the static-specific envelope of the
   never have egress.
 - no ``cap_add`` — it starts as the non-root ``static`` user, so unlike api/ui
   it needs no SETUID/SETGID for a runtime privilege drop.
-- ``mem_limit`` 1g / ``cpus`` 1.0 resource bounds.
+- ``mem_limit`` 2g / ``cpus`` 1.0 resource bounds.
 - extensions input mounted read-only; results mounted read-write.
 - no Docker socket; no published host ports.
 
@@ -69,15 +69,15 @@ def test_static_analyzer_refuses_new_privileges() -> None:
 
 
 def test_static_analyzer_pins_resource_limits() -> None:
-    """``mem_limit`` defaults to 1g and ``cpus`` to 1.0 (ADR 0016 §Decision 2).
+    """``mem_limit`` defaults to 2g and ``cpus`` to 1.0 (ADR 0016 §Decision 2).
 
     ``yaml.safe_load`` does not expand docker-compose ``${VAR:-default}``
     substitution, so the parsed value is the literal expression — assert the
-    1g / 1.0 default rides inside it.
+    2g / 1.0 default rides inside it.
     """
     svc = _service()
-    assert "1g" in str(svc.get("mem_limit", "")), (
-        f"static_analyzer mem_limit must default to 1g. Got: {svc.get('mem_limit')!r}."
+    assert "2g" in str(svc.get("mem_limit", "")), (
+        f"static_analyzer mem_limit must default to 2g. Got: {svc.get('mem_limit')!r}."
     )
     assert "1.0" in str(svc.get("cpus", "")), (
         f"static_analyzer cpus must default to 1.0. Got: {svc.get('cpus')!r}."

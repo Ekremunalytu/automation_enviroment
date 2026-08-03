@@ -11,7 +11,11 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 
-from packages.analysis_contracts.static_detection import StaticScanCoverage
+from packages.analysis_contracts.static_detection import (
+    STATIC_ANALYSIS_DEFAULT_TIMEOUT_BUDGET_S,
+    StaticScanCoverage,
+    parse_static_analysis_timeout_budget,
+)
 from packages.analysis_contracts.static_detection.policy import evaluate_static_gate
 from packages.analysis_contracts.static_evaluation import (
     CorpusManifest,
@@ -33,10 +37,10 @@ _RESULTS_MOUNT = Path("/results/static-evaluation")
 
 
 def _positive_timeout_budget(value: str) -> int:
-    parsed = int(value)
-    if parsed <= 0:
-        raise argparse.ArgumentTypeError("timeout budget must be greater than zero")
-    return parsed
+    try:
+        return parse_static_analysis_timeout_budget(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 def _canonical_json(value: object) -> bytes:
@@ -315,7 +319,7 @@ def evaluate_corpus(
     manifest_path: Path,
     corpus_root: Path,
     split: str,
-    timeout_budget_s: int = 30,
+    timeout_budget_s: int = STATIC_ANALYSIS_DEFAULT_TIMEOUT_BUDGET_S,
     semgrep_enabled: bool = True,
     evaluation_id: str | None = None,
 ) -> EvaluationResult:
@@ -437,7 +441,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--timeout-budget-s",
         type=_positive_timeout_budget,
-        default=30,
+        default=STATIC_ANALYSIS_DEFAULT_TIMEOUT_BUDGET_S,
     )
     args = parser.parse_args(argv)
 

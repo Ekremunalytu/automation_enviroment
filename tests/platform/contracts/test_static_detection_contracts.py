@@ -37,6 +37,9 @@ from packages.analysis_contracts.detection.enums import (
 )
 from packages.analysis_contracts.detection.finding import DetectionFinding
 from packages.analysis_contracts.static_detection import (
+    STATIC_ANALYSIS_DEFAULT_TIMEOUT_BUDGET_S,
+    STATIC_ANALYSIS_MAX_TIMEOUT_BUDGET_S,
+    STATIC_ANALYSIS_MIN_TIMEOUT_BUDGET_S,
     StaticArtifactInventoryEntry,
     StaticDetectionFinding,
     StaticDetectionReport,
@@ -46,6 +49,7 @@ from packages.analysis_contracts.static_detection import (
     StaticScanCoverage,
     StaticSeverityCounts,
     StaticToolExecutionRecord,
+    parse_static_analysis_timeout_budget,
 )
 
 
@@ -62,6 +66,17 @@ def _valid_finding(**overrides: object) -> StaticDetectionFinding:
     }
     payload.update(overrides)
     return StaticDetectionFinding(**payload)
+
+
+def test_static_analysis_timeout_budget_contract_is_bounded_to_ten_minutes() -> None:
+    assert STATIC_ANALYSIS_MIN_TIMEOUT_BUDGET_S == 5
+    assert STATIC_ANALYSIS_DEFAULT_TIMEOUT_BUDGET_S == 600
+    assert STATIC_ANALYSIS_MAX_TIMEOUT_BUDGET_S == 600
+    assert parse_static_analysis_timeout_budget("600") == 600
+
+    for invalid in ("4", "601", "unbounded"):
+        with pytest.raises(ValueError):
+            parse_static_analysis_timeout_budget(invalid)
 
 
 def test_finding_field_set_parity_with_dynamic() -> None:
