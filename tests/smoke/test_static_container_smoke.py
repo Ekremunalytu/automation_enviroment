@@ -206,3 +206,59 @@ def test_semgrep_fires_on_malicious_js_in_container() -> None:
     )
     tool_records = {record["tool"]: record for record in doc["tool_executions"]}
     assert tool_records["semgrep"]["findings_emitted"] >= 2
+
+
+def test_semgrep_structural_fallback_fires_on_parser_error_target() -> None:
+    """A selected malformed bundle is scanned by the bounded generic fallback."""
+
+    docker_bin = _docker_or_skip()
+    js_dir = "/tmp/es4_fallback"  # noqa: S108 — container-side tmp
+    report_path = "/tmp/es4_fallback_report.json"  # noqa: S108
+    relative_bundle = "node_modules/vendor/bundle.js"
+    stage = _exec(
+        docker_bin,
+        "python3",
+        "-c",
+        (
+            "import json,pathlib;"
+            f"p=pathlib.Path({js_dir!r});"
+            "b=p/'node_modules'/'vendor'/'bundle.js';"
+            "b.parent.mkdir(parents=True,exist_ok=True);"
+            "(p/'package.json').write_text(json.dumps("
+            "{'name':'x','publisher':'p','main':'./node_modules/vendor/bundle.js'}));"
+            "b.write_text('eval(userInput); const broken = ;')"
+        ),
+    )
+    assert stage.returncode == 0, f"could not stage fallback JS:\n{stage.stderr}"
+
+    run = _exec(
+        docker_bin,
+        "python3",
+        "-m",
+        "static_runtime",
+        "--vsix-dir",
+        js_dir,
+        "--report-path",
+        report_path,
+        "--rules-version",
+        "1.0.0",
+        "--timeout-budget-s",
+        "60",
+    )
+    assert run.returncode == 0, f"fallback runner failed:\n{run.stderr}"
+
+    cat = _exec(docker_bin, "cat", report_path)
+    assert cat.returncode == 0, f"could not read fallback report:\n{cat.stderr}"
+    doc = json.loads(cat.stdout)
+    semgrep = next(
+        record for record in doc["tool_executions"] if record["tool"] == "semgrep"
+    )
+    rule_ids = {finding["rule_id"] for finding in doc["findings"]}
+
+    assert doc["partial"] is False
+    assert semgrep["status"] == "ok"
+    assert semgrep["error_count"] == 0
+    assert semgrep["coverage"]["coverage_reasons"] == []
+    assert semgrep["coverage"]["structural_fallback_files"] == 1
+    assert semgrep["coverage"]["structural_fallback_paths"] == [relative_bundle]
+    assert "extrace.sg.eval" in rule_ids

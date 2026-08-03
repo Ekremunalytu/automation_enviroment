@@ -81,6 +81,8 @@ class StaticScanCoverage(StrictContractModel):
     file_cap_reached: bool = False
     finding_cap_reached: bool = False
     unsupported_formats: dict[str, int] = Field(default_factory=dict)
+    structural_fallback_files: int = Field(default=0, ge=0)
+    structural_fallback_paths: list[str] = Field(default_factory=list, max_length=20)
     coverage_reasons: list[StaticCoverageReason] = Field(
         default_factory=list, max_length=64
     )
@@ -123,6 +125,7 @@ class StaticScanCoverage(StrictContractModel):
     @field_validator(
         "critical_entrypoints",
         "critical_entrypoints_parsed",
+        "structural_fallback_paths",
     )
     @classmethod
     def validate_relative_paths(cls, value: list[str]) -> list[str]:

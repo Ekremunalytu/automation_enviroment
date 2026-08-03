@@ -72,6 +72,8 @@ const artifact: StaticReportArtifactDto = {
         bytes_considered: 4096,
         bytes_read: 3584,
         manifest_status: "parsed",
+        structural_fallback_files: 1,
+        structural_fallback_paths: ["node_modules/vendor/bundle.js"],
         coverage_reasons: ["unsupported_suffix"],
       },
       tool_executions: [
@@ -196,6 +198,9 @@ describe("StaticAnalysisInspectionSection", () => {
     expect(screen.getByRole("list", { name: "Static coverage gaps" })).toHaveTextContent(
       "Unsupported Suffix",
     );
+    expect(
+      screen.getByRole("list", { name: "Static structural fallback paths" }),
+    ).toHaveTextContent("node_modules/vendor/bundle.js");
   });
 
   it("filters findings by severity and evidence-path search", async () => {

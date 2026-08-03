@@ -135,6 +135,27 @@ def test_snippet_is_redacted_and_clamped(monkeypatch: pytest.MonkeyPatch) -> Non
     assert len(snippet) <= 400
 
 
+def test_result_snippet_uses_bounded_offset_context_for_generic_fallback(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "bundle.js"
+    source = "a" * 600 + "eval(payload)" + "z" * 600
+    target.write_text(source, encoding="utf-8")
+    raw = _result(
+        "fallback.eval",
+        path=str(target),
+        line=1,
+        lines="requires login",
+    )
+    raw["start"]["offset"] = 600
+
+    finding = semgrep_runner._map_result_to_finding(raw, tmp_path)
+
+    assert finding is not None
+    assert finding.evidence[0].snippet is not None
+    assert "eval(payload)" in finding.evidence[0].snippet
+
+
 def test_rc0_no_findings_is_ok(monkeypatch: pytest.MonkeyPatch) -> None:
     res = _run(monkeypatch, returncode=0, results=[])
     assert res.findings == []
@@ -227,6 +248,111 @@ def test_selected_dependency_gets_bounded_second_pass_and_dedupes(
     }
     assert result.record.coverage.files_skipped_by_reason == {}
     assert result.record.coverage.files_scanned == 2
+
+
+@pytest.mark.parametrize(
+    ("error_type", "error_code"),
+    [
+        ("Syntax error", 3),
+        (["PartialParsing", []], 3),
+        ("Timeout", 2),
+    ],
+)
+def test_structural_error_target_runs_generic_fallback_and_restores_coverage(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    error_type: object,
+    error_code: int,
+) -> None:
+    selected = tmp_path / "node_modules/vendor/bundle.js"
+    selected.parent.mkdir(parents=True)
+    selected.write_text("eval(payload)", encoding="utf-8")
+    (tmp_path / "extension.js").write_text("activate()", encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def fake_run(argv: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        if len(calls) == 2:
+            payload = {
+                "results": [],
+                "errors": [
+                    {
+                        "code": error_code,
+                        "type": error_type,
+                        "path": str(selected),
+                    }
+                ],
+            }
+            return subprocess.CompletedProcess(argv, 0, stdout=json.dumps(payload))
+        if len(calls) == 3:
+            payload = {
+                "results": [_result("fallback.eval", path=str(selected))],
+                "errors": [],
+            }
+            return subprocess.CompletedProcess(argv, 1, stdout=json.dumps(payload))
+        return subprocess.CompletedProcess(
+            argv,
+            0,
+            stdout=json.dumps({"results": [], "errors": []}),
+        )
+
+    monkeypatch.setattr(semgrep_runner.subprocess, "run", fake_run)
+    result = semgrep_runner.run_semgrep(
+        vsix_dir=str(tmp_path),
+        wall_timeout_s=20,
+        deep_scan_targets=(str(selected),),
+    )
+
+    assert len(calls) == 3
+    deep_timeout = calls[1][calls[1].index("--timeout") + 1]
+    assert deep_timeout == "30"
+    fallback_config = calls[2][calls[2].index("--config") + 1]
+    assert fallback_config.endswith("extrace-vsix-js-generic-fallback.yml")
+    assert result.record.status == "ok"
+    assert result.record.error_count == 0
+    assert result.record.coverage.coverage_reasons == []
+    assert result.record.coverage.structural_fallback_files == 1
+    assert result.record.coverage.structural_fallback_paths == [
+        "node_modules/vendor/bundle.js"
+    ]
+    assert [finding.rule_id for finding in result.findings] == ["extrace.sg.eval"]
+
+
+def test_generic_fallback_timeout_remains_inconclusive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    selected = tmp_path / "bundle.js"
+    selected.write_text("eval(payload)", encoding="utf-8")
+    calls = 0
+
+    def fake_run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            payload = {
+                "results": [],
+                "errors": [
+                    {
+                        "code": 3,
+                        "type": "Syntax error",
+                        "path": str(selected),
+                    }
+                ],
+            }
+            return subprocess.CompletedProcess(argv, 0, stdout=json.dumps(payload))
+        raise subprocess.TimeoutExpired(cmd=argv, timeout=kwargs.get("timeout"))
+
+    monkeypatch.setattr(semgrep_runner.subprocess, "run", fake_run)
+    result = semgrep_runner.run_semgrep(vsix_dir=str(tmp_path), wall_timeout_s=20)
+
+    assert calls == 2
+    assert result.record.status == "partial"
+    assert result.record.error_count == 1
+    assert set(result.record.coverage.coverage_reasons) == {
+        "parser_error",
+        "tool_timeout",
+    }
+    assert result.record.coverage.structural_fallback_files == 0
 
 
 def test_duplicate_result_across_semgrep_passes_is_emitted_once(
@@ -415,16 +541,34 @@ def test_errors_array_marks_partial_and_counts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     errors = [
-        {"rule_id": "semgrep_rules.extrace-vsix-js.eval", "message": "parse error"},
+        {
+            "rule_id": "semgrep_rules.extrace-vsix-js.eval",
+            "type": "Syntax error",
+            "message": "parse error",
+        },
         {"message": "unattributed error"},
     ]
     res = _run(monkeypatch, returncode=1, results=[_result("x.eval")], errors=errors)
     assert res.record.status == "partial"
     assert res.record.error_count == 2
     assert "extrace.sg.eval" in res.record.errored_rule_ids
-    assert "parser_error" in res.record.coverage.coverage_reasons
+    assert set(res.record.coverage.coverage_reasons) == {
+        "parser_error",
+        "tool_error",
+    }
     # Findings are still mapped despite the per-file errors (degrade, not fail).
     assert len(res.findings) == 1
+
+
+def test_unresolved_semgrep_rule_timeout_is_classified_separately(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    errors = [{"type": "Timeout", "message": "rule timed out"}]
+
+    result = _run(monkeypatch, returncode=0, results=[], errors=errors)
+
+    assert result.record.status == "partial"
+    assert result.record.coverage.coverage_reasons == ["rule_timeout"]
 
 
 def test_findings_are_capped(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -270,7 +270,12 @@ manifest. Intentional Semgrep
 `node_modules`/minified exclusions remain in inventory accounting but do not
 alone degrade the result because in-house production rules retain bounded text
 coverage. Targets above the cap, invalid entrypoints, parser errors, timeouts,
-and other real coverage loss remain inconclusive.
+and other real coverage loss remain inconclusive. When Semgrep's structural
+JavaScript pass rejects or reaches its per-rule timeout on an otherwise eligible
+bounded target, the runner retries that exact path under the same deadline with
+a generic-language mirror of all 16 logical rule IDs. A successful fallback
+records its bounded file count and paths and resolves that structural gap; any
+fallback failure stays inconclusive.
 
 ## References
 

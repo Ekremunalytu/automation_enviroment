@@ -51,6 +51,8 @@ _SEMGREP_BIN = str(Path(_PYTHON).parent / "semgrep")
 
 # Rule files ship inside static_runtime/ (already COPYed into the image).
 _RULES_DIR = Path(__file__).resolve().parent / "semgrep_rules"
+_STRUCTURAL_RULES_FILE = _RULES_DIR / "extrace-vsix-js.yml"
+_GENERIC_FALLBACK_RULES_FILE = _RULES_DIR / "extrace-vsix-js-generic-fallback.yml"
 
 # EXACT semgrep pin; MUST equal the docker/static_analyzer/requirements.txt pin
 # (tests/architecture/test_semgrep_pin_consistency.py) so the recorded version
@@ -64,6 +66,9 @@ _RULE_VERSION = "1.0.0"
 # its own hard bounds: this per-rule cap plus the outer subprocess wall-clock the
 # caller derives from the remaining static budget.
 _SEMGREP_PER_RULE_TIMEOUT_S = 5
+# Selected multi-MiB bundles need a larger structural-parser allowance on the
+# first cold run. The shared outer deadline remains authoritative.
+_SEMGREP_DEEP_PER_RULE_TIMEOUT_S = 30
 
 # Keep Semgrep and the in-house text rules on the same bounded production-bundle
 # envelope. This covers common multi-MiB webpack/esbuild entrypoints without
@@ -73,6 +78,7 @@ _MAX_TARGET_BYTES = MAX_TEXT_BYTES
 # Cap total mapped findings so a pathological tree cannot bloat the report.
 _MAX_FINDINGS = 200
 _MAX_PATH_DETAILS = 20
+_RESULT_SNIPPET_BYTES = 720
 
 # Production bundles can contain multi-megabyte single-line dependency files.
 # Keep Semgrep below the container's 2 GiB cgroup ceiling while leaving headroom
@@ -138,7 +144,7 @@ class SemgrepRuleInventoryEntry:
 
 # Keyed by the Semgrep rule's bare ``id`` (the trailing dotted segment of the
 # emitted ``check_id``). The runner takes severity/confidence/categories/title
-# from here — never from Semgrep's output — so the four findings are fully
+# from here — never from Semgrep's output — so the 16 findings are fully
 # deterministic and contract-valid regardless of what the YAML emits.
 _RULE_META: dict[str, _SemgrepRuleMeta] = {
     "eval": _SemgrepRuleMeta(
@@ -453,7 +459,10 @@ def run_semgrep(
             deep_status, deep_results, deep_errors = _invoke_semgrep(
                 _build_argv(
                     targets=deep_scan_targets,
-                    per_rule_timeout_s=per_rule_timeout_s,
+                    per_rule_timeout_s=max(
+                        per_rule_timeout_s,
+                        _SEMGREP_DEEP_PER_RULE_TIMEOUT_S,
+                    ),
                     exclude_inventory_only=False,
                 ),
                 timeout_s=remaining,
@@ -461,6 +470,44 @@ def run_semgrep(
             if deep_status is None:
                 results.extend(deep_results)
                 errors.extend(deep_errors)
+
+    structural_fallback_paths: tuple[str, ...] = ()
+    fallback_status: _ToolStatus | None = None
+    fallback_budget_stopped = False
+    structural_error_paths = _structural_error_paths(errors, vsix_root)
+    if structural_error_paths:
+        remaining = int(deadline - time.monotonic())
+        if remaining < _MIN_WALL_TIMEOUT_S:
+            fallback_budget_stopped = True
+        else:
+            fallback_status, fallback_results, fallback_errors = _invoke_semgrep(
+                _build_argv(
+                    targets=tuple(
+                        str(vsix_root / relative_path)
+                        for relative_path in structural_error_paths
+                    ),
+                    per_rule_timeout_s=per_rule_timeout_s,
+                    exclude_inventory_only=False,
+                    rules_file=_GENERIC_FALLBACK_RULES_FILE,
+                ),
+                timeout_s=remaining,
+            )
+            if fallback_status is None:
+                results.extend(fallback_results)
+                fallback_failed_paths = set(
+                    _error_relative_paths(fallback_errors, vsix_root)
+                )
+                structural_fallback_paths = tuple(
+                    relative_path
+                    for relative_path in structural_error_paths
+                    if relative_path not in fallback_failed_paths
+                )
+                errors = _drop_resolved_structural_errors(
+                    errors,
+                    vsix_root,
+                    set(structural_fallback_paths),
+                )
+                errors.extend(fallback_errors)
 
     findings: list[StaticDetectionFinding] = []
     finding_fingerprints: set[tuple[str, str, str, str, int, str]] = set()
@@ -479,8 +526,9 @@ def run_semgrep(
     coverage = _build_semgrep_coverage(
         vsix_root,
         raw_result_count=len(results),
-        error_count=len(errors),
+        errors=errors,
         deep_scan_targets=deep_scan_targets,
+        structural_fallback_paths=structural_fallback_paths,
         deep_scan_skip_reason=(
             "budget_stop"
             if deep_budget_stopped
@@ -499,6 +547,12 @@ def run_semgrep(
         extra_reasons.add("tool_timeout")
     elif deep_status == "error":
         extra_reasons.add("tool_error")
+    if fallback_budget_stopped:
+        extra_reasons.add("budget_stop")
+    if fallback_status == "timeout":
+        extra_reasons.add("tool_timeout")
+    elif fallback_status == "error":
+        extra_reasons.add("tool_error")
     coverage.coverage_reasons = sorted(extra_reasons)
     record = StaticToolExecutionRecord(
         tool="semgrep",
@@ -510,7 +564,13 @@ def run_semgrep(
         # the run partial (and surface the count) without failing it.
         status=(
             "partial"
-            if (errors or coverage.coverage_reasons or deep_status is not None)
+            if (
+                errors
+                or coverage.coverage_reasons
+                or deep_status is not None
+                or fallback_status is not None
+                or fallback_budget_stopped
+            )
             else "ok"
         ),
         error_count=len(errors),
@@ -525,12 +585,13 @@ def _build_argv(
     targets: tuple[str, ...],
     per_rule_timeout_s: int,
     exclude_inventory_only: bool,
+    rules_file: Path = _STRUCTURAL_RULES_FILE,
 ) -> list[str]:
     argv = [
         _SEMGREP_BIN,
         "scan",
         "--config",
-        str(_RULES_DIR),
+        str(rules_file),
         "--json",
         "--metrics=off",
         "--disable-version-check",
@@ -636,7 +697,7 @@ def _map_result_to_finding(
         return None
     meta = _RULE_META.get(_bare_id(check_id))
     if meta is None:
-        # Only our four rules map; anything else is unexpected — skip it rather
+        # Only our 16 rules map; anything else is unexpected — skip it rather
         # than mislabel it.
         return None
 
@@ -644,10 +705,7 @@ def _map_result_to_finding(
     if relative_path is None:
         return None
 
-    extra = raw.get("extra")
-    extra = extra if isinstance(extra, dict) else {}
-    lines = extra.get("lines")
-    snippet = lines if isinstance(lines, str) and lines else None
+    snippet = _bounded_result_snippet(raw, vsix_root, relative_path)
 
     evidence = file_evidence(
         relative_path,
@@ -669,6 +727,46 @@ def _map_result_to_finding(
         evidence=[evidence],
         mitigation_hint=meta.mitigation_hint,
     )
+
+
+def _bounded_result_snippet(
+    raw: dict,
+    vsix_root: Path,
+    relative_path: str,
+) -> str | None:
+    """Return evidence around the match without trusting a multi-MiB source line."""
+
+    extra = raw.get("extra")
+    extra = extra if isinstance(extra, dict) else {}
+    lines = extra.get("lines")
+    if (
+        isinstance(lines, str)
+        and lines
+        and lines != "requires login"
+        and len(lines) <= _RESULT_SNIPPET_BYTES
+    ):
+        return lines
+
+    start = raw.get("start")
+    offset = start.get("offset") if isinstance(start, dict) else None
+    if not isinstance(offset, int) or offset < 0:
+        return lines if isinstance(lines, str) and lines != "requires login" else None
+    target = vsix_root / relative_path
+    if target.is_symlink():
+        return None
+    read_start = max(0, offset - (_RESULT_SNIPPET_BYTES // 2))
+    try:
+        with target.open("rb") as handle:
+            handle.seek(read_start)
+            bounded = handle.read(_RESULT_SNIPPET_BYTES)
+    except OSError:
+        return None
+    if not bounded:
+        return None
+    text = bounded.decode("utf-8", "ignore")
+    prefix = "..." if read_start else ""
+    suffix = "..." if len(bounded) == _RESULT_SNIPPET_BYTES else ""
+    return f"{prefix}{text}{suffix}"
 
 
 def _bare_id(check_id: str) -> str:
@@ -725,6 +823,90 @@ def _collect_error_rule_ids(errors: list[dict]) -> list[str]:
     return sorted(ids)
 
 
+def _is_parser_error(error: object) -> bool:
+    if not isinstance(error, dict):
+        return False
+    error_type = error.get("type")
+    return (
+        error.get("code") == 3
+        or error_type == "Syntax error"
+        or (
+            isinstance(error_type, list)
+            and bool(error_type)
+            and error_type[0] == "PartialParsing"
+        )
+    )
+
+
+def _is_rule_timeout(error: object) -> bool:
+    return isinstance(error, dict) and error.get("type") == "Timeout"
+
+
+def _is_structural_error(error: object) -> bool:
+    return _is_parser_error(error) or _is_rule_timeout(error)
+
+
+def _error_relative_paths(errors: list[dict], root: Path) -> tuple[str, ...]:
+    paths: set[str] = set()
+    for error in errors:
+        if not isinstance(error, dict):
+            continue
+        relative_path = _relative_path(error.get("path"), root)
+        if relative_path is not None:
+            paths.add(relative_path)
+    return tuple(sorted(paths))
+
+
+def _structural_error_paths(errors: list[dict], root: Path) -> tuple[str, ...]:
+    """Return bounded parser-error/timeout targets eligible for generic fallback."""
+
+    paths: list[str] = []
+    for relative_path in _error_relative_paths(
+        [error for error in errors if _is_structural_error(error)],
+        root,
+    ):
+        target = root / relative_path
+        if target.is_symlink() or target.suffix.lower() not in _SEMGREP_SOURCE_SUFFIXES:
+            continue
+        try:
+            if not target.is_file() or target.stat().st_size > _MAX_TARGET_BYTES:
+                continue
+        except OSError:
+            continue
+        paths.append(relative_path)
+    return tuple(paths[:_MAX_PATH_DETAILS])
+
+
+def _drop_resolved_structural_errors(
+    errors: list[dict],
+    root: Path,
+    resolved_paths: set[str],
+) -> list[dict]:
+    unresolved: list[dict] = []
+    for error in errors:
+        relative_path = (
+            _relative_path(error.get("path"), root) if isinstance(error, dict) else None
+        )
+        if _is_structural_error(error) and relative_path in resolved_paths:
+            continue
+        unresolved.append(error)
+    return unresolved
+
+
+def _error_coverage_reasons(
+    errors: list[dict],
+) -> tuple[StaticCoverageReason, ...]:
+    reasons: set[StaticCoverageReason] = set()
+    for error in errors:
+        if _is_parser_error(error):
+            reasons.add("parser_error")
+        elif _is_rule_timeout(error):
+            reasons.add("rule_timeout")
+        else:
+            reasons.add("tool_error")
+    return tuple(sorted(reasons))
+
+
 def _count_rules() -> int:
     """Number of mappable rules for the tool record.
 
@@ -739,8 +921,9 @@ def _build_semgrep_coverage(
     root: Path,
     *,
     raw_result_count: int,
-    error_count: int,
+    errors: list[dict],
     deep_scan_targets: tuple[str, ...] = (),
+    structural_fallback_paths: tuple[str, ...] = (),
     deep_scan_skip_reason: StaticCoverageReason | None = None,
     deep_scan_target_cap_reached: bool = False,
 ) -> StaticScanCoverage:
@@ -812,8 +995,9 @@ def _build_semgrep_coverage(
     reasons: list[StaticCoverageReason] = []
     if skipped.get("target_too_large"):
         reasons.append("target_too_large")
-    if skipped.get("parser_error") or error_count:
+    if skipped.get("parser_error"):
         reasons.append("parser_error")
+    reasons.extend(_error_coverage_reasons(errors))
     if skipped.get("budget_stop"):
         reasons.append("budget_stop")
     if skipped.get("tool_timeout"):
@@ -847,6 +1031,8 @@ def _build_semgrep_coverage(
         bytes_read=bytes_read,
         finding_cap_reached=finding_cap_reached,
         unsupported_formats=unsupported,
+        structural_fallback_files=len(structural_fallback_paths),
+        structural_fallback_paths=list(structural_fallback_paths),
         coverage_reasons=reasons,
     )
 
@@ -875,14 +1061,18 @@ def get_semgrep_rule_inventory() -> tuple[SemgrepRuleInventoryEntry, ...]:
             negative_tests=("tests/security/test_semgrep_js_rules.py",),
             known_false_positives=(
                 "Syntactic advisory matches can lack source-to-sink context.",
+                "Generic structural fallback is regex-based and lower precision "
+                "than AST matching.",
             ),
             known_blind_spots=(
                 "Semgrep excludes vendor/minified sources, targets above 32 MiB, "
                 "and unsupported languages; in-house rules retain bounded "
-                "text coverage.",
+                "text coverage. Eligible structural failures receive an exact-path "
+                "generic fallback.",
             ),
             runtime_budget=(
-                f"32 MiB per target; {_SEMGREP_PER_RULE_TIMEOUT_S}s per rule/file; "
+                f"32 MiB per target; {_SEMGREP_PER_RULE_TIMEOUT_S}s base / "
+                f"{_SEMGREP_DEEP_PER_RULE_TIMEOUT_S}s deep per rule/file; "
                 "outer static-analysis wall clock"
             ),
             owner="security-detection",

@@ -116,6 +116,12 @@ Gate policy stays unchanged: `BLOCK > INCONCLUSIVE > WARN > ALLOW`.
   Semgrep / 1 GiB container envelope too small after the time-budget fix. The
   isolated analyzer now has 2 GiB/1 CPU and Semgrep has a 1536 MiB per-file
   ceiling; network/capability/non-root boundaries remain unchanged.
+- A Semgrep structural-parser error or per-rule timeout now triggers one
+  exact-path, same-deadline generic-language fallback carrying the same 16 rule
+  IDs. Successful fallback paths are bounded and recorded as
+  `structural_fallback_files` / paths; a fallback timeout, tool error, unhandled
+  path, or remaining parser error still degrades the report instead of being
+  relabeled clean.
 - Base-pass dependency exclusions now cover node_modules, vendor/vendors, and
   all supported minified JavaScript/TypeScript suffixes through the shared
   artifact policy. Dedupe remains location-aware, so identical code on distinct
@@ -146,15 +152,15 @@ Focused host checks:
 focused SAP-4 contract/runtime lane: 122 passed
 focused worker-session isolation regression: 6 passed
 focused timeout/resource contract lane: 101 passed
+focused structural-fallback lane: 103 passed
 focused SAP-4 UI lane: 5 passed
 full UI suite: 189 passed
 UI production build: passed
 rendered browser QA: desktop + 390x844 mobile, no horizontal overflow or
 console errors; inventory search/filter and responsive table interactions passed
-make test-security: 534 passed
-make check-all: 2920 passed / 11 skipped / 13 deselected
-make test-smoke: 4 static-container checks passed / 9 executor-only checks
-skipped because the executor service was not running
+make test-security: 535 passed
+make check-all: 2929 passed / 11 skipped / 14 deselected
+make test-smoke: 13 passed / 1 unavailable fixture skipped
 ruff: all checks passed
 git diff --check: passed
 ```
@@ -164,7 +170,7 @@ Hardened-container evaluation after rebuilding the image:
 ```text
 make static-eval SPLIT=tuning: 8/8 passed
 make static-eval SPLIT=all: 12/12 passed
-rules bundle: a22f07391424da90c6fc142bac01c357b4cc8878c866a9c7780f922e914a4d18
+rules bundle: 6496cf0ff536854d8cf36677e61141880a1bac87a741fd58a47802203ff3c1b5
 corpus bundle: 6e1c71a6d12965ee6184883e284c94a0a9b1b51c4a6a4c6f3c6d6e5c4a3162b7
 binary samples: TP 5 / FP 0 / FN 0 / TN 5; 2 coverage controls
 sample precision: 1.0
@@ -172,7 +178,7 @@ sample recall: 1.0
 sample false-positive rate/noise: 0.0 / 0.0
 S3 precision/recall: 1.0 / 1.0
 S5 precision/recall: 1.0 / 1.0
-runtime: p50 1269 ms / p95 1594 ms / total 15788 ms
+runtime: p50 1361 ms / p95 1629 ms / total 16676 ms
 ```
 
 The documentation control changed WARN → ALLOW. Native presence is now an INFO
@@ -187,12 +193,14 @@ original: in-house 106/106; Semgrep 9/10; budget_stop on sdk/index.js
 600-second budget: Semgrep 10/10; budget_stop removed
 2 GiB container / 1536 MiB Semgrep: prior OOM removed
 Node syntax check: valid JavaScript
-Semgrep 1.164.0: parser_error on the 9.2 MiB generated bundle; still INCONCLUSIVE
+Semgrep 1.164.0 structural pass: parser_error on the generated bundle
+generic fallback: 16 rules loaded, 11 findings, 0 errors, 1 fallback file
+final report: partial=false; coverage reasons=[]; decision=WARN
 ```
 
-The resource change therefore removes artificial time/memory exhaustion but
-does not relabel an unsupported Semgrep parse as clean coverage. The remaining
-gap is a Semgrep parser-compatibility limitation, not malformed extension source.
+The resource change removes artificial time/memory exhaustion. The generic
+fallback then runs the rule set over the parser-incompatible source instead of
+accepting an unscanned gap; its use remains explicit in the report.
 
 Live in-house production-bundle regression (local unpacked artifacts):
 

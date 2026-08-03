@@ -79,6 +79,22 @@ def test_static_analysis_timeout_budget_contract_is_bounded_to_ten_minutes() -> 
             parse_static_analysis_timeout_budget(invalid)
 
 
+def test_static_coverage_records_bounded_structural_fallback_paths() -> None:
+    coverage = StaticScanCoverage(
+        structural_fallback_files=1,
+        structural_fallback_paths=["node_modules/vendor/bundle.js"],
+    )
+
+    assert coverage.structural_fallback_files == 1
+    assert coverage.structural_fallback_paths == ["node_modules/vendor/bundle.js"]
+
+    with pytest.raises(ValueError):
+        StaticScanCoverage(
+            structural_fallback_files=1,
+            structural_fallback_paths=["../outside.js"],
+        )
+
+
 def test_finding_field_set_parity_with_dynamic() -> None:
     """StaticDetectionFinding must mirror DetectionFinding's field names."""
     assert set(StaticDetectionFinding.model_fields) == set(

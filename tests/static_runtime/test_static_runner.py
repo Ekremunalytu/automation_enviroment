@@ -16,6 +16,7 @@ from packages.analysis_contracts.detection.enums import (
 from packages.analysis_contracts.static_detection import (
     StaticDetectionFinding,
     StaticDetectionReport,
+    StaticScanCoverage,
     StaticToolExecutionRecord,
 )
 from static_runtime import artifact_inventory, static_runner
@@ -226,6 +227,7 @@ def _fake_semgrep_result(
     findings: list[StaticDetectionFinding] | None = None,
     *,
     status: Literal["ok", "partial", "error", "timeout"] = "ok",
+    coverage: StaticScanCoverage | None = None,
 ) -> SemgrepRunResult:
     findings = findings or []
     return SemgrepRunResult(
@@ -237,6 +239,7 @@ def _fake_semgrep_result(
             findings_emitted=len(findings),
             duration_ms=1,
             status=status,
+            coverage=coverage or StaticScanCoverage(),
         ),
     )
 
@@ -276,6 +279,29 @@ def test_runner_combines_inhouse_and_semgrep(
     # The rollup sums findings across both tools.
     assert sum(report.severity_counts.model_dump().values()) == len(report.findings)
     assert report.partial is False
+
+
+def test_runner_merges_semgrep_structural_fallback_observability(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fallback_coverage = StaticScanCoverage(
+        structural_fallback_files=1,
+        structural_fallback_paths=["node_modules/vendor/bundle.js"],
+    )
+    monkeypatch.setattr(
+        static_runner,
+        "run_semgrep",
+        lambda **_kw: _fake_semgrep_result(coverage=fallback_coverage),
+    )
+
+    report = run_static_detection_engine(
+        vsix_dir=str(tmp_path), rules_version="1.0.0", timeout_budget_s=30
+    )
+
+    assert report.coverage.structural_fallback_files == 1
+    assert report.coverage.structural_fallback_paths == [
+        "node_modules/vendor/bundle.js"
+    ]
 
 
 def test_runner_partial_when_semgrep_times_out(

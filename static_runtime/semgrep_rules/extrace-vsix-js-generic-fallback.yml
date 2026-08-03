@@ -1,0 +1,117 @@
+# Bounded generic-language fallback for JavaScript/TypeScript artifacts that
+# Semgrep's structural pass rejects or times out on. This file is never loaded
+# by the normal AST pass; semgrep_runner invokes it only for exact failed paths. Rule ids
+# intentionally mirror extrace-vsix-js.yml so findings retain one stable
+# contract identity and cross-pass fingerprint deduplication.
+rules:
+  - id: eval
+    languages: [generic]
+    severity: WARNING
+    message: Dynamic code execution via eval().
+    patterns:
+      - pattern-regex: '(?:^|[^A-Za-z0-9_$])eval\s*\('
+
+  - id: function_constructor
+    languages: [generic]
+    severity: WARNING
+    message: Dynamic code execution via the Function constructor.
+    patterns:
+      - pattern-regex: '(?:^|[^A-Za-z0-9_$])(?:new\s+)?Function\s*\('
+
+  - id: child_process
+    languages: [generic]
+    severity: WARNING
+    message: Use of the child_process module or its process-spawn methods.
+    patterns:
+      - pattern-regex: '(?:require\s*\(\s*["''](?:node:)?child_process["'']\s*\)|\bchild_process\s*\.\s*(?:exec|execSync|spawn|spawnSync|execFile|fork)\s*\()'
+
+  - id: vm_runincontext
+    languages: [generic]
+    severity: WARNING
+    message: Dynamic code execution through a vm context.
+    patterns:
+      - pattern-regex: '\bvm\s*\.\s*runIn(?:Context|NewContext|ThisContext)\s*\('
+
+  - id: outbound_net_module
+    languages: [generic]
+    severity: WARNING
+    message: Import of a raw Node network module.
+    patterns:
+      - pattern-regex: 'require\s*\(\s*["''](?:node:)?(?:http|https|net|tls|dns|dgram)["'']\s*\)'
+
+  - id: dynamic_require
+    languages: [generic]
+    severity: WARNING
+    message: Dynamic require() of a non-literal module specifier.
+    patterns:
+      - pattern-regex: 'require\s*\(\s*[A-Za-z_$([{]'
+
+  - id: base64_decode_exec
+    languages: [generic]
+    severity: WARNING
+    message: Decode-then-execute behavior.
+    patterns:
+      - pattern-regex: '(?:eval|(?:new\s+)?Function)\s*\(\s*(?:atob|Buffer\s*\.\s*from|unescape|decodeURIComponent)\s*\('
+
+  - id: sensitive_file_read
+    languages: [generic]
+    severity: WARNING
+    message: Reference to a sensitive credential file path.
+    patterns:
+      - pattern-regex: '(\.ssh/|id_rsa|\.aws/credentials|\.npmrc|\.docker/config\.json)'
+
+  - id: reverse_shell_pipe
+    languages: [generic]
+    severity: WARNING
+    message: Process stdio piped to or from a socket-like object.
+    patterns:
+      - pattern-regex: '(?:\.pipe\s*\([^)]{0,160}\.stdin\s*\)|\.(?:stdout|stderr)\s*\.\s*pipe\s*\()'
+
+  - id: reverse_shell_spawn
+    languages: [generic]
+    severity: WARNING
+    message: Process-spawn call targeting an OS shell.
+    patterns:
+      - pattern-regex: '(?:exec|execSync|spawn|spawnSync|execFile)\s*\([^;\n]{0,160}(?:cmd\.exe|powershell|/bin/(?:ba)?sh|\bsh\b|\bbash\b|ComSpec|SHELL)'
+
+  - id: reverse_shell_ip_connect
+    languages: [generic]
+    severity: WARNING
+    message: Socket connection to a hardcoded IPv4 literal.
+    patterns:
+      - pattern-regex: '(?:\.connect|net\s*\.\s*(?:connect|createConnection))\s*\([^;\n]{0,300}(?:\d{1,3}\.){3}\d{1,3}'
+
+  - id: download_cradle
+    languages: [generic]
+    severity: WARNING
+    message: Hidden-PowerShell remote download cradle.
+    patterns:
+      - pattern-regex: '(?i)(?:powershell|pwsh)\b[^\n]{0,200}\b(?:irm|iwr|invoke-restmethod|invoke-webrequest)\b[^\n]{0,200}\b(?:iex|invoke-expression)\b'
+
+  - id: permissive_cors
+    languages: [generic]
+    severity: WARNING
+    message: Permissive Access-Control-Allow-Origin wildcard.
+    patterns:
+      - pattern-regex: '(?i)access-control-allow-origin[^\n]{0,30}\*'
+
+  - id: cross_extension_write
+    languages: [generic]
+    severity: WARNING
+    message: Write or copy into a VS Code extension install root.
+    patterns:
+      - pattern-regex: '(?:copyFileSync|copyFile|writeFileSync|writeFile|createWriteStream|appendFileSync|appendFile|cpSync)\s*\([^;{}]{0,300}\.(?:vscode(?:-server|-oss|-insiders)?|vscodium|cursor|windsurf)[\\/]+extensions[\\/]'
+
+  - id: home_dir_enumeration
+    languages: [generic]
+    severity: WARNING
+    message: Home-directory enumeration through fs and os modules.
+    patterns:
+      - pattern-regex: '(?:fs\s*\.\s*)?readdir(?:Sync)?\s*\(\s*(?:os\s*\.\s*homedir\s*\(\s*\)|require\s*\(\s*["'']os["'']\s*\)\s*\.\s*homedir\s*\(\s*\))'
+
+  - id: device_fingerprint
+    languages: [generic]
+    severity: WARNING
+    message: Device fingerprint collection through macaddress or networkInterfaces.
+    patterns:
+      - pattern-regex: '(?:require\s*\(\s*["'']macaddress["'']\s*\)|(?:os\s*\.|require\s*\(\s*["'']os["'']\s*\)\s*\.)networkInterfaces\s*\()'

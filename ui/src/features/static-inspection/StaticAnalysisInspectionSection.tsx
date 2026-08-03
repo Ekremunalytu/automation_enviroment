@@ -183,6 +183,7 @@ function InspectionWorkspace({
             ? [gate.allow_reason]
             : [];
   const coverageReasons = coverage?.coverage_reasons ?? [];
+  const structuralFallbackPaths = coverage?.structural_fallback_paths ?? [];
 
   return (
     <>
@@ -313,8 +314,32 @@ function InspectionWorkspace({
         <InspectionMetric label="Parsed" value={summary.filesParsed} compact />
         <InspectionMetric label="Bytes considered" value={formatBytes(summary.bytesConsidered)} compact />
         <InspectionMetric label="Bytes read" value={formatBytes(summary.bytesRead)} compact />
+        <InspectionMetric
+          label="Structural fallback"
+          value={coverage?.structural_fallback_files ?? 0}
+          compact
+        />
         <InspectionMetric label="Manifest" value={titleCase(coverage?.manifest_status ?? "unknown")} compact />
       </section>
+
+      {structuralFallbackPaths.length ? (
+        <Panel
+          label="Structural fallback"
+          right={<Badge tone="neutral">{structuralFallbackPaths.length}</Badge>}
+        >
+          <div
+            role="list"
+            aria-label="Static structural fallback paths"
+            style={{ display: "grid", gap: 6 }}
+          >
+            {structuralFallbackPaths.map((path) => (
+              <code key={path} role="listitem" className="mono-path">
+                {path}
+              </code>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
 
       {coverageReasons.length ? (
         <Panel

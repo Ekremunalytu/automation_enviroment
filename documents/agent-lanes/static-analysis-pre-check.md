@@ -131,7 +131,10 @@ decision gate that fronts the dynamic sandbox.
   default and hard maximum are both 600 seconds. Larger targets remain visible
   and inconclusive. Intentional Semgrep vendor/minified exclusions stay
   inventory-visible but are not alone a degraded tool state; in-house rules
-  retain bounded text coverage.
+  retain bounded text coverage. A structural parser error or per-rule timeout on
+  an eligible target invokes the same 16 logical Semgrep rules through a bounded
+  exact-path generic-language fallback. Fallback use is report-visible; failure
+  or incomplete fallback remains `INCONCLUSIVE`.
 - **Container isolation.** The static analyzer runs with `network_mode:
   none`, `cap_drop: [ALL]`, `no-new-privileges`, non-root, no
   `docker.sock` — never inline on the host or in the executor. Its current

@@ -774,6 +774,8 @@ export interface StaticScanCoverageDto {
   file_cap_reached?: boolean;
   finding_cap_reached?: boolean;
   unsupported_formats?: Record<string, number>;
+  structural_fallback_files?: number;
+  structural_fallback_paths?: string[];
   coverage_reasons?: ("file_cap" | "target_too_large" | "text_truncated" | "undecodable" | "unsupported_suffix" | "parser_error" | "manifest_missing" | "manifest_malformed" | "manifest_too_large" | "critical_entrypoint_missing" | "critical_entrypoint_unparsed" | "rule_timeout" | "tool_timeout" | "tool_error" | "finding_cap" | "budget_stop" | "excluded_inventory_only" | "deep_scan_target_cap")[];
 }
 

@@ -154,7 +154,7 @@ def test_semgrep_target_byte_cap_is_visible(tmp_path: Path) -> None:
     coverage = semgrep_runner._build_semgrep_coverage(
         tmp_path,
         raw_result_count=0,
-        error_count=0,
+        errors=[],
     )
 
     assert "target_too_large" in coverage.coverage_reasons
@@ -173,7 +173,7 @@ def test_common_five_mebibyte_bundle_is_fully_covered(tmp_path: Path) -> None:
     semgrep = semgrep_runner._build_semgrep_coverage(
         tmp_path,
         raw_result_count=0,
-        error_count=0,
+        errors=[],
     )
 
     assert "text_truncated" not in inhouse.coverage_reasons
@@ -194,7 +194,7 @@ def test_semgrep_inventory_exclusions_are_visible_but_not_partial(
     coverage = semgrep_runner._build_semgrep_coverage(
         tmp_path,
         raw_result_count=0,
-        error_count=0,
+        errors=[],
     )
 
     assert coverage.files_skipped_by_reason["excluded_inventory_only"] == 1

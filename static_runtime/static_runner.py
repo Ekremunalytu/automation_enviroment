@@ -114,6 +114,9 @@ def _merge_coverage(records: list[StaticToolExecutionRecord]) -> StaticScanCover
     skipped: dict[str, int] = {}
     skipped_paths: dict[str, list[str]] = {}
     unsupported: dict[str, int] = {}
+    structural_fallback_paths = sorted(
+        {path for coverage in coverages for path in coverage.structural_fallback_paths}
+    )[:20]
     for coverage in coverages:
         for reason, count in coverage.files_skipped_by_reason.items():
             skipped[reason] = max(skipped.get(reason, 0), count)
@@ -139,6 +142,10 @@ def _merge_coverage(records: list[StaticToolExecutionRecord]) -> StaticScanCover
         file_cap_reached=any(item.file_cap_reached for item in coverages),
         finding_cap_reached=any(item.finding_cap_reached for item in coverages),
         unsupported_formats=unsupported,
+        structural_fallback_files=max(
+            item.structural_fallback_files for item in coverages
+        ),
+        structural_fallback_paths=structural_fallback_paths,
         coverage_reasons=sorted(
             {reason for coverage in coverages for reason in coverage.coverage_reasons}
         ),
