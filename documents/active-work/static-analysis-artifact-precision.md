@@ -1,19 +1,18 @@
 # Static Analysis Artifact Precision
 
-`Last Updated: 2026-08-03`
+`Last Updated: 2026-08-05`
 
-`Status: ACTIVE — SAP-0 through SAP-4 and the production-bundle precision
-follow-up are implemented on codex/static-analysis-artifact-precision. The
-branch also carries the static-only Reports presentation correction described
-in section 3, the Reports-integrated Static analysis inspection tab, and the
-Rules whitelist visibility/normalization follow-up. SAP-5 is next.`
+`Status: ACTIVE — the SMF foundation plus SAP-0 through SAP-4 and the
+production-bundle precision follow-up merged to main via PR #40. The merged
+baseline includes the static-only Reports presentation correction described in
+section 3, the Reports-integrated Static analysis inspection tab, and the Rules
+whitelist visibility/normalization follow-up. SAP-5 is next.`
 
 `Parent: static-analysis-improvement-roadmap.md Increment B / SAR-2.`
 
-`Stacking boundary: this branch starts from the committed and pushed
-static-analysis-measurement-foundation head. SMF is not merged; PR, merge, and
-remote publication are separate actions. Successor branch publication was
-authorized on 2026-07-31; PR/merge were not.`
+`Merge boundary: PR #40 carried the committed SMF foundation and SAP-0..SAP-4
+baseline into main. The stream remains active for SAP-5 reachability and
+deduplication followed by SAP-6 full delta and close-out.`
 
 `Product-order boundary: containment safety remains the next mandatory
 product/release gate. This stream is offline/static and does not claim safe

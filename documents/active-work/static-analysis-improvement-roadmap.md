@@ -1,8 +1,8 @@
 # Static Analysis Improvement Roadmap
 
-`Last Updated: 2026-08-03`
+`Last Updated: 2026-08-05`
 
-`Status: ACTIVE ROADMAP — Increment A (SMF-0..SMF-8) is implemented and its unmerged head underlies the active Increment B static-analysis-artifact-precision stream. SAP-0..SAP-4 are complete and SAP-5 is next. Later increments, dependencies, detector/blocker changes, and AI work still require their normal owner decision and ADR process.`
+`Status: ACTIVE ROADMAP — Increment A (SMF-0..SMF-8) plus the Increment B SAP-0..SAP-4 baseline merged via PR #40. Increment B remains active and SAP-5 is next. Later increments, dependencies, detector/blocker changes, and AI work still require their normal owner decision and ADR process.`
 
 `Scope: Stream 6 measured-catch-rate and static-primary/threat-directed-dynamic strategy. Product execution order remains containment safety first, then measured detection.`
 
@@ -913,9 +913,8 @@ Every rule/tool package preserves:
 
 Increment B is active as
 `documents/phase.json.active_stream = static-analysis-artifact-precision`,
-stacked on the committed/pushed but unmerged Increment A head. SAP-0 through
-SAP-3 implement the initial artifact-role plus S3/S5 precision slice; SAP-4
-inventory/deep-scan selection is next. Containment safety remains the next
+with Increment A plus SAP-0 through SAP-4 merged via PR #40. SAP-5 reachability
+and source-map/vendor deduplication is next. Containment safety remains the next
 product/release gate. Increment C stays separately reviewable and requires its
 own activation. AI-0 may be planned as a provider-free contract exercise, but
 AI-1 does not begin without an explicit owner/ADR/data-policy decision.

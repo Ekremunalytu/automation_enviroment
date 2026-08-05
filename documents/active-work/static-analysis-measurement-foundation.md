@@ -1,8 +1,8 @@
 # Static Analysis Measurement Foundation
 
-`Last Updated: 2026-07-31`
+`Last Updated: 2026-08-05`
 
-`Status: IMPLEMENTATION COMPLETE — committed and pushed 2026-07-30; PR/merge close-out is not authorized. The locally activated static-analysis-artifact-precision successor is stacked on this unmerged head.`
+`Status: MERGED FOUNDATION — SMF-0..SMF-8 implementation and acceptance merged to main with the successor's SAP-0..SAP-4 baseline via PR #40. The static-analysis-artifact-precision successor remains active and SAP-5 is next.`
 
 `Parent: static-analysis-improvement-roadmap.md Increment A / SAR-0 + SAR-1 measurement foundation.`
 
@@ -690,15 +690,16 @@ The owner approved the iteration scope and separate `INCONCLUSIVE` conclusion
 on 2026-07-30. Implementation is complete and the successor
 `static-analysis-artifact-precision` was activated locally on 2026-07-31 as a
 stacked branch. Containment safety remains the release/product execution gate.
-Keep this tracker as the SMF-0..SMF-8 acceptance source; PR/merge and remote
-publication remain explicitly separate actions. Successor branch publication
-was authorized on 2026-07-31; PR/merge were not.
+Keep this tracker as the SMF-0..SMF-8 acceptance source. The foundation and the
+successor's SAP-0..SAP-4 baseline merged via PR #40; the successor remains
+active for SAP-5 and SAP-6.
 
 ## 20. Implementation And Baseline Evidence
 
 SMF-0 through SMF-8 implementation work is complete for the named branch.
-Commit and branch push were authorized on 2026-07-30; PR, merge, lifecycle
-close-out, and resetting `active_stream` remain separate actions.
+The implementation merged via PR #40. This foundation is complete, while the
+successor remains active and retains `phase.json.active_stream` through its
+SAP-5/SAP-6 work.
 
 - rule inventory: 26 in-house plus 16 Semgrep production rules, each with
   capability, artifact role, positive/negative test ownership, gate effect,

@@ -1,8 +1,8 @@
 # Documents Guide
 
-`Last Updated: 2026-08-03 — Last merged weekly: W22 (PR #31 week22 -> main 1399f82).`
+`Last Updated: 2026-08-05 — Last merged weekly: W22 (PR #31 week22 -> main 1399f82).`
 
-`Active named stream: static-analysis-artifact-precision; SAP-0..SAP-4 are complete and SAP-5 is next; tracker: active-work/static-analysis-artifact-precision.md.`
+`Active named stream: static-analysis-artifact-precision; the SMF foundation plus SAP-0..SAP-4 baseline merged via PR #40, SAP-5 is next; tracker: active-work/static-analysis-artifact-precision.md.`
 
 Do not preload this folder. After `AGENTS.md`, use
 [`AGENT_CONTEXT.md`](AGENT_CONTEXT.md) to choose one

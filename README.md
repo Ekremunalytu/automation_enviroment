@@ -1,8 +1,8 @@
 # ExTrace
 
-`Last Updated: 2026-08-03 — Last merged weekly: W22 via PR #31 (week22 -> main, 1399f82). Frozen tracker: documents/active-work/W22-coverage-promotion-hard-tier.md.`
+`Last Updated: 2026-08-05 — Last merged weekly: W22 via PR #31 (week22 -> main, 1399f82). Frozen tracker: documents/active-work/W22-coverage-promotion-hard-tier.md.`
 
-`Active named stream: static-analysis-artifact-precision; SAP-0..SAP-4 are complete and SAP-5 is next. Containment safety remains the next product/release gate.`
+`Active named stream: static-analysis-artifact-precision; the SMF foundation plus SAP-0..SAP-4 baseline merged via PR #40, and SAP-5 is next. Containment safety remains the next product/release gate.`
 
 ExTrace is a sandboxed analysis platform for suspicious VS Code extensions. It
 combines manifest inspection, static rules, isolated runtime observation, and

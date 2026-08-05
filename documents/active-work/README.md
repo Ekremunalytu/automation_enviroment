@@ -1,10 +1,10 @@
 # Active Work
 
-`Last Updated: 2026-08-03`
+`Last Updated: 2026-08-05`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active named stream: static-analysis-artifact-precision (SAP-0..SAP-6), stacked on the unmerged SMF head; SAP-0..SAP-4 are complete and SAP-5 is next. Latest merged named stream: verdict-provenance-reproducibility (W26), PR #38 bfb2d2d. Containment safety remains the next product/release gate.`
+`Active named stream: static-analysis-artifact-precision (SAP-0..SAP-6). The SMF foundation plus SAP-0..SAP-4 baseline merged via PR #40; SAP-5 is next. Latest fully closed named stream: verdict-provenance-reproducibility (W26), PR #38 bfb2d2d. Containment safety remains the next product/release gate.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + optional active stream; null when none is open).`
 
@@ -54,16 +54,16 @@ points to it.
   - **ACTIVE static-analysis iteration; SAP-0..SAP-4 complete, SAP-5 next.**
     Adds bounded per-file artifact inventory, deterministic dependency/minified
     deep-scan selection, partial-coverage honesty, and the Reports-integrated
-    inspection surface on top of the unmerged SMF head.
+    inspection surface. Its SMF + SAP-0..SAP-4 baseline merged via PR #40.
 - `static-analysis-measurement-foundation.md`
-  - **STACKED FOUNDATION; implementation and local acceptance complete.**
+  - **MERGED FOUNDATION; implementation and acceptance complete via PR #40.**
     Turns Increment A into the SMF-0–SMF-8 execution slate:
     rule/ruleset baseline, schema-first evaluation contracts, 12 harmless
     tuning/holdout fixtures, a
     container-only evaluator, explicit file/byte/parser/cap coverage,
     partial-conclusion honesty, metrics, validation, and the Increment B
-    handoff. The stream pointer stays active until an explicitly authorized
-    merge/close-out; containment safety remains the product/release gate.
+    handoff. The successor stream pointer stays active through SAP-5/SAP-6;
+    containment safety remains the product/release gate.
 - `W22-coverage-promotion-hard-tier.md`
   - **Closed phase — closed synthetically on the `week22` branch
     `2026-05-28` and merged to main via PR #31 `week22 -> main` `1399f82`.** W22
