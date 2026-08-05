@@ -66,8 +66,10 @@ const STATIC_REPORT: StaticReportView = {
   decisionLabel: "Warn",
   blockedBy: [],
   warnedBy: ["extrace.s3.embedded_native_binary"],
+  inconclusiveReasons: [],
   allowReason: null,
   partial: false,
+  coverage: { filesDiscovered: 2, filesScanned: 2, filesParsed: 2, reasons: [] },
   toolStatuses: [
     { tool: "inhouse", status: "ok", errorCount: 0 },
     { tool: "semgrep", status: "ok", errorCount: 0 },
@@ -119,5 +121,62 @@ describe("RuleMatrixSection", () => {
     expect(screen.getByText(/No static pre-check for this run/i)).toBeTruthy();
     // Dynamic band still renders.
     expect(screen.getByRole("button", { name: /Credential read.*Fired/i })).toBeTruthy();
+  });
+
+  it("shows inconclusive status and coverage reasons accessibly", () => {
+    render(
+      <RuleMatrixSection
+        report={makeReport({
+          detection: DETECTION,
+          staticReport: {
+            ...STATIC_REPORT,
+            decision: "inconclusive",
+            decisionLabel: "Inconclusive",
+            inconclusiveReasons: ["target_too_large", "parser_error"],
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("Inconclusive")).toBeTruthy();
+    expect(
+      screen.getByRole("status", {
+        name: "Static analysis inconclusive reasons",
+      }).textContent,
+    ).toContain("target_too_large, parser_error");
+  });
+
+  it("replaces dynamic cells with an explicit disabled state", () => {
+    render(
+      <RuleMatrixSection
+        report={makeReport({ detection: DETECTION, staticReport: STATIC_REPORT })}
+        dynamicAnalysisEnabled={false}
+      />,
+    );
+
+    expect(screen.getByText("Dynamic analysis is disabled")).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: /Credential read.*Fired/i }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /Embedded native binary.*Fired/i }),
+    ).toBeTruthy();
+  });
+
+  it("renders a latest static artifact independently from the activation report", () => {
+    render(
+      <RuleMatrixSection
+        report={makeReport({ detection: DETECTION })}
+        dynamicAnalysisEnabled={false}
+        staticReportOverride={STATIC_REPORT}
+        latestStaticArtifact
+      />,
+    );
+
+    expect(screen.getByText("Latest static artifact")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /Embedded native binary.*Fired/i }),
+    ).toBeTruthy();
+    expect(screen.queryByText(/No static pre-check for this run/i)).toBeNull();
   });
 });

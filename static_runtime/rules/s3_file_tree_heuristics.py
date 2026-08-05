@@ -26,11 +26,11 @@ from packages.analysis_contracts.static_detection import (
     StaticDetectionFinding,
     StaticEvidenceRef,
 )
+from static_runtime.artifacts import classify_artifact
 from static_runtime.context import StaticAnalysisContext
 from static_runtime.rules._common import file_evidence
 from static_runtime.rules.registry import register
 
-_NATIVE_SUFFIXES = frozenset({".node", ".so", ".dylib", ".dll", ".exe", ".bin"})
 _TEXT_SUFFIXES = frozenset(
     {
         ".js",
@@ -50,22 +50,12 @@ _TEXT_SUFFIXES = frozenset(
         ".map",
     }
 )
-_NUL_SCAN_BYTES = 8192
 _LARGE_TEXT_THRESHOLD = 2 * 1024 * 1024  # 2 MB
 _MAX_EVIDENCE = 25
 
 
 def _suffix(relative_path: str) -> str:
     return Path(relative_path).suffix.lower()
-
-
-def _has_nul_byte(path: Path) -> bool:
-    """True if the file's first ``_NUL_SCAN_BYTES`` contain a NUL (binary marker)."""
-    try:
-        with path.open("rb") as handle:
-            return b"\x00" in handle.read(_NUL_SCAN_BYTES)
-    except OSError:
-        return False
 
 
 def _file_size(path: Path) -> int:
@@ -77,10 +67,12 @@ def _file_size(path: Path) -> int:
 
 class EmbeddedNativeBinaryRule:
     rule_id = "extrace.s3.embedded_native_binary"
-    rule_version = "1.0.0"
+    rule_version = "1.2.0"
     lifecycle = RuleLifecycle.PRODUCTION
     adversary_class: AdversaryClass | None = None
-    severity = Severity.MEDIUM
+    # Presence is inventory, not malice. S13 owns suspicious native-loader
+    # conjunctions; an ordinary signed/verified helper must not warn by itself.
+    severity = Severity.INFO
     description = (
         "Extension ships native binaries or content-sniffed binary blobs, which "
         "can execute outside the JS sandbox and resist static review."
@@ -90,13 +82,8 @@ class EmbeddedNativeBinaryRule:
         evidence: list[StaticEvidenceRef] = []
         total = 0
         for relative_path, absolute_path in context.iter_files():
-            suffix = _suffix(relative_path)
-            is_native = suffix in _NATIVE_SUFFIXES
-            # Content-sniff only files NOT already known-text and NOT already
-            # matched by suffix, to bound I/O on large trees.
-            if not is_native and suffix not in _TEXT_SUFFIXES:
-                is_native = _has_nul_byte(absolute_path)
-            if not is_native:
+            classification = classify_artifact(relative_path, absolute_path)
+            if not classification.is_native_executable:
                 continue
             total += 1
             if len(evidence) < _MAX_EVIDENCE:
@@ -104,7 +91,8 @@ class EmbeddedNativeBinaryRule:
                     file_evidence(
                         relative_path,
                         "binary_file",
-                        snippet=f"{suffix or 'no-suffix'} binary, "
+                        snippet=f"{classification.format} native artifact, "
+                        f"{classification.suffix or 'no-suffix'}, "
                         f"{_file_size(absolute_path)} bytes",
                     )
                 )
@@ -121,9 +109,9 @@ class EmbeddedNativeBinaryRule:
                 confidence=Confidence.HIGH,
                 title="Extension ships embedded native or binary files",
                 description=(
-                    f"{total} native/binary file(s) found in the extension tree "
-                    f"(showing {shown}). Native modules execute outside the JS "
-                    "sandbox and are opaque to source review."
+                    f"{total} native executable/module artifact(s) found in the "
+                    f"extension tree (showing {shown}). Native modules execute "
+                    "outside the JS sandbox and are opaque to source review."
                 ),
                 evidence=evidence,
                 mitigation_hint=(
@@ -136,10 +124,12 @@ class EmbeddedNativeBinaryRule:
 
 class UnusualFileSignatureRule:
     rule_id = "extrace.s3.unusual_file_signature"
-    rule_version = "1.0.0"
+    rule_version = "1.1.0"
     lifecycle = RuleLifecycle.PRODUCTION
     adversary_class: AdversaryClass | None = None
-    severity = Severity.LOW
+    # Modern webpack/esbuild bundles commonly exceed 2 MiB. Keep the visibility
+    # but do not turn bundle size alone into a security warning.
+    severity = Severity.INFO
     description = (
         "Extension contains text/source files that are unexpectedly large, a "
         "common shape for packed or obfuscated payloads."

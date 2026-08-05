@@ -165,7 +165,7 @@ services:
   # network-isolated container that (from ES-3a) parses untrusted VSIX manifests
   # and file trees off the host + off the executor. Driven from the host via
   # `docker exec` (executor/static_host.py); idles on `sleep infinity` so exec
-  # always has a live target. Feature flag (STATIC_ANALYSIS_ENABLED) OFF until ES-5.
+  # always has a live target. The feature flag has been ON since ES-5 close-out.
   static_analyzer:
     build:
       context: .
@@ -196,13 +196,14 @@ services:
       # env vars so both stages see the same input tree + results dir.
       - ${EXECUTOR_EXTENSIONS_HOST_PATH:-./extensions}:${EXECUTOR_EXTENSIONS_CONTAINER_PATH:-/extensions-input}:ro
       - ${EXECUTOR_OUTPUT_HOST_PATH:-./output}:${EXECUTOR_OUTPUT_CONTAINER_PATH:-/results}
+      - ./tests/static_corpus:/evaluation-corpus:ro
     # ADR 0013 isolation baseline. Starts as the non-root `static` user, so no
     # cap_add (no runtime privilege drop, unlike api/ui's gosu/nginx entrypoints).
     cap_drop:
       - ALL
     security_opt:
       - "no-new-privileges:true"
-    mem_limit: ${STATIC_ANALYZER_MEM_LIMIT:-1g}
+    mem_limit: ${STATIC_ANALYZER_MEM_LIMIT:-2g}
     cpus: ${STATIC_ANALYZER_CPUS:-1.0}
     stop_grace_period: 5s
 

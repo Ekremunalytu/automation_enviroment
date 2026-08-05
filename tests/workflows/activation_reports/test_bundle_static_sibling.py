@@ -11,6 +11,7 @@ unreadable sibling must degrade to ``null`` — never a 500.
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -103,6 +104,14 @@ def _get(client: TestClient, output_dir: Path) -> Any:
         return client.get(f"/api/activations/{_ACTIVATION_NAME}/bundle")
 
 
+def _get_latest_static(client: TestClient, output_dir: Path) -> Any:
+    with patch(
+        "workflows.activation_reports.router._get_output_dir",
+        return_value=output_dir,
+    ):
+        return client.get("/api/activations/static/latest")
+
+
 def test_bundle_attaches_static_sibling(client: TestClient, tmp_path: Path) -> None:
     output_dir = tmp_path / "output"
     _seed_activation(output_dir)
@@ -180,3 +189,81 @@ def test_bundle_static_null_when_sibling_unreadable(
     # Degraded artifact must not crash the bundle read.
     assert response.status_code == 200
     assert response.json()["static_report"] is None
+
+
+def test_latest_static_returns_newest_valid_artifact(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    older = output_dir / f"static_report_{'1' * 32}.json"
+    newer = output_dir / f"static_report_{'2' * 32}.json"
+    older.write_text(
+        json.dumps(
+            _combined_bundle_payload(
+                fired_rule_id="extrace.s2.typosquat",
+                decision="warn",
+            )
+        ),
+        encoding="utf-8",
+    )
+    time.sleep(0.01)
+    newer.write_text(
+        json.dumps(
+            _combined_bundle_payload(
+                fired_rule_id="extrace.s3.embedded_native_binary",
+                decision="warn",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    response = _get_latest_static(client, output_dir)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["filename"] == newer.name
+    assert payload["modified"] > 0
+    assert payload["static_report"]["detection_report"]["findings"][0]["rule_id"] == (
+        "extrace.s3.embedded_native_binary"
+    )
+
+
+def test_latest_static_skips_corrupt_newest_artifact(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    valid = output_dir / f"static_report_{'3' * 32}.json"
+    corrupt = output_dir / f"static_report_{'4' * 32}.json"
+    valid.write_text(
+        json.dumps(
+            _combined_bundle_payload(
+                fired_rule_id="extrace.s2.typosquat",
+                decision="warn",
+            )
+        ),
+        encoding="utf-8",
+    )
+    time.sleep(0.01)
+    corrupt.write_text("{not valid json", encoding="utf-8")
+
+    response = _get_latest_static(client, output_dir)
+
+    assert response.status_code == 200
+    assert response.json()["filename"] == valid.name
+
+
+def test_latest_static_404_when_no_artifact(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
+    response = _get_latest_static(client, output_dir)
+
+    assert response.status_code == 404
+    assert "No static analysis reports found" in response.json()["detail"]

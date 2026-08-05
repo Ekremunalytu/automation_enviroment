@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -61,6 +62,16 @@ def _fake_semgrep(
 def _run(monkeypatch: pytest.MonkeyPatch, **kw: Any) -> semgrep_runner.SemgrepRunResult:
     _fake_semgrep(monkeypatch, **kw)
     return semgrep_runner.run_semgrep(vsix_dir=_VSIX, wall_timeout_s=20)
+
+
+def test_semgrep_argv_pins_memory_below_container_ceiling() -> None:
+    argv = semgrep_runner._build_argv(
+        targets=("/target.js",),
+        per_rule_timeout_s=5,
+        exclude_inventory_only=False,
+    )
+
+    assert argv[argv.index("--max-memory") + 1] == "1536"
 
 
 @pytest.mark.parametrize(
@@ -124,6 +135,27 @@ def test_snippet_is_redacted_and_clamped(monkeypatch: pytest.MonkeyPatch) -> Non
     assert len(snippet) <= 400
 
 
+def test_result_snippet_uses_bounded_offset_context_for_generic_fallback(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "bundle.js"
+    source = "a" * 600 + "eval(payload)" + "z" * 600
+    target.write_text(source, encoding="utf-8")
+    raw = _result(
+        "fallback.eval",
+        path=str(target),
+        line=1,
+        lines="requires login",
+    )
+    raw["start"]["offset"] = 600
+
+    finding = semgrep_runner._map_result_to_finding(raw, tmp_path)
+
+    assert finding is not None
+    assert finding.evidence[0].snippet is not None
+    assert "eval(payload)" in finding.evidence[0].snippet
+
+
 def test_rc0_no_findings_is_ok(monkeypatch: pytest.MonkeyPatch) -> None:
     res = _run(monkeypatch, returncode=0, results=[])
     assert res.findings == []
@@ -131,16 +163,511 @@ def test_rc0_no_findings_is_ok(monkeypatch: pytest.MonkeyPatch) -> None:
     assert res.record.findings_emitted == 0
 
 
+def test_inventory_only_exclusion_does_not_mark_tool_partial(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    inventory_only_paths = (
+        "node_modules/pkg/index.js",
+        "vendor/client.ts",
+        "vendors/client.cjs",
+        "dist/client.min.mjs",
+    )
+    for relative_path in inventory_only_paths:
+        target = tmp_path / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("eval(payload)", encoding="utf-8")
+    (tmp_path / "extension.js").write_text("activate()", encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def fake_run(argv: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        return subprocess.CompletedProcess(
+            args=argv,
+            returncode=0,
+            stdout=json.dumps({"results": [], "errors": []}),
+            stderr="",
+        )
+
+    monkeypatch.setattr(semgrep_runner.subprocess, "run", fake_run)
+
+    result = semgrep_runner.run_semgrep(vsix_dir=str(tmp_path), wall_timeout_s=20)
+
+    assert result.record.status == "ok"
+    assert result.record.coverage.files_skipped_by_reason == {
+        "excluded_inventory_only": len(inventory_only_paths)
+    }
+    assert result.record.coverage.coverage_reasons == []
+    excluded_patterns = {
+        calls[0][index + 1]
+        for index, value in enumerate(calls[0][:-1])
+        if value == "--exclude"
+    }
+    assert {"node_modules", "vendor", "vendors", "*.min.mjs"} <= excluded_patterns
+
+
+def test_selected_dependency_gets_bounded_second_pass_and_dedupes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    vendor = tmp_path / "node_modules" / "vendor"
+    vendor.mkdir(parents=True)
+    selected = vendor / "index.js"
+    selected.write_text("eval(payload)", encoding="utf-8")
+    first_party = tmp_path / "extension.js"
+    first_party.write_text("eval(payload)", encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def fake_run(argv: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        path = str(selected) if "--exclude" not in argv else str(first_party)
+        payload = {"results": [_result("x.eval", path=path)], "errors": []}
+        return subprocess.CompletedProcess(
+            args=argv,
+            returncode=1,
+            stdout=json.dumps(payload),
+            stderr="",
+        )
+
+    monkeypatch.setattr(semgrep_runner.subprocess, "run", fake_run)
+    result = semgrep_runner.run_semgrep(
+        vsix_dir=str(tmp_path),
+        wall_timeout_s=20,
+        deep_scan_targets=(str(selected),),
+    )
+
+    assert len(calls) == 2
+    exclude_index = calls[0].index("--exclude")
+    assert calls[0][exclude_index : exclude_index + 2] == [
+        "--exclude",
+        "node_modules",
+    ]
+    assert "--exclude" not in calls[1]
+    assert calls[1][-1] == str(selected)
+    assert {finding.evidence[0].relative_path for finding in result.findings} == {
+        "extension.js",
+        "node_modules/vendor/index.js",
+    }
+    assert result.record.coverage.files_skipped_by_reason == {}
+    assert result.record.coverage.files_scanned == 2
+
+
+@pytest.mark.parametrize(
+    ("error_type", "error_code"),
+    [
+        ("Syntax error", 3),
+        (["PartialParsing", []], 3),
+        ("Timeout", 2),
+    ],
+)
+def test_structural_error_target_runs_generic_fallback_and_restores_coverage(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    error_type: object,
+    error_code: int,
+) -> None:
+    selected = tmp_path / "node_modules/vendor/bundle.js"
+    selected.parent.mkdir(parents=True)
+    selected.write_text("eval(payload)", encoding="utf-8")
+    (tmp_path / "extension.js").write_text("activate()", encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def fake_run(argv: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        if len(calls) == 2:
+            payload = {
+                "results": [],
+                "errors": [
+                    {
+                        "code": error_code,
+                        "type": error_type,
+                        "path": str(selected),
+                    }
+                ],
+            }
+            return subprocess.CompletedProcess(argv, 0, stdout=json.dumps(payload))
+        if len(calls) == 3:
+            payload = {
+                "results": [_result("fallback.eval", path=str(selected))],
+                "errors": [],
+            }
+            return subprocess.CompletedProcess(argv, 1, stdout=json.dumps(payload))
+        return subprocess.CompletedProcess(
+            argv,
+            0,
+            stdout=json.dumps({"results": [], "errors": []}),
+        )
+
+    monkeypatch.setattr(semgrep_runner.subprocess, "run", fake_run)
+    result = semgrep_runner.run_semgrep(
+        vsix_dir=str(tmp_path),
+        wall_timeout_s=20,
+        deep_scan_targets=(str(selected),),
+    )
+
+    assert len(calls) == 3
+    deep_timeout = calls[1][calls[1].index("--timeout") + 1]
+    assert deep_timeout == "30"
+    fallback_config = calls[2][calls[2].index("--config") + 1]
+    assert fallback_config.endswith("extrace-vsix-js-generic-fallback.yml")
+    assert result.record.status == "ok"
+    assert result.record.error_count == 0
+    assert result.record.coverage.coverage_reasons == []
+    assert result.record.coverage.structural_fallback_files == 1
+    assert result.record.coverage.structural_fallback_paths == [
+        "node_modules/vendor/bundle.js"
+    ]
+    assert [finding.rule_id for finding in result.findings] == ["extrace.sg.eval"]
+
+
+def test_generic_fallback_timeout_remains_inconclusive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    selected = tmp_path / "bundle.js"
+    selected.write_text("eval(payload)", encoding="utf-8")
+    calls = 0
+
+    def fake_run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            payload = {
+                "results": [],
+                "errors": [
+                    {
+                        "code": 3,
+                        "type": "Syntax error",
+                        "path": str(selected),
+                    }
+                ],
+            }
+            return subprocess.CompletedProcess(argv, 0, stdout=json.dumps(payload))
+        raise subprocess.TimeoutExpired(cmd=argv, timeout=kwargs.get("timeout"))
+
+    monkeypatch.setattr(semgrep_runner.subprocess, "run", fake_run)
+    result = semgrep_runner.run_semgrep(vsix_dir=str(tmp_path), wall_timeout_s=20)
+
+    assert calls == 2
+    assert result.record.status == "partial"
+    assert result.record.error_count == 1
+    assert set(result.record.coverage.coverage_reasons) == {
+        "parser_error",
+        "tool_timeout",
+    }
+    assert result.record.coverage.structural_fallback_files == 0
+
+
+def test_generic_fallback_target_cap_leaves_excess_path_inconclusive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only 20 failed targets are retried; any excess remains a visible gap."""
+
+    targets = []
+    for index in range(semgrep_runner._MAX_PATH_DETAILS + 1):
+        target = tmp_path / f"bundle-{index:02d}.js"
+        target.write_text("eval(payload)", encoding="utf-8")
+        targets.append(target)
+    calls: list[list[str]] = []
+
+    def fake_run(argv: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        errors = (
+            [
+                {
+                    "code": 3,
+                    "type": "Syntax error",
+                    "path": str(target),
+                }
+                for target in targets
+            ]
+            if len(calls) == 1
+            else []
+        )
+        return subprocess.CompletedProcess(
+            argv,
+            0,
+            stdout=json.dumps({"results": [], "errors": errors}),
+        )
+
+    monkeypatch.setattr(semgrep_runner.subprocess, "run", fake_run)
+
+    result = semgrep_runner.run_semgrep(vsix_dir=str(tmp_path), wall_timeout_s=20)
+
+    assert len(calls) == 2
+    retried_paths = {str(target) for target in targets} & set(calls[1])
+    assert len(retried_paths) == semgrep_runner._MAX_PATH_DETAILS
+    assert str(targets[-1]) not in retried_paths
+    assert result.record.status == "partial"
+    assert result.record.error_count == 1
+    assert result.record.coverage.coverage_reasons == ["parser_error"]
+    assert result.record.coverage.structural_fallback_files == 20
+    assert len(result.record.coverage.structural_fallback_paths) == 20
+
+
+def test_oversized_structural_error_target_is_not_retried(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fallback never bypasses the shared per-file byte ceiling."""
+
+    target = tmp_path / "oversized.js"
+    target.write_text("eval(data)", encoding="utf-8")
+    monkeypatch.setattr(semgrep_runner, "_MAX_TARGET_BYTES", 8)
+    calls = 0
+
+    def fake_run(argv: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal calls
+        calls += 1
+        return subprocess.CompletedProcess(
+            argv,
+            0,
+            stdout=json.dumps(
+                {
+                    "results": [],
+                    "errors": [
+                        {
+                            "code": 3,
+                            "type": "Syntax error",
+                            "path": str(target),
+                        }
+                    ],
+                }
+            ),
+        )
+
+    monkeypatch.setattr(semgrep_runner.subprocess, "run", fake_run)
+
+    result = semgrep_runner.run_semgrep(vsix_dir=str(tmp_path), wall_timeout_s=20)
+
+    assert calls == 1
+    assert result.record.status == "partial"
+    assert result.record.error_count == 1
+    assert set(result.record.coverage.coverage_reasons) == {
+        "parser_error",
+        "target_too_large",
+    }
+    assert result.record.coverage.files_skipped_by_reason == {"target_too_large": 1}
+    assert result.record.coverage.structural_fallback_files == 0
+
+
+def test_exhausted_shared_budget_prevents_fallback_and_remains_inconclusive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A parser gap near the deadline is never relabeled as fully scanned."""
+
+    target = tmp_path / "bundle.js"
+    target.write_text("eval(payload)", encoding="utf-8")
+    calls = 0
+
+    def fake_run(argv: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal calls
+        calls += 1
+        return subprocess.CompletedProcess(
+            argv,
+            0,
+            stdout=json.dumps(
+                {
+                    "results": [],
+                    "errors": [
+                        {
+                            "code": 3,
+                            "type": "Syntax error",
+                            "path": str(target),
+                        }
+                    ],
+                }
+            ),
+        )
+
+    monotonic_values = iter((0.0, 17.0, 18.0))
+    monkeypatch.setattr(semgrep_runner.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        semgrep_runner.time, "monotonic", lambda: next(monotonic_values)
+    )
+
+    result = semgrep_runner.run_semgrep(vsix_dir=str(tmp_path), wall_timeout_s=20)
+
+    assert calls == 1
+    assert result.record.status == "partial"
+    assert result.record.error_count == 1
+    assert set(result.record.coverage.coverage_reasons) == {
+        "budget_stop",
+        "parser_error",
+    }
+    assert result.record.coverage.structural_fallback_files == 0
+
+
+def test_duplicate_result_across_semgrep_passes_is_emitted_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    selected = tmp_path / "bundle.min.js"
+    selected.write_text("eval(payload)", encoding="utf-8")
+
+    def fake_run(argv: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        payload = {"results": [_result("x.eval", path=str(selected))], "errors": []}
+        return subprocess.CompletedProcess(
+            args=argv,
+            returncode=1,
+            stdout=json.dumps(payload),
+            stderr="",
+        )
+
+    monkeypatch.setattr(semgrep_runner.subprocess, "run", fake_run)
+    result = semgrep_runner.run_semgrep(
+        vsix_dir=str(tmp_path),
+        wall_timeout_s=20,
+        deep_scan_targets=(str(selected),),
+    )
+    assert len(result.findings) == 1
+
+
+def test_same_match_shape_on_distinct_lines_is_preserved(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = _run(
+        monkeypatch,
+        results=[
+            _result("x.eval", line=5, lines="eval(payload)"),
+            _result("x.eval", line=9, lines="eval(payload)"),
+        ],
+    )
+
+    assert [finding.evidence[0].line_number for finding in result.findings] == [5, 9]
+
+
+def test_deep_target_cap_marks_semgrep_partial(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "extension.js").write_text("activate()", encoding="utf-8")
+    _fake_semgrep(monkeypatch, returncode=0, results=[])
+
+    result = semgrep_runner.run_semgrep(
+        vsix_dir=str(tmp_path),
+        wall_timeout_s=20,
+        deep_scan_target_cap_reached=True,
+    )
+
+    assert result.record.status == "partial"
+    assert "deep_scan_target_cap" in result.record.coverage.coverage_reasons
+
+
+def test_second_pass_timeout_is_partial_and_accounts_for_selected_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    selected = tmp_path / "node_modules/vendor/index.js"
+    selected.parent.mkdir(parents=True)
+    selected.write_text("eval(payload)", encoding="utf-8")
+    (tmp_path / "extension.js").write_text("activate()", encoding="utf-8")
+    calls = 0
+
+    def fake_run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise subprocess.TimeoutExpired(cmd=argv, timeout=kwargs.get("timeout"))
+        return subprocess.CompletedProcess(
+            args=argv,
+            returncode=0,
+            stdout=json.dumps({"results": [], "errors": []}),
+            stderr="",
+        )
+
+    monkeypatch.setattr(semgrep_runner.subprocess, "run", fake_run)
+    result = semgrep_runner.run_semgrep(
+        vsix_dir=str(tmp_path),
+        wall_timeout_s=20,
+        deep_scan_targets=(str(selected),),
+    )
+
+    assert calls == 2
+    assert result.record.status == "partial"
+    assert result.record.coverage.coverage_reasons == ["tool_timeout"]
+    assert result.record.coverage.files_skipped_by_reason == {"tool_timeout": 1}
+    assert result.record.coverage.skipped_paths_by_reason == {
+        "tool_timeout": ["node_modules/vendor/index.js"]
+    }
+
+
+def test_second_pass_tool_error_is_partial_and_accounts_for_selected_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    selected = tmp_path / "vendor/client.ts"
+    selected.parent.mkdir(parents=True)
+    selected.write_text("eval(payload)", encoding="utf-8")
+    (tmp_path / "extension.js").write_text("activate()", encoding="utf-8")
+    calls = 0
+
+    def fake_run(argv: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal calls
+        calls += 1
+        return subprocess.CompletedProcess(
+            args=argv,
+            returncode=2 if calls == 2 else 0,
+            stdout=json.dumps({"results": [], "errors": []}),
+            stderr="",
+        )
+
+    monkeypatch.setattr(semgrep_runner.subprocess, "run", fake_run)
+    result = semgrep_runner.run_semgrep(
+        vsix_dir=str(tmp_path),
+        wall_timeout_s=20,
+        deep_scan_targets=(str(selected),),
+    )
+
+    assert calls == 2
+    assert result.record.status == "partial"
+    assert result.record.coverage.coverage_reasons == ["tool_error"]
+    assert result.record.coverage.files_skipped_by_reason == {"tool_error": 1}
+    assert result.record.coverage.skipped_paths_by_reason == {
+        "tool_error": ["vendor/client.ts"]
+    }
+
+
+def test_first_pass_priority_turns_unspent_deep_target_into_budget_stop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    selected = tmp_path / "node_modules/vendor/index.js"
+    selected.parent.mkdir(parents=True)
+    selected.write_text("eval(payload)", encoding="utf-8")
+    (tmp_path / "extension.js").write_text("activate()", encoding="utf-8")
+    calls = 0
+
+    def fake_run(argv: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal calls
+        calls += 1
+        return subprocess.CompletedProcess(
+            args=argv,
+            returncode=0,
+            stdout=json.dumps({"results": [], "errors": []}),
+            stderr="",
+        )
+
+    monotonic_values = iter((0.0, 16.0, 17.0))
+    monkeypatch.setattr(semgrep_runner.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        semgrep_runner.time, "monotonic", lambda: next(monotonic_values)
+    )
+    result = semgrep_runner.run_semgrep(
+        vsix_dir=str(tmp_path),
+        wall_timeout_s=20,
+        deep_scan_targets=(str(selected),),
+    )
+
+    assert calls == 1
+    assert result.record.status == "partial"
+    assert result.record.coverage.coverage_reasons == ["budget_stop"]
+    assert result.record.coverage.files_skipped_by_reason == {"budget_stop": 1}
+
+
 def test_rc2_is_tool_error(monkeypatch: pytest.MonkeyPatch) -> None:
     res = _run(monkeypatch, returncode=2, results=[])
     assert res.findings == []
     assert res.record.status == "error"
+    assert res.record.coverage.coverage_reasons == ["tool_error"]
 
 
 def test_timeout_yields_timeout_record(monkeypatch: pytest.MonkeyPatch) -> None:
     res = _run(monkeypatch, raise_timeout=True)
     assert res.findings == []
     assert res.record.status == "timeout"
+    assert res.record.coverage.coverage_reasons == ["tool_timeout"]
 
 
 def test_unparseable_stdout_is_error(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -153,23 +680,45 @@ def test_errors_array_marks_partial_and_counts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     errors = [
-        {"rule_id": "semgrep_rules.extrace-vsix-js.eval", "message": "parse error"},
+        {
+            "rule_id": "semgrep_rules.extrace-vsix-js.eval",
+            "type": "Syntax error",
+            "message": "parse error",
+        },
         {"message": "unattributed error"},
     ]
     res = _run(monkeypatch, returncode=1, results=[_result("x.eval")], errors=errors)
     assert res.record.status == "partial"
     assert res.record.error_count == 2
     assert "extrace.sg.eval" in res.record.errored_rule_ids
+    assert set(res.record.coverage.coverage_reasons) == {
+        "parser_error",
+        "tool_error",
+    }
     # Findings are still mapped despite the per-file errors (degrade, not fail).
     assert len(res.findings) == 1
 
 
+def test_unresolved_semgrep_rule_timeout_is_classified_separately(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    errors = [{"type": "Timeout", "message": "rule timed out"}]
+
+    result = _run(monkeypatch, returncode=0, results=[], errors=errors)
+
+    assert result.record.status == "partial"
+    assert result.record.coverage.coverage_reasons == ["rule_timeout"]
+
+
 def test_findings_are_capped(monkeypatch: pytest.MonkeyPatch) -> None:
     many = [
-        _result("x.eval", line=i + 1) for i in range(semgrep_runner._MAX_FINDINGS + 50)
+        _result("x.eval", line=i + 1, lines=f"eval(value_{i})")
+        for i in range(semgrep_runner._MAX_FINDINGS + 50)
     ]
     res = _run(monkeypatch, results=many)
     assert len(res.findings) == semgrep_runner._MAX_FINDINGS
+    assert res.record.coverage.finding_cap_reached is True
+    assert "finding_cap" in res.record.coverage.coverage_reasons
 
 
 def test_missing_semgrep_binary_degrades_to_error(

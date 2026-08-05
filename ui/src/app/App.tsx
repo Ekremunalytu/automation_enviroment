@@ -22,7 +22,6 @@ const SettingsPage = lazy(async () => ({
 const SystemPage = lazy(async () => ({
   default: (await import("../features/system")).SystemPage,
 }));
-
 export function App() {
   return (
     <AppShell>

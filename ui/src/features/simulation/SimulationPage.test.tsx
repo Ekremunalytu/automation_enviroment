@@ -191,6 +191,47 @@ describe("SimulationPage", () => {
     expect(screen.queryByText(/^Warnings:/u)).not.toBeInTheDocument();
   });
 
+  it("renders an inconclusive static result without presenting it as clean", async () => {
+    vi.mocked(apiClient.getAnalysisJob).mockResolvedValueOnce({
+      job_id: "job-static-inconclusive",
+      status: "completed",
+      publisher: "ms",
+      name: "lint",
+      version: "1.0.0",
+      message: "Static analysis completed.",
+      steps: [],
+      created_at: 1713002400,
+      updated_at: 1713002410,
+      report_path: null,
+      static_report: {
+        detection_report: {
+          partial: true,
+          coverage: {
+            files_discovered: 10,
+            files_scanned: 8,
+            files_parsed: 7,
+            coverage_reasons: ["target_too_large"],
+          },
+        },
+        gate_outcome: {
+          decision: "inconclusive",
+          inconclusive_reasons: ["target_too_large"],
+        },
+      },
+    });
+
+    renderPage("/simulation?job=job-static-inconclusive&tab=live");
+
+    expect(await screen.findByText("Inconclusive")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Static coverage is incomplete: target_too_large/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/8 of 10 discovered files were scanned/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/No rule crossed/i)).not.toBeInTheDocument();
+  });
+
   it("renders the live strip, filter drawer, and keeps tab state in the URL", async () => {
     vi.mocked(apiClient.getAnalysisJob).mockResolvedValueOnce({
       job_id: "job-2",

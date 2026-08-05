@@ -82,17 +82,17 @@ every extension.
 | Rule | Layer | What it catches | Severity |
 |---|---|---|---|
 | [`extrace.s8.exfil_webhook`](../../static_runtime/rules/s8_exfil_webhook.py) | static | Hardcoded Discord/Slack/Telegram **webhook** ingestion endpoint (the exfil channel) | HIGH (warn) |
-| [`extrace.s9.crypto_address_scan`](../../static_runtime/rules/s9_crypto_address_scan.py) | static | Source recognises **crypto-address** formats (Base58/ETH/bech32) — clipper capability | MEDIUM (warn) |
-| [`extrace.s10.reverse_shell`](../../static_runtime/rules/s10_reverse_shell.py) | static | Shell `child_process` stdio **wired to a network socket** (reverse shell) — `.pipe()` **and** manual `stdin.write` bridge | **CRITICAL (block)** |
+| [`extrace.s9.crypto_address_scan`](../../static_runtime/rules/s9_crypto_address_scan.py) | static | Source recognises quantified **crypto-address** regex formats (Base58/ETH/bech32) — inventory until a mutation sink correlates | INFO |
+| [`extrace.s10.reverse_shell`](../../static_runtime/rules/s10_reverse_shell.py) | static | Same shell-process/socket variables wired in **both directions** inside a bounded region | **CRITICAL (block)** |
 | [`extrace.s11.download_cradle`](../../static_runtime/rules/s11_download_cradle.py) | static | `child_process` driving a hidden-PowerShell `irm`→`iex` **download cradle** (dropper) | **CRITICAL (block)** |
-| [`extrace.s12.invisible_unicode_run`](../../static_runtime/rules/s12_invisible_unicode.py) | static | Invisible Unicode / PUA source-hiding runs in original packaged bytes | **CRITICAL (block)** for runs |
+| [`extrace.s12.invisible_unicode_run`](../../static_runtime/rules/s12_invisible_unicode.py) | static | Invisible Unicode / PUA source-hiding runs in original packaged bytes | **CRITICAL (block)** at 16+ contiguous codepoints; shorter runs INFO |
 | [`extrace.s13.native_node_loader`](../../static_runtime/rules/s13_native_node_loader.py) | static | Bundled `.node` load with platform dispatch and host-context invoke | **CRITICAL (block)** for GlassWorm-strength conjunction |
 | [`extrace.s14.globalstate_dormancy`](../../static_runtime/rules/s14_globalstate_dormancy.py) | static | `context.globalState` timestamp dormancy / throttle | MEDIUM (warn) |
 | [`extrace.s15.path_traversal_server`](../../static_runtime/rules/s15_path_traversal_server.py) | static | Local server maps a request path onto an unguarded `fs` read, reachable cross-origin (path traversal) | MEDIUM (warn) |
 | [`extrace.s16.cross_extension_tamper`](../../static_runtime/rules/s16_cross_extension_tamper.py) | static | Write/copy into **another extension's install directory** (foreign `extensionPath` / `.vscode/extensions` path) — persistence / execution hijack | **CRITICAL (block)** |
 | [`extrace.s17.credential_exfil`](../../static_runtime/rules/s17_credential_exfil.py) | static | Sensitive **credential file read** + outbound network egress sink in one module | HIGH (warn) |
 | [`extrace.s18.download_exec_dropper`](../../static_runtime/rules/s18_download_exec_dropper.py) | static | File made **executable (`chmod +x`) and run** via `child_process` — drop-and-run dropper | HIGH (warn) |
-| [`extrace.s1.reserved_publisher_spoof`](../../static_runtime/rules/s1_manifest_red_flags.py) | static | Manifest **claims a reserved first-party publisher** (`ms-vscode`/`github`/…) — impersonation (signal MN) | MEDIUM (warn) |
+| [`extrace.s1.reserved_publisher_spoof`](../../static_runtime/rules/s1_manifest_red_flags.py) | static | Manifest **claims a reserved first-party publisher** (`ms-vscode`/`github`/…); name-only provenance is not proof of spoofing | INFO |
 | [`extrace.s19.stylesheet_inline_js`](../../static_runtime/rules/s19_stylesheet_threats.py) | static | **LESS inline-JavaScript eval** (backtick `` ~`...` ``) in a stylesheet → compile-time RCE in the extension-host Node context | **CRITICAL (block)** |
 | [`extrace.s19.stylesheet_nonstandard_scheme`](../../static_runtime/rules/s19_stylesheet_threats.py) | static | Stylesheet resource loader (`@import`/`url()`/`src:`) to a **non-standard scheme** (`ftp`/`ws`/`file`/`javascript`/…) | MEDIUM (warn) |
 | [`extrace.s19.stylesheet_css_exfil`](../../static_runtime/rules/s19_stylesheet_threats.py) | static | **CSS-native exfiltration** — substring-attribute keylogger or `::after` content beacon firing a remote `url()` | MEDIUM (warn) |
@@ -163,10 +163,10 @@ stay behavior-first; sample IPs are only curated denylist entries for s4/a7.
 
 | Signal | Layer | Rule id | Status |
 |---|---|---|---|
-| UC2 invisible Unicode / PUA source-hiding run | in-house static | `extrace.s12.invisible_unicode_run` | ✅ shipped — **CRITICAL → BLOCK** for runs |
+| UC2 invisible Unicode / PUA source-hiding run | in-house static | `extrace.s12.invisible_unicode_run` | ✅ shipped — **CRITICAL → BLOCK** at 16+ contiguous codepoints; shorter runs INFO |
 | NL3 bundled `.node` load + platform dispatch + host-context invoke | in-house static | `extrace.s13.native_node_loader` | ✅ shipped — **CRITICAL → BLOCK** for GlassWorm-strength conjunction |
 | AA1 `context.globalState` dormancy / throttle | in-house static | `extrace.s14.globalstate_dormancy` | ✅ shipped — MEDIUM / dynamic fresh-profile telemetry |
-| Embedded native binary | in-house static | `extrace.s3.embedded_native_binary` | ✅ pre-existing |
+| Embedded native binary | in-house static | `extrace.s3.embedded_native_binary` | ✅ INFO inventory; suspicious loader conjunction is S13 |
 | Direct-IP C2/stager references | in-house static + dynamic | `extrace.s4.blacklisted_domain` / `extrace.a7.blacklisted_domain` | ✅ shipped via curated blacklist IP hosts |
 
 ## Status board — snyk-labs / VLN (vulnerable-legit-extension) class
@@ -198,7 +198,7 @@ genuinely-new work it motivated. No nf3xn literal in rule logic.
 | Signal | Layer | Rule id | Status |
 |---|---|---|---|
 | RS1 shell↔socket bridge — `.pipe()` **and** manual `stdin.write` form | in-house static | `extrace.s10.reverse_shell` | ✅ **improved** (CRITICAL → BLOCK) — manual-bridge variant now caught |
-| MN reserved-publisher impersonation (`ms-vscode`) | in-house static | `extrace.s1.reserved_publisher_spoof` | ✅ **NEW** — MEDIUM / WARN (provenance-review signal, never a blocker) |
+| MN reserved-publisher claim (`ms-vscode`) | in-house static | `extrace.s1.reserved_publisher_spoof` | ✅ INFO provenance signal; name-only evidence never convicts |
 | RS4 `*` activation | in-house static | `extrace.s1.activation_wildcard` | ✅ pre-existing — **silent for nf3xn** (`onCommand`, correctly lower severity) |
 | runtime shell spawn + outbound socket | dynamic | `extrace.a8.reverse_shell` | ✅ pre-existing — **fires** for nf3xn (Linux `/bin/sh` detonates, unlike kagema/glassworm) |
 

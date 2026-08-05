@@ -1,10 +1,10 @@
 # Active Work
 
-`Last Updated: 2026-07-30`
+`Last Updated: 2026-08-05`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Latest merged named stream: verdict-provenance-reproducibility (Stream 3 — B5+B6; week label W26) — merged to main via PR #38 (week26 -> main, bfb2d2d) on 2026-07-27. No successor stream is open; next execution gate is containment safety. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
+`Active named stream: static-analysis-artifact-precision (SAP-0..SAP-6). The SMF foundation plus SAP-0..SAP-4 baseline merged via PR #40; SAP-5 is next. Latest fully closed named stream: verdict-provenance-reproducibility (W26), PR #38 bfb2d2d. Containment safety remains the next product/release gate.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + optional active stream; null when none is open).`
 
@@ -36,28 +36,34 @@ points to it.
     execution-order revision, and the fresh-audit pre-close checklist.
     **Streams 1-3 and operator-console-honesty have shipped; Stream 3
     (`verdict-provenance-reproducibility`) is latest, merged via PR #38
-    (`bfb2d2d`) on `2026-07-27`. No successor is open; containment safety is
-    the next gate.** New stable IDs are recorded in
+    (`bfb2d2d`) on `2026-07-27`. The offline/static
+    `static-analysis-artifact-precision` stream is active; containment
+    safety remains the next product/release gate.** New stable IDs are recorded in
     [`POST_POC_BACKLOG.md`](../POST_POC_BACKLOG.md) "Newly Captured
     (v1.0 roadmap intake 2026-06-08)".
 - `static-analysis-improvement-roadmap.md`
-  - **PROPOSED, non-active Stream 6 implementation roadmap.** Defines the
+  - **Stream 6 implementation roadmap; Increment B is active.** Defines the
     stable `SAR-0`–`SAR-7` sequence: baseline and labeled-corpus measurement,
     artifact-context precision, AST/taint, manifest/dependency/version diff,
     native/WASM/archive inspection, bounded threat-directed dynamic hints,
     measured policy calibration, research-derived detection priorities,
     tool-admission gates, and an optional gate-external `AI-0`–`AI-2` analyst
-    track. It does not open a successor stream; `phase.json.active_stream`
-    remains `null`, and containment safety remains the next product execution
-    gate.
+    track. `phase.json.active_stream` points to the Increment B SAP tracker;
+    containment safety remains the next product execution gate.
+- `static-analysis-artifact-precision.md`
+  - **ACTIVE static-analysis iteration; SAP-0..SAP-4 complete, SAP-5 next.**
+    Adds bounded per-file artifact inventory, deterministic dependency/minified
+    deep-scan selection, partial-coverage honesty, and the Reports-integrated
+    inspection surface. Its SMF + SAP-0..SAP-4 baseline merged via PR #40.
 - `static-analysis-measurement-foundation.md`
-  - **PROPOSED next static-analysis iteration; not yet active.** Turns Increment
-    A into the SMF-0–SMF-8 execution slate: rule/ruleset baseline, schema-first
-    evaluation contracts, 10-15 declawed tuning/holdout fixtures, a
+  - **MERGED FOUNDATION; implementation and acceptance complete via PR #40.**
+    Turns Increment A into the SMF-0–SMF-8 execution slate:
+    rule/ruleset baseline, schema-first evaluation contracts, 12 harmless
+    tuning/holdout fixtures, a
     container-only evaluator, explicit file/byte/parser/cap coverage,
     partial-conclusion honesty, metrics, validation, and the Increment B
-    handoff. Merging the tracker does not change
-    `phase.json.active_stream=null` or the containment-first product gate.
+    handoff. The successor stream pointer stays active through SAP-5/SAP-6;
+    containment safety remains the product/release gate.
 - `W22-coverage-promotion-hard-tier.md`
   - **Closed phase — closed synthetically on the `week22` branch
     `2026-05-28` and merged to main via PR #31 `week22 -> main` `1399f82`.** W22

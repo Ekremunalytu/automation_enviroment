@@ -1,11 +1,18 @@
 # Security And Detection Lane
 
-**Last Updated:** 2026-06-04 (`security-development` stream). Dynamic
+**Last Updated:** 2026-07-31 (Rules whitelist visibility follow-up). Dynamic
 production rules now cover A1-A8 plus the demo canary:
 `a5.workspace_file_tamper`, `a7.blacklisted_domain`, and
 `a8.reverse_shell` are live. Static pre-check production rules live in
 `static_runtime/rules/` and are tracked by the static lane; custom rule design
 status lives in `documents/detection-design/README.md`.
+
+The read-only trusted-entity catalog now lives in
+`packages/analysis_contracts/data/trusted_entities.json`: reviewed network
+domains carry owner/purpose metadata, `host:port` observations normalize before
+matching, and Rules → Whitelist exposes the exact effective seed. Company and
+publisher identity is provenance context only; it never suppresses behavioral
+findings without the existing domain/extension-specific match.
 
 Use this lane for detection contracts, rule behavior, malicious fixtures, and
 security ADR alignment.

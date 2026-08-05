@@ -7,7 +7,15 @@ snippets, plus that the shared typosquat allowlist loads from its new home.
 
 from __future__ import annotations
 
-from static_runtime.rules._common import file_evidence, safe_snippet
+import re
+from typing import cast
+from unittest.mock import Mock
+
+from static_runtime.rules._common import (
+    file_evidence,
+    find_local_pattern_cluster,
+    safe_snippet,
+)
 
 
 def test_safe_snippet_redacts_secrets() -> None:
@@ -42,3 +50,19 @@ def test_popular_extensions_allowlist_loads_from_new_home() -> None:
     entries = popular_extensions()
     assert len(entries) > 0
     assert "ms-python.python" in entries
+
+
+def test_pattern_cluster_stops_after_a_missing_required_conjunct() -> None:
+    later_pattern = Mock()
+    later_pattern.finditer.side_effect = AssertionError(
+        "later patterns must not scan after a required conjunct is absent"
+    )
+
+    cluster = find_local_pattern_cluster(
+        "const ordinary = true;",
+        (re.compile(r"globalState"), cast(re.Pattern[str], later_pattern)),
+        max_span=1024,
+    )
+
+    assert cluster is None
+    later_pattern.finditer.assert_not_called()

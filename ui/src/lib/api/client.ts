@@ -8,6 +8,7 @@ import type {
   MarketplaceExtensionDto,
   OfflineExtensionDto,
   ReportListItemDto,
+  StaticReportArtifactDto,
   SystemHealthResponseDto,
   VsixThresholdsResponseDto,
   VsixThresholdsUpdateRequestDto,
@@ -22,6 +23,34 @@ export interface BlacklistDomainsDto {
   /** seed ∪ operator — what the detection rules actually use. */
   effective: string[];
   count: number;
+}
+
+export interface WhitelistDomainDto {
+  domain: string;
+  organization_id: string;
+  organization: string;
+  organization_kind: string;
+  purpose: string;
+  source_url: string | null;
+}
+
+export interface WhitelistOrganizationDto {
+  id: string;
+  name: string;
+  kind: string;
+  publishers: string[];
+  extensions: string[];
+}
+
+export interface WhitelistDto {
+  domains: WhitelistDomainDto[];
+  organizations: WhitelistOrganizationDto[];
+  extension_identities: string[];
+  domain_filtered_rule_ids: string[];
+  domain_count: number;
+  organization_count: number;
+  publisher_count: number;
+  extension_count: number;
 }
 
 export const apiClient = {
@@ -46,6 +75,11 @@ export const apiClient = {
       throw new Error("Latest activation report did not include a filename.");
     }
     return requestJson<ReportBundleDto>(`/api/activations/${filename}/bundle`, {
+      signal,
+    });
+  },
+  getLatestStaticReport(signal?: AbortSignal) {
+    return requestJson<StaticReportArtifactDto>("/api/activations/static/latest", {
       signal,
     });
   },
@@ -111,6 +145,9 @@ export const apiClient = {
   },
   getBlacklistDomains(signal?: AbortSignal) {
     return requestJson<BlacklistDomainsDto>("/api/rules/blacklist-domains", { signal });
+  },
+  getWhitelist(signal?: AbortSignal) {
+    return requestJson<WhitelistDto>("/api/rules/whitelist", { signal });
   },
   addBlacklistDomain(domain: string, signal?: AbortSignal) {
     return requestJson<BlacklistDomainsDto>("/api/rules/blacklist-domains", {

@@ -34,8 +34,8 @@ from static_runtime.rules._common import (
     evidence_type_for,
     file_evidence,
     iter_text_documents,
-    line_at,
     line_number_at,
+    snippet_at,
 )
 from static_runtime.rules.registry import register
 
@@ -68,7 +68,7 @@ _INDICATORS: tuple[tuple[str, re.Pattern[str]], ...] = (
 
 class ObfuscationIndicatorsRule:
     rule_id = "extrace.s6.obfuscation_indicators"
-    rule_version = "1.0.0"
+    rule_version = "1.1.0"
     lifecycle = RuleLifecycle.PRODUCTION
     adversary_class: AdversaryClass | None = None
     severity = Severity.MEDIUM
@@ -80,6 +80,7 @@ class ObfuscationIndicatorsRule:
     def evaluate(self, context: StaticAnalysisContext) -> list[StaticDetectionFinding]:
         evidence: list[StaticEvidenceRef] = []
         reasons: set[str] = set()
+        strong_reasons: set[str] = set()
 
         for relative_path, text in iter_text_documents(context):
             for reason, pattern in _INDICATORS:
@@ -87,6 +88,8 @@ class ObfuscationIndicatorsRule:
                 if match is None:
                     continue
                 reasons.add(reason)
+                if pattern in {_DECODE_EXEC_RE, _FROMCHARCODE_RE}:
+                    strong_reasons.add(reason)
                 if len(evidence) >= _MAX_EVIDENCE:
                     continue
                 line_number = line_number_at(text, match.start())
@@ -94,7 +97,7 @@ class ObfuscationIndicatorsRule:
                     file_evidence(
                         relative_path,
                         evidence_type_for(context, relative_path),
-                        snippet=line_at(text, line_number) or reason,
+                        snippet=snippet_at(text, match.start()) or reason,
                         line_number=line_number,
                     )
                 )
@@ -102,19 +105,30 @@ class ObfuscationIndicatorsRule:
         if not reasons:
             return []
 
+        severity = Severity.MEDIUM if strong_reasons else Severity.INFO
+        confidence = (
+            Confidence.HIGH
+            if "decode-then-execute (eval/Function over a decoder)" in strong_reasons
+            else Confidence.MEDIUM
+            if strong_reasons
+            else Confidence.LOW
+        )
+
         return [
             StaticDetectionFinding(
                 rule_id=self.rule_id,
                 rule_version=self.rule_version,
                 rule_lifecycle=self.lifecycle,
                 categories=["attack.T1027", "extrace.ext.obfuscation"],
-                severity=self.severity,
-                confidence=Confidence.MEDIUM,
+                severity=severity,
+                confidence=confidence,
                 title="Extension source shows obfuscation indicators",
                 description=(
                     "Obfuscation / packing indicators found in the extension "
-                    f"source: {'; '.join(sorted(reasons))}. These shapes hide "
-                    "executed logic from static review."
+                    f"source: {'; '.join(sorted(reasons))}. Decode/execute or "
+                    "long generated char-code chains are warnable; standalone "
+                    "base64/hex data is informational because normal bundles "
+                    "also contain these shapes."
                 ),
                 evidence=evidence,
                 mitigation_hint=(

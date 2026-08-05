@@ -32,6 +32,7 @@ def test_fires_on_large_base64_blob(make_context: MakeContext) -> None:
     ctx = make_context(files={"a.js": f'var p = "{blob}";'})
     findings = ObfuscationIndicatorsRule().evaluate(ctx)
     assert len(findings) == 1
+    assert findings[0].severity.value == "info"
     assert "base64" in findings[0].description
 
 
@@ -40,6 +41,7 @@ def test_fires_on_dense_hex_escape_run(make_context: MakeContext) -> None:
     ctx = make_context(files={"a.js": f'var p = "{run}";'})
     findings = ObfuscationIndicatorsRule().evaluate(ctx)
     assert len(findings) == 1
+    assert findings[0].severity.value == "info"
     assert "hex-escape" in findings[0].description
 
 

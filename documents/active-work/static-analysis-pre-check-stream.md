@@ -26,10 +26,18 @@ must not be renumbered — code comments and tests reference them.
 > [`active-work/extension-trigger-matrix.md`](extension-trigger-matrix.md) for the
 > full record. The ES-3a/ES-4 "6 in-house + 4 Semgrep" counts below describe those
 > frozen increments and are left as historical record.
+>
+> **Post-stream measurement note (2026-07-30):** the active
+> [`static-analysis-measurement-foundation.md`](static-analysis-measurement-foundation.md)
+> tracker owns the additive coverage/evaluation work. Current production has
+> 26 in-house + 16 Semgrep rules, `BLOCK > INCONCLUSIVE > WARN > ALLOW`,
+> 32 MiB bounded bundle coverage, and a container-only deterministic evaluator.
+> The ES history below remains frozen.
 
 ## Status (Quick Glance)
 
-- **Stream active on branch `static`** (cut from `main`). Single-branch,
+- **Historical execution state:** stream was active on branch `static` (cut
+  from `main`). Single-branch,
   single Docker stack — the explicit lesson from the 2026-05-28
   abandonment of the parallel `extrace-static` worktree.
 - **Phase framing:** this is a named stream (`ES-0`..`ES-5`), not a

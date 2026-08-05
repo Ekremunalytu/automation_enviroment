@@ -1,4 +1,4 @@
-"""/api/rules surface for the operator-editable ``blacklist_domains`` field.
+"""Operator-facing whitelist and editable blacklist rule configuration.
 
 The effective denylist is the shipped seed file UNION the operator's DB-backed
 additions; the detection rules (static ``s4`` once the static stage is wired, and
@@ -8,6 +8,7 @@ matcher override so ``a7`` reflects them on the next analysis without a restart.
 - ``GET    /api/rules/blacklist-domains``        — seed + operator + effective list
 - ``POST   /api/rules/blacklist-domains``        — add a domain (validated)
 - ``DELETE /api/rules/blacklist-domains/{domain}`` — remove an operator-added domain
+- ``GET    /api/rules/whitelist``                — curated trust catalog
 
 Seed domains are the shipped baseline and are not removable here (an edit
 augments the baseline), so a delete only affects operator-added domains.
@@ -30,6 +31,10 @@ from workflows.detection_rules.blacklist_service import (
     effective_blacklist,
     remove_domain,
 )
+from workflows.detection_rules.whitelist_service import (
+    WhitelistView,
+    effective_whitelist,
+)
 
 logger = get_extrace_logger("extrace.appcore.api.rules_router")
 
@@ -50,6 +55,34 @@ class AddBlacklistDomainRequest(BaseModel):
     added_by: str | None = Field(default=None, max_length=128)
 
 
+class WhitelistDomainResponse(BaseModel):
+    domain: str
+    organization_id: str
+    organization: str
+    organization_kind: str
+    purpose: str
+    source_url: str | None
+
+
+class WhitelistOrganizationResponse(BaseModel):
+    id: str
+    name: str
+    kind: str
+    publishers: list[str]
+    extensions: list[str]
+
+
+class WhitelistResponse(BaseModel):
+    domains: list[WhitelistDomainResponse]
+    organizations: list[WhitelistOrganizationResponse]
+    extension_identities: list[str]
+    domain_filtered_rule_ids: list[str]
+    domain_count: int
+    organization_count: int
+    publisher_count: int
+    extension_count: int
+
+
 def _to_response(view: BlacklistView) -> BlacklistDomainsResponse:
     return BlacklistDomainsResponse(
         seed=view.seed,
@@ -57,6 +90,45 @@ def _to_response(view: BlacklistView) -> BlacklistDomainsResponse:
         effective=view.effective,
         count=len(view.effective),
     )
+
+
+def _to_whitelist_response(view: WhitelistView) -> WhitelistResponse:
+    return WhitelistResponse(
+        domains=[
+            WhitelistDomainResponse(
+                domain=entry.domain,
+                organization_id=entry.organization_id,
+                organization=entry.organization,
+                organization_kind=entry.organization_kind,
+                purpose=entry.purpose,
+                source_url=entry.source_url,
+            )
+            for entry in view.domains
+        ],
+        organizations=[
+            WhitelistOrganizationResponse(
+                id=entry.id,
+                name=entry.name,
+                kind=entry.kind,
+                publishers=entry.publishers,
+                extensions=entry.extensions,
+            )
+            for entry in view.organizations
+        ],
+        extension_identities=view.extension_identities,
+        domain_filtered_rule_ids=view.domain_filtered_rule_ids,
+        domain_count=len(view.domains),
+        organization_count=len(view.organizations),
+        publisher_count=sum(len(entry.publishers) for entry in view.organizations),
+        extension_count=len(view.extension_identities),
+    )
+
+
+@router.get("/whitelist", response_model=WhitelistResponse)
+def get_whitelist() -> WhitelistResponse:
+    """Return the reviewed, shipped trust catalog used by detection rules."""
+
+    return _to_whitelist_response(effective_whitelist())
 
 
 @router.get("/blacklist-domains", response_model=BlacklistDomainsResponse)
@@ -109,5 +181,6 @@ def delete_blacklist_domain(
 __all__ = [
     "AddBlacklistDomainRequest",
     "BlacklistDomainsResponse",
+    "WhitelistResponse",
     "router",
 ]

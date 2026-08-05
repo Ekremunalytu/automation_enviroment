@@ -8,10 +8,9 @@ awareness is the precondition for the crypto-clipper / wallet-hijack class
 ``applyEdit``): a clipper must first *find* an address before it can swap it.
 
 This is a **capability indicator, not a verdict**. A genuine blockchain / wallet
-/ Solidity extension legitimately ships these patterns, so the finding is MEDIUM
-(WARN, never BLOCK): it surfaces "why does this extension understand wallet
-addresses?" for review and escalation, it does not by itself call the extension
-malicious. The escalation to HIGH lives in the (future) co-occurrence rule
+/ Solidity extension legitimately ships these patterns, so the finding is INFO:
+it surfaces "why does this extension understand wallet addresses?" without
+calling the extension malicious. Escalation belongs to a future co-occurrence rule
 (address scan + clipboard / file-write / network) and the dynamic clipper rule —
 see ``documents/detection-design/apollyon-detection-spec.md`` (signal S2 / S6).
 
@@ -40,14 +39,14 @@ from static_runtime.rules._common import (
     evidence_type_for,
     file_evidence,
     iter_text_documents,
-    line_at,
     line_number_at,
+    snippet_at,
 )
 from static_runtime.rules.registry import register
 
 _MAX_EVIDENCE = 25
 
-# The Base58 char-class fragments are the highest-fidelity sub-signal (the ranges
+# The quantified Base58 char-class is the highest-fidelity sub-signal (the ranges
 # that skip 0/O/I/l), so a hit on this family raises the finding's confidence.
 _BASE58_LABEL = "Bitcoin Base58 address pattern"
 
@@ -57,7 +56,13 @@ _BASE58_LABEL = "Bitcoin Base58 address pattern"
 _CRYPTO_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     # Base58 alphabet ranges (exclude 0/O/I/l). Matches both common orderings,
     # e.g. ``[a-km-zA-HJ-NP-Z1-9]`` and ``[1-9A-HJ-NP-Za-km-z]``.
-    (_BASE58_LABEL, re.compile(r"a-km-z|A-HJ-NP-Z")),
+    (
+        _BASE58_LABEL,
+        re.compile(
+            r"\[[^\]\n]{0,80}(?:a-km-z|A-HJ-NP-Z)[^\]\n]{0,80}\]"
+            r"\{\d{1,3}(?:,\d{0,3})?\}"
+        ),
+    ),
     # Ethereum: ``0x`` + 40 hex. The ``0x`` prefix (optionally a capture paren)
     # disambiguates from a 40-char SHA-1 hex regex. Tolerates either hex
     # char-class ordering inside the brackets.
@@ -67,16 +72,24 @@ _CRYPTO_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ),
     # bech32 / native SegWit awareness: a ``bc1`` prefix immediately starting a
     # regex char-class. (apollyon's own regex misses bech32 — we do not.)
-    ("Bech32/SegWit address pattern", re.compile(r"bc1\[")),
+    (
+        "Bech32/SegWit address pattern",
+        re.compile(
+            r"bc1\[[^\]\n]{3,80}\](?:\{\d{1,3}(?:,\d{0,3})?\}|[+*])",
+            re.IGNORECASE,
+        ),
+    ),
 )
 
 
 class CryptoAddressScanRule:
     rule_id = "extrace.s9.crypto_address_scan"
-    rule_version = "1.0.0"
+    rule_version = "1.1.0"
     lifecycle = RuleLifecycle.PRODUCTION
     adversary_class: AdversaryClass | None = None
-    severity = Severity.MEDIUM
+    # Address-format recognition alone is inventory/capability evidence, not a
+    # malicious action. A future clipboard/file-write correlation owns WARN.
+    severity = Severity.INFO
     description = (
         "Extension source contains cryptocurrency address patterns (Base58 / "
         "Ethereum / bech32), the address-recognition capability a crypto-clipper "
@@ -146,7 +159,7 @@ class CryptoAddressScanRule:
             file_evidence(
                 relative_path,
                 evidence_type_for(context, relative_path),
-                snippet=line_at(text, line_number) or "crypto address pattern",
+                snippet=snippet_at(text, index) or "crypto address pattern",
                 line_number=line_number,
             )
         )

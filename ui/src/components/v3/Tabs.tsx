@@ -5,6 +5,8 @@ import { FONT_MONO, V3 } from "./tokens";
 export type TabSpec<V extends string = string> = {
   value: V;
   label: string;
+  disabled?: boolean;
+  disabledReason?: string;
 };
 
 type TabsProps<V extends string> = {
@@ -20,21 +22,29 @@ export function Tabs<V extends string>({ tabs, value, onChange, style, ariaLabel
     <div
       role="tablist"
       aria-label={ariaLabel}
+      className="v3-scrollbar"
       style={{
         display: "flex",
         gap: 0,
+        maxWidth: "100%",
+        minWidth: 0,
+        overflowX: "auto",
         borderBottom: `1px solid ${V3.rule2}`,
         ...style,
       }}
     >
       {tabs.map((tab) => {
         const active = tab.value === value;
+        const disabled = tab.disabled === true;
         return (
           <button
             key={tab.value}
             type="button"
             role="tab"
             aria-selected={active}
+            aria-disabled={disabled || undefined}
+            disabled={disabled}
+            title={disabled ? tab.disabledReason : undefined}
             onClick={() => onChange(tab.value)}
             style={{
               background: "none",
@@ -46,7 +56,8 @@ export function Tabs<V extends string>({ tabs, value, onChange, style, ariaLabel
               letterSpacing: "0.1em",
               textTransform: "uppercase",
               color: active ? V3.ink : V3.ink3,
-              cursor: "pointer",
+              cursor: disabled ? "not-allowed" : "pointer",
+              opacity: disabled ? 0.42 : 1,
               position: "relative",
               transition: "color 140ms",
             }}

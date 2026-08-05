@@ -820,6 +820,7 @@ def _static_report(
     *,
     blocked_by: list[str] | None = None,
     warned_by: list[str] | None = None,
+    inconclusive_reasons: list[str] | None = None,
     allow_reason: str | None = None,
     with_finding: bool = False,
 ):
@@ -858,6 +859,7 @@ def _static_report(
             decision=StaticGateDecision(decision),
             blocked_by=blocked_by or [],
             warned_by=warned_by or [],
+            inconclusive_reasons=inconclusive_reasons or [],
             allow_reason=allow_reason,
         ),
     )
@@ -925,6 +927,31 @@ def test_get_analysis_job_surfaces_static_report_on_warn(client: TestClient) -> 
     assert len(body["static_report"]["detection_report"]["findings"]) == 1
     assert body["report_error"] is None
     mock_loader.assert_called_once_with("static_report_job-es5.json")
+
+
+def test_get_analysis_job_surfaces_inconclusive_reasons(client: TestClient) -> None:
+    snapshot = _static_snapshot("completed", "static_report_job-es5.json")
+    with (
+        patch(
+            "workflows.marketplace.router.job_service.get_job_snapshot",
+            return_value=snapshot,
+        ),
+        patch(
+            "workflows.marketplace.router.load_static_report_from_name",
+            return_value=_static_report(
+                "inconclusive",
+                warned_by=["extrace.s5.suspicious_network_endpoint"],
+                inconclusive_reasons=["target_too_large"],
+            ),
+        ),
+    ):
+        response = client.get("/api/marketplace/analyze/job-es5")
+
+    assert response.status_code == 200
+    gate = response.json()["static_report"]["gate_outcome"]
+    assert gate["decision"] == "inconclusive"
+    assert gate["warned_by"] == ["extrace.s5.suspicious_network_endpoint"]
+    assert gate["inconclusive_reasons"] == ["target_too_large"]
 
 
 def test_get_analysis_job_surfaces_static_report_for_rejected_static(

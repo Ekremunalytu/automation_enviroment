@@ -112,6 +112,46 @@ def test_info_only_allows() -> None:
     assert outcome.warned_by == []
 
 
+def test_partial_report_is_inconclusive_and_preserves_warnings() -> None:
+    report = _report(
+        _finding(rule_id="extrace.s1.activation_wildcard", severity=Severity.MEDIUM)
+    )
+    report.partial = True
+    report.coverage.coverage_reasons = ["manifest_malformed"]
+    outcome = evaluate_static_gate(report)
+    assert outcome.decision is StaticGateDecision.INCONCLUSIVE
+    assert outcome.warned_by == ["extrace.s1.activation_wildcard"]
+    assert outcome.inconclusive_reasons == ["manifest_malformed"]
+    assert outcome.allow_reason is None
+
+
+def test_inventory_only_accounting_does_not_make_gate_inconclusive() -> None:
+    report = _report(
+        _finding(rule_id="extrace.s1.activation_wildcard", severity=Severity.MEDIUM)
+    )
+    report.coverage.files_skipped_by_reason = {"excluded_inventory_only": 12}
+    report.coverage.skipped_paths_by_reason = {
+        "excluded_inventory_only": ["node_modules/vendor/index.js"]
+    }
+
+    outcome = evaluate_static_gate(report)
+
+    assert outcome.decision is StaticGateDecision.WARN
+    assert outcome.warned_by == ["extrace.s1.activation_wildcard"]
+    assert outcome.inconclusive_reasons == []
+
+
+def test_block_has_precedence_over_inconclusive_coverage() -> None:
+    report = _report(
+        _finding(rule_id="extrace.s10.reverse_shell", severity=Severity.CRITICAL)
+    )
+    report.partial = True
+    report.coverage.coverage_reasons = ["tool_timeout"]
+    outcome = evaluate_static_gate(report)
+    assert outcome.decision is StaticGateDecision.BLOCK
+    assert outcome.inconclusive_reasons == []
+
+
 def test_block_precedence_over_warn() -> None:
     # A CRITICAL alongside MEDIUM findings still blocks; only the blocking
     # rule id lands in blocked_by, and warned_by stays empty on a BLOCK.

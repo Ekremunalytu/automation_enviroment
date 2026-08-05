@@ -40,3 +40,14 @@ function activate(context) {
 """
     ctx = make_context(files={"extension.js": source})
     assert GlobalStateDormancyRule().evaluate(ctx) == []
+
+
+def test_silent_for_unrelated_bundle_regions(make_context: MakeContext) -> None:
+    padding = "const bundledData = '" + ("x" * 9000) + "';"
+    src = (
+        'context.globalState.get("theme"); context.globalState.update("theme", value);'
+        + padding
+        + "if (Date.now() > lastRun + 86400000) activate();"
+    )
+    ctx = make_context(files={"bundle.js": src})
+    assert GlobalStateDormancyRule().evaluate(ctx) == []

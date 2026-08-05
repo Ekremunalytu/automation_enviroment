@@ -18,7 +18,7 @@ def test_fires_on_btc_base58_regex_high_confidence(make_context: MakeContext) ->
     assert len(findings) == 1
     finding = findings[0]
     assert finding.rule_id == "extrace.s9.crypto_address_scan"
-    assert finding.severity.value == "medium"
+    assert finding.severity.value == "info"
     # Base58 char-class is near-unique to crypto -> HIGH confidence.
     assert finding.confidence.value == "high"
     assert "attack.T1565" in finding.categories
@@ -63,4 +63,12 @@ def test_silent_for_sha1_hex_regex_without_0x_prefix(make_context: MakeContext) 
 
 def test_silent_for_clean_source(make_context: MakeContext) -> None:
     ctx = make_context(files={"extension.js": "const id = /[A-Za-z0-9_]{8}/;"})
+    assert CryptoAddressScanRule().evaluate(ctx) == []
+
+
+def test_silent_for_aes_lookup_and_mips_bc1_instruction(
+    make_context: MakeContext,
+) -> None:
+    src = "bc1[w] = inverse[w]; const mips = /bc1[ft]l?/;"
+    ctx = make_context(files={"bundle.js": src})
     assert CryptoAddressScanRule().evaluate(ctx) == []

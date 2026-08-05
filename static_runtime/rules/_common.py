@@ -9,6 +9,7 @@ manifest/source are routed through ``redact_secrets`` (the dynamic
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -59,10 +60,13 @@ TEXT_SUFFIXES: frozenset[str] = frozenset(
     }
 )
 # Per-file read cap for the content scanners (parity with the context's ES-4
-# adversarial-input bounds): a real source file fits well under this; a larger
-# file is scanned only up to the cap so the rules cannot be driven into an
-# unbounded read inside the hardened container.
-_MAX_TEXT_BYTES = 1024 * 1024
+# adversarial-input bounds). Modern VS Code extensions commonly ship multi-MiB
+# webpack/esbuild entrypoint bundles (the local production set reaches 20.6
+# MiB), so the old 1 MiB cap produced a blind spot on otherwise normal
+# artifacts. Thirty-two MiB covers that production shape while preserving a hard
+# per-file bound inside the 1 GiB, networkless analyzer container.
+_MAX_TEXT_BYTES = 32 * 1024 * 1024
+MAX_TEXT_BYTES = _MAX_TEXT_BYTES
 
 # Mirror of StaticEvidenceRef.snippet's max_length=400 contract bound.
 _SNIPPET_MAX = 400
@@ -181,6 +185,92 @@ def line_at(text: str, line_number: int) -> str:
     return lines[line_number - 1].strip()
 
 
+def snippet_at(text: str, index: int, *, radius: int = 180) -> str:
+    """Return a bounded snippet centred on ``index``.
+
+    ``line_at`` is useful for ordinary source, but a minified bundle can place
+    several MiB on one line. Returning that line and clamping its first 400
+    characters points at unrelated code. This helper keeps the actual match in
+    view before the normal evidence redaction/clamp is applied.
+    """
+
+    if not text:
+        return ""
+    bounded_index = min(max(index, 0), len(text))
+    line_start = text.rfind("\n", 0, bounded_index) + 1
+    line_end = text.find("\n", bounded_index)
+    if line_end < 0:
+        line_end = len(text)
+    if line_end - line_start <= (radius * 2):
+        return text[line_start:line_end].strip()
+    start = max(line_start, bounded_index - radius)
+    end = min(line_end, bounded_index + radius)
+    prefix = "..." if start > line_start else ""
+    suffix = "..." if end < line_end else ""
+    return f"{prefix}{text[start:end].strip()}{suffix}"
+
+
+def find_local_pattern_cluster(
+    text: str,
+    patterns: tuple[re.Pattern[str], ...],
+    *,
+    max_span: int,
+) -> tuple[re.Match[str], ...] | None:
+    """Find one match per pattern inside a bounded lexical region.
+
+    Large bundled JavaScript files contain many unrelated libraries. File-wide
+    co-occurrence therefore is not evidence that several APIs form one attack
+    chain. The smallest covering window is used so callers can require lexical
+    locality without adding a parser dependency to the hardened image.
+    """
+
+    if not patterns or max_span < 0:
+        return None
+    matches_by_pattern: list[list[re.Match[str]]] = []
+    for pattern in patterns:
+        matches = list(pattern.finditer(text))
+        if not matches:
+            # Most production bundles do not contain the first, most-specific
+            # conjunct. Stop there instead of scanning the same multi-MiB file
+            # once for every remaining pattern.
+            return None
+        matches_by_pattern.append(matches)
+
+    events = sorted(
+        (match.start(), pattern_index)
+        for pattern_index, matches in enumerate(matches_by_pattern)
+        for match in matches
+    )
+    counts = [0] * len(patterns)
+    covered = 0
+    left = 0
+    best: tuple[int, int, int] | None = None
+    for right_start, right_pattern in events:
+        if counts[right_pattern] == 0:
+            covered += 1
+        counts[right_pattern] += 1
+        while covered == len(patterns):
+            left_start, left_pattern = events[left]
+            candidate = (right_start - left_start, left_start, right_start)
+            if best is None or candidate < best:
+                best = candidate
+            counts[left_pattern] -= 1
+            if counts[left_pattern] == 0:
+                covered -= 1
+            left += 1
+
+    if best is None or best[0] > max_span:
+        return None
+    _, window_start, window_end = best
+    return tuple(
+        min(
+            (match for match in matches if window_start <= match.start() <= window_end),
+            key=lambda match: match.start(),
+        )
+        for matches in matches_by_pattern
+    )
+
+
 def evidence_type_for(
     context: StaticAnalysisContext, relative_path: str
 ) -> StaticEvidenceType:
@@ -191,9 +281,11 @@ def evidence_type_for(
 
 
 __all__ = [
+    "MAX_TEXT_BYTES",
     "TEXT_SUFFIXES",
     "evidence_type_for",
     "file_evidence",
+    "find_local_pattern_cluster",
     "is_text_document",
     "iter_text_documents",
     "line_at",
@@ -202,4 +294,5 @@ __all__ = [
     "manifest_string",
     "read_text_head",
     "safe_snippet",
+    "snippet_at",
 ]

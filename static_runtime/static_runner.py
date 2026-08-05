@@ -20,10 +20,13 @@ import time
 from packages.analysis_contracts.static_detection import (
     StaticDetectionFinding,
     StaticDetectionReport,
+    StaticScanCoverage,
     StaticSeverityCounts,
     StaticToolExecutionRecord,
 )
+from static_runtime.artifact_inventory import build_artifact_inventory
 from static_runtime.context import StaticAnalysisContext
+from static_runtime.rules._common import MAX_TEXT_BYTES, TEXT_SUFFIXES
 from static_runtime.rules.registry import get_production_rules
 from static_runtime.semgrep_runner import run_semgrep
 
@@ -51,7 +54,7 @@ def _rollup_severity(findings: list[StaticDetectionFinding]) -> StaticSeverityCo
 
 def _run_inhouse(
     context: StaticAnalysisContext, rules_version: str, timeout_budget_s: int
-) -> tuple[list[StaticDetectionFinding], StaticToolExecutionRecord]:
+) -> tuple[list[StaticDetectionFinding], StaticToolExecutionRecord, bool]:
     """Run the in-house rules; return their findings + an execution record.
 
     ``timeout_budget_s`` is a soft wall-clock budget checked between rules; a
@@ -88,7 +91,7 @@ def _run_inhouse(
         error_count=len(errored_rule_ids),
         errored_rule_ids=sorted(set(errored_rule_ids)),
     )
-    return findings, record
+    return findings, record, budget_tripped
 
 
 def _semgrep_wall_timeout(timeout_budget_s: int, start: float) -> int:
@@ -99,6 +102,54 @@ def _semgrep_wall_timeout(timeout_budget_s: int, start: float) -> int:
         timeout_budget_s - (time.monotonic() - start) - _SEMGREP_WALL_RESERVE_S
     )
     return max(_MIN_SEMGREP_WALL_S, remaining)
+
+
+def _merge_coverage(records: list[StaticToolExecutionRecord]) -> StaticScanCoverage:
+    """Fold tool-local accounting into one conservative additive report view."""
+
+    if not records:
+        return StaticScanCoverage()
+    coverages = [record.coverage for record in records]
+    inhouse = coverages[0]
+    skipped: dict[str, int] = {}
+    skipped_paths: dict[str, list[str]] = {}
+    unsupported: dict[str, int] = {}
+    structural_fallback_paths = sorted(
+        {path for coverage in coverages for path in coverage.structural_fallback_paths}
+    )[:20]
+    for coverage in coverages:
+        for reason, count in coverage.files_skipped_by_reason.items():
+            skipped[reason] = max(skipped.get(reason, 0), count)
+        for reason, paths in coverage.skipped_paths_by_reason.items():
+            skipped_paths.setdefault(reason, []).extend(paths)
+        for suffix, count in coverage.unsupported_formats.items():
+            unsupported[suffix] = max(unsupported.get(suffix, 0), count)
+    return StaticScanCoverage(
+        files_discovered=max(item.files_discovered for item in coverages),
+        files_selected=max(item.files_selected for item in coverages),
+        files_eligible=max(item.files_eligible for item in coverages),
+        files_scanned=max(item.files_scanned for item in coverages),
+        files_parsed=max(item.files_parsed for item in coverages),
+        files_skipped_by_reason=skipped,
+        skipped_paths_by_reason={
+            reason: sorted(set(paths))[:20] for reason, paths in skipped_paths.items()
+        },
+        bytes_considered=max(item.bytes_considered for item in coverages),
+        bytes_read=max(item.bytes_read for item in coverages),
+        manifest_status=inhouse.manifest_status,
+        critical_entrypoints=inhouse.critical_entrypoints,
+        critical_entrypoints_parsed=inhouse.critical_entrypoints_parsed,
+        file_cap_reached=any(item.file_cap_reached for item in coverages),
+        finding_cap_reached=any(item.finding_cap_reached for item in coverages),
+        unsupported_formats=unsupported,
+        structural_fallback_files=max(
+            item.structural_fallback_files for item in coverages
+        ),
+        structural_fallback_paths=structural_fallback_paths,
+        coverage_reasons=sorted(
+            {reason for coverage in coverages for reason in coverage.coverage_reasons}
+        ),
+    )
 
 
 def run_static_detection_engine(
@@ -120,17 +171,36 @@ def run_static_detection_engine(
     start = time.monotonic()
     context = StaticAnalysisContext.from_vsix_dir(vsix_dir)
 
-    inhouse_findings, inhouse_record = _run_inhouse(
+    inhouse_findings, inhouse_record, budget_tripped = _run_inhouse(
         context, rules_version, timeout_budget_s
     )
+    inhouse_record.coverage = context.build_coverage(
+        text_suffixes=TEXT_SUFFIXES,
+        max_text_bytes=MAX_TEXT_BYTES,
+    )
+    extra_coverage_reasons = set(inhouse_record.coverage.coverage_reasons)
+    if budget_tripped:
+        extra_coverage_reasons.add("budget_stop")
+    if inhouse_record.errored_rule_ids:
+        extra_coverage_reasons.add("tool_error")
+    inhouse_record.coverage.coverage_reasons = sorted(extra_coverage_reasons)
+    if inhouse_record.coverage.coverage_reasons and inhouse_record.status == "ok":
+        inhouse_record.status = "partial"
     findings: list[StaticDetectionFinding] = list(inhouse_findings)
     tool_executions: list[StaticToolExecutionRecord] = [inhouse_record]
     partial = inhouse_record.status != "ok"
+    inventory = build_artifact_inventory(
+        context,
+        findings=inhouse_findings,
+        max_target_bytes=MAX_TEXT_BYTES,
+    )
 
     if semgrep_enabled:
         semgrep_result = run_semgrep(
             vsix_dir=vsix_dir,
             wall_timeout_s=_semgrep_wall_timeout(timeout_budget_s, start),
+            deep_scan_targets=inventory.extra_deep_scan_targets,
+            deep_scan_target_cap_reached=inventory.target_cap_reached,
         )
         findings.extend(semgrep_result.findings)
         tool_executions.append(semgrep_result.record)
@@ -141,6 +211,8 @@ def run_static_detection_engine(
         tool_executions=tool_executions,
         severity_counts=_rollup_severity(findings),
         partial=partial,
+        coverage=_merge_coverage(tool_executions),
+        artifact_inventory=list(inventory.entries),
         # W26 / Stream 3 (B5): bind the static report to the analyzed bytes.
         vsix_sha256=vsix_sha256,
     )

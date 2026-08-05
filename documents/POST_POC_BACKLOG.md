@@ -1,10 +1,10 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-07-30`
+`Last Updated: 2026-08-05`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Latest merged named stream: verdict-provenance-reproducibility (Stream 3 — B5+B6; week label W26) — merged to main via PR #38 (week26 -> main, bfb2d2d) on 2026-07-27. ADR 0017 is Accepted + Implemented; no successor stream is open. Next execution gate: containment safety from documents/active-work/v1-roadmap.md §4. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
+`Active named stream: static-analysis-artifact-precision (SAP-0..SAP-6), tracker documents/active-work/static-analysis-artifact-precision.md; the SMF foundation plus SAP-0..SAP-4 baseline merged via PR #40 and SAP-5 is next. Latest fully closed named stream: verdict-provenance-reproducibility (W26), PR #38 bfb2d2d. Containment safety remains the next product/release gate.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + optional active stream; null when none is open).`
 
@@ -1142,8 +1142,9 @@ direction `2026-06-08`, after the project report was delivered). Built from a
 The Stream 1 active-stream pointer flip (S0) landed `2026-06-12` — at that
 time `phase.json` + canonical doc preambles/bodies named
 `reliability-self-defense`. This is historical transition evidence:
-`last_merged_weekly` remains W22, while `active_stream` is now `null` because
-W26 is closed and no successor is open (see REFACTOR_STATUS.md "Post-W22
+`last_merged_weekly` remains W22. After W26 closed, `active_stream` returned
+to `null`; the current pointer now names
+`static-analysis-measurement-foundation` (see REFACTOR_STATUS.md "Post-W22
 Feature Streams").
 
 Detailed evidence and dispositions are archived at
@@ -1155,7 +1156,7 @@ Stable IDs below map to the roadmap streams (see `v1-roadmap.md` §7).
 - **Stream 3 — verdict-provenance-reproducibility (merged via PR #38 `bfb2d2d`):** `[GOAL vsix-content-sha256-provenance]` ✅, `[GOAL verdict-reproducibility-anchor]` ✅; `[FOLLOWUP attribution-tiebreak-determinism]` remains open (equal-delta attribution iteration order can change the B5 signal/correlation grouping; coordinate with the signal owner and rerun golden/verdict fixtures).
 - **Stream 4 — operator-report-export:** `[GOAL report-export-artifact]`, `[FOLLOWUP vsix-entry-log-sanitization]` (existing; do not duplicate), offline skip-reason UX.
 - **Stream 5 — release-identity-ops:** `[CLEANUP version-identity-coherence]`, `[GOAL api-health-db-probe]`, `[GOAL podman-backup-restore]` (live-on-Fedora acceptance deferred via `[FOLLOWUP fedora-host-live-validation]` below — code still lands on dev/CI).
-- **Stream 6 — measured-catch-rate:** `[GOAL measured-catch-rate-corpus]`, `[GOAL benign-false-positive-gate]`, `[GOAL platform-blind-verdict-annotation]`, `[GOAL adr-0015-e1-e2-evasion-detection]`, `[GOAL measured-layer-contribution]`, `[GOAL static-primary-threat-directed-dynamic]`. Detailed non-active execution packages (`SAR-0`–`SAR-7`): [`active-work/static-analysis-improvement-roadmap.md`](active-work/static-analysis-improvement-roadmap.md). The proposed next-iteration execution slate is [`active-work/static-analysis-measurement-foundation.md`](active-work/static-analysis-measurement-foundation.md) (`SMF-0`–`SMF-8`; contracts, safe corpus, evaluator, coverage honesty, and baseline). These planning artifacts do not set `phase.json.active_stream`.
+- **Stream 6 — measured-catch-rate:** `[GOAL measured-catch-rate-corpus]`, `[GOAL benign-false-positive-gate]`, `[GOAL platform-blind-verdict-annotation]`, `[GOAL adr-0015-e1-e2-evasion-detection]`, `[GOAL measured-layer-contribution]`, `[GOAL static-primary-threat-directed-dynamic]`. The active Increment A execution slate is [`active-work/static-analysis-measurement-foundation.md`](active-work/static-analysis-measurement-foundation.md) (`SMF-0`–`SMF-8`; contracts, safe corpus, evaluator, coverage honesty, and baseline), opened in `phase.json.active_stream` on 2026-07-30. The parent `SAR-0`–`SAR-7` sequence remains in [`active-work/static-analysis-improvement-roadmap.md`](active-work/static-analysis-improvement-roadmap.md). Containment safety remains the next product/release gate.
 - **Stream 7 — sequential-batch-corpus (post-v1.0):** `[GOAL sequential-batch-corpus]`.
 - **Stream 8 — linux-host-hardening-evasion:** `[GOAL per-analysis-disposable-sandbox]` (pre-v1 safety slice), `[GOAL container-hardening-ratchet-down]`, `[GOAL adr-0015-e3-e5-evasion-detection]`, `[FOLLOWUP harness-secret-distribution-redesign]` (existing; do not duplicate).
 - **Operator-console-honesty (merged to main via PR #36 `1e3fba6`; non-bar):** `[CLEANUP settings-decorative-controls-honesty]` ✅ H1, `[CLEANUP system-mock-status-honesty]` ✅ H2 (+ `/api/health` tone case-bug fix), `[GOAL light-dark-theme]` ✅ H3 (delivered; ECharts canvas charts stay dark — deferred, see tracker). Also wired timeZone + density (H1b). Tracker: `active-work/W24-operator-console-honesty.md`.

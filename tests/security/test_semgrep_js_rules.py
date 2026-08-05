@@ -44,6 +44,7 @@ _RULES_FILE = (
     / "semgrep_rules"
     / "extrace-vsix-js.yml"
 )
+_FALLBACK_RULES_FILE = _RULES_FILE.with_name("extrace-vsix-js-generic-fallback.yml")
 _VSIX = "/abs/vsix"
 
 
@@ -55,6 +56,21 @@ def test_rules_file_defines_exactly_the_expected_js_rules() -> None:
     ids = {rule["id"] for rule in doc["rules"]}
     assert ids == _EXPECTED_RULE_IDS
     assert ids <= set(semgrep_runner._RULE_META)
+
+
+def test_generic_fallback_defines_the_same_rule_contract() -> None:
+    """Every structural rule has one regex fallback for failed exact targets."""
+
+    doc = yaml.safe_load(_FALLBACK_RULES_FILE.read_text(encoding="utf-8"))
+    rules = doc["rules"]
+    ids = {rule["id"] for rule in rules}
+
+    assert ids == _EXPECTED_RULE_IDS
+    assert all(rule["languages"] == ["generic"] for rule in rules)
+    assert all(
+        any("pattern-regex" in pattern for pattern in rule["patterns"])
+        for rule in rules
+    )
 
 
 def _run_with(

@@ -146,6 +146,33 @@ def test_apply_gate_decision_allow_completes(tmp_path: Path) -> None:
     assert bundle.static_report.gate_outcome.decision is StaticGateDecision.ALLOW
 
 
+def test_apply_gate_decision_inconclusive_completes_and_continues(
+    tmp_path: Path,
+) -> None:
+    reporter, events = _recording_reporter()
+    report = _report(
+        StaticGateOutcome(
+            decision=StaticGateDecision.INCONCLUSIVE,
+            warned_by=["extrace.s5.suspicious_network_endpoint"],
+            inconclusive_reasons=["target_too_large"],
+        )
+    )
+    host_report_path = tmp_path / "static_report_job.json"
+
+    returned = _apply_static_gate_decision(
+        reporter, report, host_report_path=host_report_path
+    )
+
+    assert returned is report
+    gate_events = [
+        (status, message) for step, status, message in events if step == "decision_gate"
+    ]
+    assert [status for status, _ in gate_events] == ["running", "completed"]
+    assert "target_too_large" in gate_events[-1][1]
+    bundle = CombinedAnalysisBundle.model_validate_json(host_report_path.read_bytes())
+    assert bundle.static_report.gate_outcome.decision is StaticGateDecision.INCONCLUSIVE
+
+
 def test_dynamic_off_returns_static_only_and_skips_sandbox_steps(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

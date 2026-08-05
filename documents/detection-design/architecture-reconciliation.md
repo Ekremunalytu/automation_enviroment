@@ -155,10 +155,10 @@ not primary signatures.
 
 | Signal / behaviour | Layer | Rule id | Status |
 |---|---|---|---|
-| UC2 invisible Unicode / PUA source-hiding run in original packaged bytes | in-house static | `extrace.s12.invisible_unicode_run` | ✅ **CRITICAL → BLOCK** when contiguous run >= 3 |
+| UC2 invisible Unicode / PUA source-hiding run in original packaged bytes | in-house static | `extrace.s12.invisible_unicode_run` | ✅ **CRITICAL → BLOCK** when contiguous run >= 16; shorter runs INFO |
 | NL3 bundled `.node` load + platform dispatch + host-context native invoke | in-house static | `extrace.s13.native_node_loader` | ✅ **CRITICAL → BLOCK** for GlassWorm-strength conjunction |
 | AA1 `context.globalState` timestamp dormancy / throttle | in-house static | `extrace.s14.globalstate_dormancy` | ✅ MEDIUM / WARN + fresh-profile dynamic requirement |
-| Embedded native binary | in-house static | `extrace.s3.embedded_native_binary` | ✅ pre-existing MEDIUM / WARN |
+| Embedded native binary | in-house static | `extrace.s3.embedded_native_binary` | ✅ INFO inventory; S13 owns suspicious-loader conviction |
 | Direct-IP C2/stager in source or observed traffic | static + dynamic | `extrace.s4.blacklisted_domain` / `extrace.a7.blacklisted_domain` | ✅ seed denylist entries |
 
 Two safety decisions are load-bearing: (1) no real VSIX/native implant/stage-2
@@ -213,14 +213,14 @@ below are the genuinely-new work it motivated.
 | Signal / behaviour | Layer | Rule id | Status |
 |---|---|---|---|
 | RS1 shell↔socket bridge — `.pipe()` **and** manual `stdin.write` form | in-house static | `extrace.s10.reverse_shell` | ✅ **improved** — the wiring conjunct now also matches `stdin.write(` (the `socket.on("data", d => proc.stdin.write(d))` manual bridge); still CRITICAL → BLOCK, still only fires inside the 4-way conjunction |
-| MN reserved-publisher impersonation | in-house static | `extrace.s1.reserved_publisher_spoof` | ✅ **new** — MEDIUM / WARN |
+| MN reserved-publisher claim | in-house static | `extrace.s1.reserved_publisher_spoof` | ✅ INFO provenance signal; name-only evidence never convicts |
 | runtime shell spawn + outbound socket | dynamic | `extrace.a8.reverse_shell` | ✅ pre-existing — **fires** for nf3xn (Linux `/bin/sh` detonates, unlike the win32/darwin-gated kagema/glassworm) |
 
 `reserved_publisher_spoof` matches a **curated set of bare reserved brand
 namespaces** (`microsoft`/`ms-vscode`/`vscode`/`github`/`visualstudio`/`google`),
 **not** an `ms-*` prefix — prefix-matching would flag every legitimate `ms-python`/
 `ms-toolsai`/`ms-azuretools` extension (incl. the real `ms-azuretools.vscode-docker`
-that ecm3401 tampers with). It is MEDIUM/WARN and class-less: name-only matching
+that ecm3401 tampers with). It is INFO and class-less: name-only matching
 cannot separate a spoof from a genuine first-party extension (the durable
 disambiguator is the marketplace verified-publisher signal, out of static scope),
 so it is a provenance-review escalator, never a blocker. No enum / contract / gate
@@ -387,11 +387,11 @@ Fires when any extension's source recognises a wallet-address format: Base58
 fragments `a-km-z` / `A-HJ-NP-Z` (near-unique to crypto → HIGH confidence), `0x`
 
 + 40-hex (Ethereum; the `0x` prefix is required so a 40-char SHA-1 hex regex does
-**not** false-positive), or `bc1[` (bech32/SegWit — which apollyon's own regex
-misses). `severity=MEDIUM`, `categories=["attack.T1565",
-"extrace.ext.crypto_address_scan"]`, `adversary_class=None`. MEDIUM/WARN by design
-— a genuine blockchain/wallet extension legitimately has these, so it surfaces
-the capability for review/escalation rather than convicting on presence alone.
+**not** false-positive), or a quantified `bc1[...]` bech32/SegWit regex. The
+quantifier requirement excludes AES lookup arrays and MIPS `bc1[ft]`
+instructions. `severity=INFO`, `categories=["attack.T1565",
+"extrace.ext.crypto_address_scan"]`, `adversary_class=None`; a clipboard/file-
+write correlation must own any future WARN.
 
 ### `extrace.s8.exfil_webhook` — S1 chat-webhook IOC
 

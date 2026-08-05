@@ -117,6 +117,40 @@ def test_run_static_analysis_timeout_raises(
         )
 
 
+def test_run_static_analysis_uses_budget_plus_grace_for_ten_minute_cap(
+    fake_docker: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        captured["kwargs"] = kwargs
+        return subprocess.CompletedProcess(argv, 0, stdout="ok", stderr="")
+
+    monkeypatch.setattr(static_host.subprocess, "run", fake_run)
+
+    default_static_analyzer_control.run_static_analysis(
+        vsix_dir="/x",
+        report_path="/r.json",
+        rules_version="1",
+        timeout_budget_s=600,
+    )
+
+    assert captured["kwargs"]["timeout"] == 605
+
+
+@pytest.mark.parametrize("budget", [4, 601])
+def test_run_static_analysis_rejects_out_of_bounds_budget(
+    fake_docker: str, budget: int
+) -> None:
+    with pytest.raises(ValueError, match="between 5 and 600 seconds"):
+        default_static_analyzer_control.run_static_analysis(
+            vsix_dir="/x",
+            report_path="/r.json",
+            rules_version="1",
+            timeout_budget_s=budget,
+        )
+
+
 def test_static_runtime_argparse_requires_all_flags() -> None:
     from static_runtime.entrypoint import build_parser
 
@@ -136,6 +170,25 @@ def test_static_runtime_argparse_requires_all_flags() -> None:
     # Missing required flags -> argparse SystemExit.
     with pytest.raises(SystemExit):
         build_parser().parse_args([])
+
+
+@pytest.mark.parametrize("budget", ["4", "601"])
+def test_static_runtime_argparse_rejects_out_of_bounds_budget(budget: str) -> None:
+    from static_runtime.entrypoint import build_parser
+
+    with pytest.raises(SystemExit, match="2"):
+        build_parser().parse_args(
+            [
+                "--vsix-dir",
+                "/x",
+                "--report-path",
+                "/r.json",
+                "--rules-version",
+                "1.0.0",
+                "--timeout-budget-s",
+                budget,
+            ]
+        )
 
 
 def test_static_runtime_writes_valid_report_for_empty_tree(tmp_path: Any) -> None:
@@ -224,10 +277,10 @@ def test_static_analysis_timeout_budget_reads_from_env(
     assert rebuilt.static_analysis.TIMEOUT_BUDGET_S == 45
 
 
-def test_static_analysis_timeout_budget_defaults_to_30(
+def test_static_analysis_timeout_budget_defaults_to_600(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """With the env var unset the executor budget defaults to 30s, matching the
+    """With the env var unset the executor budget defaults to 600s, matching the
     app-side ``StaticAnalysisSettings.TIMEOUT_BUDGET_S`` default (one logical
     timeout, one default across both mirrors)."""
     from executor.config import build_settings
@@ -235,7 +288,18 @@ def test_static_analysis_timeout_budget_defaults_to_30(
     monkeypatch.delenv("STATIC_ANALYSIS_TIMEOUT_BUDGET_S", raising=False)
     monkeypatch.delenv("STATIC_ANALYSIS_TIMEOUT_S", raising=False)
     rebuilt = build_settings()
-    assert rebuilt.static_analysis.TIMEOUT_BUDGET_S == 30
+    assert rebuilt.static_analysis.TIMEOUT_BUDGET_S == 600
+
+
+@pytest.mark.parametrize("budget", ["4", "601"])
+def test_static_analysis_timeout_budget_env_rejects_out_of_bounds_values(
+    monkeypatch: pytest.MonkeyPatch, budget: str
+) -> None:
+    from executor.config import build_settings
+
+    monkeypatch.setenv("STATIC_ANALYSIS_TIMEOUT_BUDGET_S", budget)
+    with pytest.raises(ValueError, match="between 5 and 600 seconds"):
+        build_settings()
 
 
 def test_cancel_static_analysis_builds_pkill_argv(

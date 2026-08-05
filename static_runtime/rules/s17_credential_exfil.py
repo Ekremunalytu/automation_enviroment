@@ -9,7 +9,7 @@ breach** shape — a high-value secret read, then shipped off-host. See
 CRED-X).
 
 This rule approximates the spec's CRED-X *taint* (source = sensitive-file read,
-sink = network) with a **file-level conjunction**: in one source file all of
+sink = network) with a **bounded lexical flow**: in one source region all of
 
   (1) a reference to a sensitive credential path (``.ssh`` / ``id_rsa`` /
       ``id_ed25519`` / ``.aws/credentials`` / ``.gnupg`` / ``.netrc`` /
@@ -19,11 +19,10 @@ sink = network) with a **file-level conjunction**: in one source file all of
   (3) an outbound network egress sink (``fetch`` / ``http(s).request`` /
       ``http(s).get`` / ``axios`` / ``node-fetch`` / ``XMLHttpRequest``)
 
-co-occur. The credential-path token is matched **anywhere in the file**, not only
-inside the read call, on purpose: ecm3401 concatenates the path at runtime
-(``/Users/${u}/.ssh/id_rsa``), so a ``metavariable``-style literal-in-the-read
-match would miss it — the durable signal is that the file *names* a credential
-path, *reads* a file, and *talks to the network*.
+co-occur. The credential-path token must be inside the read argument or in a
+nearby path-variable assignment consumed by the read. That still catches
+ecm3401's runtime concatenation while keeping defensive sensitive-file denylist
+code from becoming exfiltration evidence.
 
 The conjunction is load-bearing because each part alone is wildly benign. Many
 extensions read files (1)+(2); many make HTTP calls (3); plenty reference a
@@ -31,8 +30,8 @@ credential path in a comment or a settings key. It is the three together — rea
 credential store **and** hold an egress channel — that signals exfiltration.
 
 Severity is **HIGH / WARN, not CRITICAL / BLOCK** (mirrors ``s8``). Unlike the
-``s10``/``s11``/``s16`` finished-primitive rules, this is a file-level
-*co-occurrence*, not proven dataflow: a legitimate cloud/SSH extension can read
+``s10``/``s11``/``s16`` finished-primitive rules, this is bounded lexical flow,
+not full AST taint: a legitimate cloud/SSH extension can read
 ``.aws/credentials`` *and* call its provider's API in the same file without
 exfiltrating anything (it never wires the secret into the request body). So the
 finding **surfaces a credential-exfiltration capability for review**, it does not
@@ -63,12 +62,14 @@ from static_runtime.rules._common import (
     evidence_type_for,
     file_evidence,
     iter_text_documents,
-    line_at,
     line_number_at,
+    snippet_at,
 )
 from static_runtime.rules.registry import register
 
 _MAX_EVIDENCE = 9
+_MAX_CHAIN_SPAN = 8 * 1024
+_MAX_PATH_TO_READ_SPAN = 2 * 1024
 
 # (1) A sensitive credential path. Matched anywhere in the file (not only inside
 # the read call) so a runtime-concatenated path (``/Users/${u}/.ssh/id_rsa``) is
@@ -106,7 +107,7 @@ _NETWORK_SINK_RE = re.compile(
 
 class CredentialExfilRule:
     rule_id = "extrace.s17.credential_exfil"
-    rule_version = "1.0.0"
+    rule_version = "1.1.0"
     lifecycle = RuleLifecycle.PRODUCTION
     adversary_class: AdversaryClass | None = None
     # HIGH / WARN, not CRITICAL / BLOCK: a file-level co-occurrence (read a
@@ -122,27 +123,82 @@ class CredentialExfilRule:
 
     def evaluate(self, context: StaticAnalysisContext) -> list[StaticDetectionFinding]:
         for relative_path, text in iter_text_documents(context):
-            sensitive = _SENSITIVE_PATH_RE.search(text)
-            if sensitive is None:
-                continue
-            if _FS_READ_RE.search(text) is None:
-                continue
-            if _NETWORK_SINK_RE.search(text) is None:
-                continue
-            return [self._finding(context, relative_path, text)]
+            cluster = self._sensitive_read_to_network(text)
+            if cluster is not None:
+                return [self._finding(context, relative_path, text, cluster)]
         return []
+
+    @staticmethod
+    def _sensitive_read_to_network(
+        text: str,
+    ) -> tuple[re.Match[str], re.Match[str], re.Match[str]] | None:
+        """Connect a sensitive path to a read before considering egress.
+
+        Merely listing sensitive path patterns is often a *defense* (for
+        example Copilot's feedback-upload exclusion list). A warning therefore
+        requires the token in a read argument or in a nearby path variable that
+        the read consumes, plus a nearby HTTP sink.
+        """
+
+        reads = list(_FS_READ_RE.finditer(text))
+        networks = list(_NETWORK_SINK_RE.finditer(text))
+        for sensitive in _SENSITIVE_PATH_RE.finditer(text):
+            related_read: re.Match[str] | None = None
+            for read in reads:
+                if read.start() <= sensitive.start() <= read.end() + 512:
+                    related_read = read
+                    break
+            if related_read is None:
+                statement_start = (
+                    max(
+                        text.rfind(";", 0, sensitive.start()),
+                        text.rfind("\n", 0, sensitive.start()),
+                    )
+                    + 1
+                )
+                assignment_text = text[statement_start : sensitive.start()]
+                assignment = re.search(
+                    r"\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*[^;\n]*$",
+                    assignment_text,
+                )
+                if assignment is not None:
+                    variable = assignment.group(1)
+                    for read in reads:
+                        if not (
+                            sensitive.start()
+                            <= read.start()
+                            <= sensitive.start() + _MAX_PATH_TO_READ_SPAN
+                        ):
+                            continue
+                        args = text[read.end() : read.end() + 512]
+                        if re.search(rf"\b{re.escape(variable)}\b", args):
+                            related_read = read
+                            break
+            if related_read is None:
+                continue
+            network = min(
+                (
+                    match
+                    for match in networks
+                    if abs(match.start() - related_read.start()) <= _MAX_CHAIN_SPAN
+                ),
+                key=lambda match: abs(match.start() - related_read.start()),
+                default=None,
+            )
+            if network is not None:
+                return sensitive, related_read, network
+        return None
 
     def _finding(
         self,
         context: StaticAnalysisContext,
         relative_path: str,
         text: str,
+        cluster: tuple[re.Match[str], ...],
     ) -> StaticDetectionFinding:
         evidence: list[StaticEvidenceRef] = []
-        # The credential-path token first (the load-bearing evidence), then the
-        # read primitive, then the egress sink.
-        for pattern in (_SENSITIVE_PATH_RE, _FS_READ_RE, _NETWORK_SINK_RE):
-            self._add_first_match(evidence, context, relative_path, text, pattern)
+        for match in cluster:
+            self._add_match(evidence, context, relative_path, text, match)
 
         return StaticDetectionFinding(
             rule_id=self.rule_id,
@@ -178,24 +234,21 @@ class CredentialExfilRule:
         )
 
     @staticmethod
-    def _add_first_match(
+    def _add_match(
         evidence: list[StaticEvidenceRef],
         context: StaticAnalysisContext,
         relative_path: str,
         text: str,
-        pattern: re.Pattern[str],
+        match: re.Match[str],
     ) -> None:
         if len(evidence) >= _MAX_EVIDENCE:
-            return
-        match = pattern.search(text)
-        if match is None:
             return
         line_number = line_number_at(text, match.start())
         evidence.append(
             file_evidence(
                 relative_path,
                 evidence_type_for(context, relative_path),
-                snippet=line_at(text, line_number) or "credential exfil",
+                snippet=snippet_at(text, match.start()) or "credential exfil",
                 line_number=line_number,
             )
         )

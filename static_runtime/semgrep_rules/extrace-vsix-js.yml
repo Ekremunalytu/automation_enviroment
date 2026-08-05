@@ -1,15 +1,16 @@
 # Custom Semgrep rules for the static pre-check (ES-4, ADR 0016 §Decision 4).
 #
-# Four JS/TS dataflow patterns the in-house manifest/identity/file-tree rules
+# Sixteen JS/TS advisory patterns the in-house manifest/identity/file-tree rules
 # cannot reach. Each rule's bare `id` is the lookup key for the runner's
 # _RULE_META table (static_runtime/semgrep_runner.py): the runner derives the
 # contract rule_id / severity / confidence / categories / title from that table,
 # NOT from this file, so a malformed rule here can never emit a contract-invalid
 # finding. Severity below is advisory only — the runner pins MEDIUM/WARN for all
-# four (none is promoted to a gate BLOCK).
+# rules (none is promoted to a gate BLOCK).
 #
-# Scope: the runner passes `--exclude node_modules --exclude '*.min.js'` and
-# `--max-target-bytes`, so vendored/bundled dependencies do not generate noise.
+# Scope: the runner passes `--exclude node_modules --exclude '*.min.js'` and an
+# 32 MiB `--max-target-bytes`. Intentional exclusions remain inventory-visible
+# while the in-house production rules retain bounded text coverage over them.
 rules:
   - id: eval
     languages: [javascript, typescript]

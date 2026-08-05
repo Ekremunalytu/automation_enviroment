@@ -3,7 +3,11 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { ReportsPage } from "./ReportsPage";
 import { apiClient } from "../../lib/api/client";
-import type { ActivationReportDto, AnalysisBundleDto } from "../../lib/types/contracts";
+import type {
+  ActivationReportDto,
+  AnalysisBundleDto,
+  StaticReportArtifactDto,
+} from "../../lib/types/contracts";
 
 vi.mock("../../lib/api/client", () => ({
   apiClient: {
@@ -11,6 +15,8 @@ vi.mock("../../lib/api/client", () => ({
     getLatestReportBundle: vi.fn(),
     getReportBundleByName: vi.fn(),
     getReportByName: vi.fn(),
+    getExecutorPreferences: vi.fn(),
+    getLatestStaticReport: vi.fn(),
   },
 }));
 
@@ -314,6 +320,52 @@ const latestBundle: AnalysisBundleDto = {
   },
 };
 
+const latestStaticArtifact: StaticReportArtifactDto = {
+  filename: "static_report_22222222222222222222222222222222.json",
+  modified: 1713002510,
+  static_report: {
+    detection_report: {
+      coverage: {
+        files_discovered: 3,
+        files_selected: 3,
+        files_eligible: 2,
+        files_scanned: 3,
+        files_parsed: 2,
+        bytes_considered: 512,
+        bytes_read: 512,
+        manifest_status: "parsed",
+        coverage_reasons: [],
+      },
+      findings: [
+        {
+          rule_id: "extrace.s3.embedded_native_binary",
+          rule_version: "1.0.0",
+          rule_lifecycle: "production",
+          categories: ["attack.T1105"],
+          severity: "medium",
+          confidence: "high",
+          title: "Embedded native binary",
+          description: "Ships native binaries.",
+        },
+      ],
+      tool_executions: [
+        {
+          tool: "inhouse",
+          version: "1.0.0",
+          rules_loaded: 26,
+          findings_emitted: 1,
+          duration_ms: 10,
+          status: "ok",
+        },
+      ],
+    },
+    gate_outcome: {
+      decision: "warn",
+      warned_by: ["extrace.s3.embedded_native_binary"],
+    },
+  },
+};
+
 describe("ReportsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -322,6 +374,164 @@ describe("ReportsPage", () => {
     ]);
     vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(latestBundle);
     vi.mocked(apiClient.getReportBundleByName).mockResolvedValue(latestBundle);
+    vi.mocked(apiClient.getExecutorPreferences).mockResolvedValue({
+      dynamic_analysis_enabled: true,
+    });
+  });
+
+  it("shows the disabled dynamic state and the latest static-only artifact", async () => {
+    vi.mocked(apiClient.getExecutorPreferences).mockResolvedValue({
+      dynamic_analysis_enabled: false,
+    });
+    vi.mocked(apiClient.getLatestStaticReport).mockResolvedValue(latestStaticArtifact);
+
+    renderPage("/reports?report=latest&tab=matrix");
+
+    expect(await screen.findByText("Dynamic analysis is disabled")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Credential read.*Fired/i })).not.toBeInTheDocument();
+    expect(await screen.findByText("Latest static artifact")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Embedded native binary.*Fired/i }),
+    ).toBeInTheDocument();
+    expect(apiClient.getLatestStaticReport).toHaveBeenCalled();
+  });
+
+  it("renders static analysis inspection as the tab beside Rule matrix", async () => {
+    vi.mocked(apiClient.getLatestStaticReport).mockResolvedValue(latestStaticArtifact);
+
+    renderPage("/reports?report=latest&tab=inspection");
+
+    expect(
+      await screen.findByRole("heading", { name: "Static analysis inspection" }),
+    ).toBeInTheDocument();
+    const reportTabs = screen.getAllByRole("tab").map((tab) => tab.textContent);
+    expect(reportTabs.slice(0, 3)).toEqual([
+      "Overview",
+      "Rule matrix",
+      "Static analysis inspection",
+    ]);
+    expect(
+      screen.getByRole("tab", { name: "Static analysis inspection" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("combobox", { name: "Report source" })).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "Search evidence" })).toBeDisabled();
+    expect(screen.getByLabelText("Static gate inspection")).toBeInTheDocument();
+    expect(apiClient.getLatestStaticReport).toHaveBeenCalled();
+    expect(apiClient.getLatestReportBundle).not.toHaveBeenCalled();
+  });
+
+  it("keeps a static inspection loading failure explicit inside Reports", async () => {
+    vi.mocked(apiClient.getLatestStaticReport).mockRejectedValue(
+      new Error("static artifact unavailable"),
+    );
+
+    renderPage("/reports?report=latest&tab=inspection");
+
+    expect(
+      await screen.findByText("Static inspection could not be loaded"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Error: static artifact unavailable")).toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: "Static analysis inspection" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(apiClient.getLatestReportBundle).not.toHaveBeenCalled();
+  });
+
+  it("uses the latest static artifact for overview and disables dynamic-only controls", async () => {
+    vi.mocked(apiClient.getExecutorPreferences).mockResolvedValue({
+      dynamic_analysis_enabled: false,
+    });
+    vi.mocked(apiClient.getLatestStaticReport).mockResolvedValue(latestStaticArtifact);
+
+    renderPage("/reports?report=latest&tab=overview");
+
+    expect(await screen.findByText("Static scan")).toBeInTheDocument();
+    const workspace = screen.getByLabelText("Report workspace");
+    expect(
+      within(workspace).getByRole("option", { name: "Latest static artifact" }),
+    ).toBeInTheDocument();
+    expect(
+      await within(workspace).findByLabelText("Findings: 1"),
+    ).toBeInTheDocument();
+    expect(within(workspace).getByLabelText("Decision: Warn")).toBeInTheDocument();
+    expect(within(workspace).getByLabelText("Coverage: 3/3")).toBeInTheDocument();
+    expect(within(workspace).getByRole("textbox", { name: "Search evidence" }))
+      .toBeDisabled();
+    expect(within(workspace).getByRole("button", { name: "Filters" })).toBeDisabled();
+
+    expect(await screen.findByText("Dynamic analysis is disabled")).toBeInTheDocument();
+    expect(screen.getByLabelText("Static decision overview")).toHaveTextContent(
+      "Decision · WARN",
+    );
+    expect(screen.getByText("Embedded native binary")).toBeInTheDocument();
+    expect(screen.queryByText("Composite score")).not.toBeInTheDocument();
+
+    expect(screen.getByRole("tab", { name: "Overview" })).toBeEnabled();
+    expect(screen.getByRole("tab", { name: "Rule matrix" })).toBeEnabled();
+    expect(
+      screen.getByRole("tab", { name: "Static analysis inspection" }),
+    ).toBeEnabled();
+    expect(screen.getByRole("tab", { name: "Interactions" })).toBeDisabled();
+    expect(screen.getByRole("tab", { name: "Timeline" })).toBeDisabled();
+    expect(screen.getByRole("tab", { name: "Event ledger" })).toBeDisabled();
+    expect(screen.getByRole("tab", { name: "Audit" })).toBeDisabled();
+
+    expect(apiClient.getLatestStaticReport).toHaveBeenCalled();
+    expect(apiClient.getLatestReportBundle).not.toHaveBeenCalled();
+  });
+
+  it("redirects a latest static-only dynamic deep link to overview", async () => {
+    vi.mocked(apiClient.getExecutorPreferences).mockResolvedValue({
+      dynamic_analysis_enabled: false,
+    });
+    vi.mocked(apiClient.getLatestStaticReport).mockResolvedValue(latestStaticArtifact);
+
+    renderPage("/reports?report=latest&tab=ledger&event=file-1");
+
+    expect(await screen.findByLabelText("Static decision overview")).toBeInTheDocument();
+    await waitFor(() => {
+      const search = screen.getByTestId("location-search").textContent || "";
+      expect(search).toContain("tab=overview");
+      expect(search).not.toContain("event=");
+    });
+    expect(screen.getByRole("tab", { name: "Event ledger" })).toBeDisabled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("shows a static-only error without falling back to an unrelated activation report", async () => {
+    vi.mocked(apiClient.getExecutorPreferences).mockResolvedValue({
+      dynamic_analysis_enabled: false,
+    });
+    vi.mocked(apiClient.getLatestStaticReport).mockRejectedValue(
+      new Error("static artifact unavailable"),
+    );
+
+    renderPage("/reports?report=latest&tab=overview");
+
+    expect(
+      await screen.findByText("Latest static pre-check unavailable"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Error: static artifact unavailable")).toBeInTheDocument();
+    expect(apiClient.getLatestReportBundle).not.toHaveBeenCalled();
+  });
+
+  it("keeps an explicitly selected historical activation report inspectable", async () => {
+    vi.mocked(apiClient.getExecutorPreferences).mockResolvedValue({
+      dynamic_analysis_enabled: false,
+    });
+
+    renderPage("/reports?report=activation_report_demo.json&tab=overview");
+
+    expect(await screen.findByText("Run control")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Verdict overview")).toHaveTextContent(
+      "Verdict · MALICIOUS",
+    );
+    expect(screen.getByRole("tab", { name: "Interactions" })).toBeEnabled();
+    expect(apiClient.getReportBundleByName).toHaveBeenCalledWith(
+      "activation_report_demo.json",
+      expect.any(AbortSignal),
+    );
+    expect(apiClient.getLatestStaticReport).not.toHaveBeenCalled();
   });
 
   it("renders overview, canonical tabs, and supports opening the filter drawer", async () => {
@@ -344,6 +554,9 @@ describe("ReportsPage", () => {
     expect(screen.queryByText(/File ·/u)).not.toBeInTheDocument();
     expect(screen.queryByText(/Visible ·/u)).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Overview" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: "Static analysis inspection" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Interactions" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Timeline" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Event ledger" })).toBeInTheDocument();

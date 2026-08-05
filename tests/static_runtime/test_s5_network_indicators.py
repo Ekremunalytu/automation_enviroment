@@ -48,3 +48,117 @@ def test_silent_for_documentation_ip_and_reserved_tld(
         files={"extension.js": 'a("http://203.0.113.9");b("http://x.example/p");'}
     )
     assert SuspiciousNetworkEndpointRule().evaluate(ctx) == []
+
+
+def test_silent_for_external_cleartext_urls_in_documentation(
+    make_context: MakeContext,
+) -> None:
+    ctx = make_context(
+        files={
+            "README.md": "See http://downloads.example.org/install for details.",
+            "docs/setup.txt": "Legacy guide: http://legacy.vendor.org/setup",
+            "LICENSE": "License reference: http://license.vendor.org/text",
+            "dist/extension.js.map": '{"sourceRoot":"http://source.vendor.org/src"}',
+        }
+    )
+    assert SuspiciousNetworkEndpointRule().evaluate(ctx) == []
+
+
+def test_silent_for_manifest_documentation_metadata(
+    make_context: MakeContext,
+) -> None:
+    ctx = make_context(
+        manifest={
+            "name": "documented-extension",
+            "publisher": "trusted-vendor",
+            "version": "1.0.0",
+            "homepage": "http://homepage.vendor.org/project",
+            "repository": {
+                "type": "git",
+                "url": "http://git.vendor.org/project.git",
+            },
+            "bugs": {"url": "http://bugs.vendor.org/project"},
+            "funding": "http://funding.vendor.org/project",
+        }
+    )
+    assert SuspiciousNetworkEndpointRule().evaluate(ctx) == []
+
+
+def test_manifest_runtime_configuration_endpoint_still_fires(
+    make_context: MakeContext,
+) -> None:
+    ctx = make_context(
+        manifest={
+            "name": "runtime-config-extension",
+            "publisher": "trusted-vendor",
+            "version": "1.0.0",
+            "contributes": {
+                "configuration": {
+                    "properties": {
+                        "extension.endpoint": {
+                            "default": "http://runtime.vendor.org/api"
+                        }
+                    }
+                }
+            },
+        }
+    )
+    findings = SuspiciousNetworkEndpointRule().evaluate(ctx)
+
+    assert len(findings) == 1
+    assert findings[0].evidence[0].type == "manifest"
+    assert findings[0].evidence[0].line_number is None
+
+
+def test_malformed_manifest_endpoint_remains_visible(
+    make_context: MakeContext,
+) -> None:
+    ctx = make_context(
+        files={
+            "package.json": (
+                '{"name":"broken","endpoint":"http://runtime.vendor.org/api",'
+            )
+        }
+    )
+    findings = SuspiciousNetworkEndpointRule().evaluate(ctx)
+
+    assert ctx.manifest_status == "malformed"
+    assert len(findings) == 1
+    assert findings[0].evidence[0].type == "manifest"
+    assert findings[0].evidence[0].line_number is None
+
+
+def test_runtime_source_with_same_cleartext_url_still_fires(
+    make_context: MakeContext,
+) -> None:
+    ctx = make_context(
+        files={"extension.js": 'fetch("http://legacy.vendor.org/payload");'}
+    )
+    assert len(SuspiciousNetworkEndpointRule().evaluate(ctx)) == 1
+
+
+def test_silent_for_asn1_oids_and_reference_namespaces(
+    make_context: MakeContext,
+) -> None:
+    src = (
+        'const oid = "1.3.6.1";'
+        'const xhtml = "http://www.w3.org/1999/xhtml";'
+        'const schema = "http://json-schema.org/draft-07/schema#";'
+        'const metadata = "http://metadata.google.internal/computeMetadata/v1";'
+    )
+    ctx = make_context(files={"bundle.js": src})
+    assert SuspiciousNetworkEndpointRule().evaluate(ctx) == []
+
+
+def test_evidence_is_capped_but_description_reports_all_hits(
+    make_context: MakeContext,
+) -> None:
+    urls = "\n".join(
+        f'fetch("http://host{i:02d}.vendor.org/payload");' for i in range(30)
+    )
+    ctx = make_context(files={"extension.js": urls})
+    findings = SuspiciousNetworkEndpointRule().evaluate(ctx)
+
+    assert len(findings) == 1
+    assert len(findings[0].evidence) == 25
+    assert "30 suspicious network endpoint(s)" in findings[0].description

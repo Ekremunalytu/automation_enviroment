@@ -4,8 +4,8 @@ Three production rules over the parsed manifest:
 
 * ``extrace.s1.activation_wildcard`` — ``activationEvents: ["*"]`` eager
   activation (the extension runs on every event, before any user intent).
-* ``extrace.s1.suspicious_capabilities`` — install-time lifecycle scripts and/or
-  a declared right to run in untrusted workspaces.
+* ``extrace.s1.suspicious_capabilities`` — declared execution in untrusted
+  workspaces (informational exposure metadata, not a malice verdict).
 * ``extrace.s1.generic_publisher`` — missing or placeholder ``publisher``.
 
 All three require a parseable manifest; an absent package.json yields no S1
@@ -24,10 +24,6 @@ from packages.analysis_contracts.static_detection import StaticDetectionFinding
 from static_runtime.context import StaticAnalysisContext
 from static_runtime.rules._common import manifest_evidence, manifest_string
 from static_runtime.rules.registry import register
-
-# package.json `scripts` keys that execute code at install time — a VS Code
-# extension almost never needs these, so their presence is a supply-chain smell.
-_INSTALL_SCRIPT_KEYS = ("preinstall", "install", "postinstall")
 
 # publisher values that indicate a scaffold/placeholder rather than a real
 # marketplace identity.
@@ -107,14 +103,13 @@ class ActivationWildcardRule:
 
 class SuspiciousCapabilitiesRule:
     rule_id = "extrace.s1.suspicious_capabilities"
-    rule_version = "1.0.0"
+    rule_version = "1.1.0"
     lifecycle = RuleLifecycle.PRODUCTION
     adversary_class: AdversaryClass | None = None
-    severity = Severity.MEDIUM
+    severity = Severity.INFO
     description = (
-        "Extension manifest requests elevated capabilities (install-time "
-        "lifecycle scripts and/or unrestricted execution in untrusted "
-        "workspaces)."
+        "Extension declares support for execution in untrusted workspaces. This "
+        "is exposure metadata for review, not evidence of malicious behaviour."
     )
 
     def evaluate(self, context: StaticAnalysisContext) -> list[StaticDetectionFinding]:
@@ -122,14 +117,6 @@ class SuspiciousCapabilitiesRule:
             return []
 
         reasons: list[str] = []
-
-        scripts = context.manifest.get("scripts")
-        if isinstance(scripts, dict):
-            present = [key for key in _INSTALL_SCRIPT_KEYS if key in scripts]
-            if present:
-                reasons.append(
-                    "install-time lifecycle script(s): " + ", ".join(present)
-                )
 
         capabilities = context.manifest.get("capabilities")
         if isinstance(capabilities, dict):
@@ -147,14 +134,13 @@ class SuspiciousCapabilitiesRule:
                 rule_lifecycle=self.lifecycle,
                 categories=["attack.T1059", "extrace.ext.suspicious_capabilities"],
                 severity=self.severity,
-                confidence=Confidence.MEDIUM,
-                title="Extension manifest requests elevated capabilities",
+                confidence=Confidence.LOW,
+                title="Extension supports untrusted workspaces",
                 description=self.description + " Signals: " + "; ".join(reasons) + ".",
                 evidence=[manifest_evidence(context, "; ".join(reasons))],
                 mitigation_hint=(
-                    "Review why the extension needs these capabilities; "
-                    "install-time scripts in particular are a supply-chain "
-                    "execution vector."
+                    "Confirm sensitive commands and workspace reads are gated "
+                    "appropriately when Workspace Trust is not granted."
                 ),
             )
         ]
@@ -211,7 +197,7 @@ class ReservedPublisherSpoofRule:
     that *claims* a curated reserved/first-party brand identity
     (``_RESERVED_PUBLISHERS``).
 
-    **Honest FP boundary — MEDIUM / WARN, never a blocker.** Genuine first-party
+    **Honest FP boundary — INFO, never a blocker.** Genuine first-party
     extensions legitimately carry these same publishers (``ms-vscode.cpptools``,
     ``GitHub.copilot``), so name-only matching cannot, on its own, distinguish a
     spoof from the real thing — the durable disambiguator is the marketplace
@@ -220,16 +206,16 @@ class ReservedPublisherSpoofRule:
     asserting a trusted-vendor identity warrants a provenance check, and the
     signal is a strong escalator when it co-occurs with a malicious capability
     (e.g. the nf3xn reverse shell that ``s10`` convicts). It therefore surfaces
-    for review and never rejects before the sandbox. Distinct from
+    as inventory and never warns/rejects by itself. Distinct from
     ``generic_publisher`` (missing/placeholder identity); this is *claimed-trusted*
     identity. ``adversary_class`` stays ``None`` per the static-IOC convention.
     """
 
     rule_id = "extrace.s1.reserved_publisher_spoof"
-    rule_version = "1.0.0"
+    rule_version = "1.1.0"
     lifecycle = RuleLifecycle.PRODUCTION
     adversary_class: AdversaryClass | None = None
-    severity = Severity.MEDIUM
+    severity = Severity.INFO
     description = (
         "Extension manifest claims a reserved / first-party brand publisher "
         "namespace (microsoft / ms-vscode / vscode / github / ...), the trust-"
@@ -249,13 +235,13 @@ class ReservedPublisherSpoofRule:
                 rule_lifecycle=self.lifecycle,
                 categories=["attack.T1036", "extrace.ext.publisher_impersonation"],
                 severity=self.severity,
-                confidence=Confidence.MEDIUM,
-                title="Extension claims a reserved first-party publisher namespace",
+                confidence=Confidence.LOW,
+                title="Extension claims a reserved publisher namespace",
                 description=(
                     f"Extension publisher is {publisher!r}, a reserved / first-party "
                     "brand namespace. A side-loaded extension that claims a trusted "
-                    "vendor identity is impersonating that vendor to borrow its "
-                    "trust. Name-only matching cannot by itself separate a spoof "
+                    "vendor identity requires provenance verification. Name-only "
+                    "matching cannot by itself separate a spoof "
                     "from a genuine first-party extension (the marketplace "
                     "verified-publisher signal, out of static scope, is the durable "
                     "disambiguator), so this is a provenance-review signal and a "

@@ -539,6 +539,7 @@ function gateDecisionTone(decision: StaticReportView["decision"]): V3Tone {
   if (decision === "allow") return "ok";
   if (decision === "warn") return "warn";
   if (decision === "block") return "danger";
+  if (decision === "inconclusive") return "warn";
   return "neutral";
 }
 
@@ -633,7 +634,10 @@ function StaticFindingRow({ finding }: { finding: GroupedStaticFinding }) {
 
 function StaticPreCheckPanel({ report }: { report: StaticReportView }) {
   const degraded =
-    report.partial || report.toolStatuses.some((tool) => tool.status !== "ok");
+    report.decision === "inconclusive" ||
+    report.partial ||
+    report.coverage.reasons.length > 0 ||
+    report.toolStatuses.some((tool) => tool.status !== "ok");
   const findings = groupStaticFindings(report.findings);
   const evidenceCount = findings.reduce(
     (total, finding) => total + finding.evidenceCount,
@@ -644,6 +648,12 @@ function StaticPreCheckPanel({ report }: { report: StaticReportView }) {
   const summary =
     report.decision === "allow"
       ? report.allowReason || "No rule crossed the static gate threshold."
+      : report.decision === "inconclusive"
+        ? `Static coverage is incomplete: ${
+            report.inconclusiveReasons.length
+              ? report.inconclusiveReasons.join(", ")
+              : "the analyzer reported a partial result"
+          }.`
       : `${pluralize(ruleCount, "rule")} ${
           report.decision === "block"
             ? "blocked this run"
@@ -695,7 +705,9 @@ function StaticPreCheckPanel({ report }: { report: StaticReportView }) {
             background: V3.warnBg,
           }}
         >
-          Partial coverage — a static tool degraded; results may be incomplete.
+          Inconclusive coverage — a static tool or enforced scan bound reduced
+          coverage. {report.coverage.filesScanned} of{" "}
+          {report.coverage.filesDiscovered} discovered files were scanned.
         </div>
       ) : null}
       {findings.length ? (

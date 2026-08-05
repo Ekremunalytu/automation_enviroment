@@ -150,14 +150,14 @@ const ENTRIES: RuleCatalogEntry[] = [
   },
   {
     ruleId: "extrace.s1.suspicious_capabilities",
-    label: "Elevated capabilities",
+    label: "Untrusted workspace support",
     stream: "static",
     family: "Execution",
     techniques: ["T1059"],
-    severity: "medium",
-    blurb: "The manifest requests elevated / sensitive capabilities.",
+    severity: "info",
+    blurb: "The manifest declares support for untrusted workspaces.",
     detail:
-      "The manifest requests elevated or sensitive capabilities (for example untrusted-workspace execution) beyond what its stated function appears to need. Over-broad capability requests widen the blast radius if the extension is malicious or compromised.",
+      "The manifest declares that the extension can run in untrusted workspaces. This is exposure metadata for reviewing Workspace Trust guards, not evidence of malicious behaviour; npm lifecycle scripts in a packaged VSIX are build metadata and do not fire this rule.",
   },
   {
     ruleId: "extrace.s1.generic_publisher",
@@ -176,10 +176,10 @@ const ENTRIES: RuleCatalogEntry[] = [
     stream: "static",
     family: "Masquerading",
     techniques: ["T1036"],
-    severity: "medium",
+    severity: "info",
     blurb: "The manifest claims a reserved first-party publisher namespace (ms-vscode / github / ...).",
     detail:
-      "The manifest publisher is a reserved first-party brand namespace (microsoft / ms-vscode / vscode / github / ...) — the trust-borrowing impersonation pattern used by malicious side-loaded VSIXs. Name-only matching cannot, on its own, separate a spoof from a genuine first-party extension (the durable disambiguator is the marketplace verified-publisher signal, which is out of static scope), so this warns for provenance review and never blocks — but it is a strong escalator when it co-occurs with a malicious capability such as a reverse shell.",
+      "The manifest publisher is a reserved first-party brand namespace (microsoft / ms-vscode / vscode / github / ...). Name-only matching cannot separate a spoof from a genuine first-party extension, so this remains INFO until marketplace provenance is verified; an independently proven malicious capability owns any WARN/BLOCK.",
   },
   {
     ruleId: "extrace.s2.typosquat",
@@ -198,10 +198,10 @@ const ENTRIES: RuleCatalogEntry[] = [
     stream: "static",
     family: "Ingress / Native Code",
     techniques: ["T1105"],
-    severity: "medium",
+    severity: "info",
     blurb: "Ships embedded native / binary files that execute outside the JS sandbox.",
     detail:
-      "The package ships embedded native or binary files (a .node addon, or an ELF / Mach-O / PE executable) that run outside the JavaScript sandbox. Native code is opaque to source review, so a bundled binary is a way to smuggle in logic the static scan cannot read.",
+      "The package ships embedded native or binary files (a .node addon, or an ELF / Mach-O / PE executable). Presence is INFO inventory because legitimate extensions ship native helpers; the separate S13 loader conjunction owns malicious native-loader escalation.",
   },
   {
     ruleId: "extrace.s3.unusual_file_signature",
@@ -209,7 +209,7 @@ const ENTRIES: RuleCatalogEntry[] = [
     stream: "static",
     family: "Defense Evasion",
     techniques: ["T1027"],
-    severity: "low",
+    severity: "info",
     blurb: "Contains unusually large or obfuscated text/source files.",
     detail:
       "The tree contains unusually large or high-entropy text / source files — a shape consistent with bundled or obfuscated payloads. On its own it is weak signal, but it often accompanies packing used to hide executed logic.",
@@ -231,7 +231,7 @@ const ENTRIES: RuleCatalogEntry[] = [
     stream: "static",
     family: "Command & Control",
     techniques: ["T1071"],
-    severity: "medium",
+    severity: "info",
     blurb: "Hardcodes a routable public-IP literal and/or a cleartext http:// host.",
     detail:
       "The source hardcodes a routable public-IP literal and/or a cleartext http:// external host. A real extension talks to named services over TLS, so a raw public-IP target or an unencrypted endpoint is a classic command-and-control / staging shape. Loopback, private, and documentation ranges are excluded to keep it high-signal.",
@@ -275,10 +275,10 @@ const ENTRIES: RuleCatalogEntry[] = [
     stream: "static",
     family: "Integrity / Tampering",
     techniques: ["T1565"],
-    severity: "medium",
+    severity: "info",
     blurb: "Source recognises wallet-address formats (Base58 / Ethereum / bech32).",
     detail:
-      "The source contains cryptocurrency address patterns — Base58 (BTC), 0x + 40-hex (Ethereum), or bech32 / SegWit — the address-recognition capability a crypto-clipper needs before it can hijack a wallet address. MEDIUM, not a verdict: a genuine blockchain / wallet tool legitimately has these, so it surfaces the capability for review and escalates when it co-occurs with clipboard, file-write, or network access (the dynamic A5 file-tamper rule is its runtime counterpart).",
+      "The source contains quantified cryptocurrency address regexes — Base58 (BTC), 0x + 40-hex (Ethereum), or bech32 / SegWit. Recognition alone is INFO inventory; a clipboard or file-write mutation correlation must own escalation. Quantifiers exclude AES lookup arrays and MIPS bc1[ft] instruction patterns.",
   },
   {
     ruleId: "extrace.s10.reverse_shell",
@@ -289,7 +289,7 @@ const ENTRIES: RuleCatalogEntry[] = [
     severity: "critical",
     blurb: "Wires a child_process shell's stdio to a network socket.",
     detail:
-      "The source spawns an OS shell via child_process and pipes that shell's stdio to a raw network socket — the bidirectional wiring that defines an interactive reverse shell, handing a remote endpoint a live command channel on the victim with no user interaction. CRITICAL and one of the two static rules that BLOCK before the sandbox runs (with s11's download cradle): the match requires all three elements (shell spawn, socket, and a stdio-to-socket pipe) in one file, so the individually benign uses of child_process or a socket do not fire, and a shell piped to a socket has no legitimate explanation.",
+      "The source spawns an OS shell and connects the same process/socket variables on both stdio bridge directions inside a bounded region. That variable-connected topology defines an interactive reverse shell. Unrelated child_process, proxy-socket, and stream libraries elsewhere in a bundle cannot combine into this CRITICAL blocker.",
   },
   {
     ruleId: "extrace.s11.download_cradle",
@@ -311,7 +311,7 @@ const ENTRIES: RuleCatalogEntry[] = [
     severity: "critical",
     blurb: "Original source bytes contain invisible Unicode / PUA codepoint runs.",
     detail:
-      "The source contains invisible Unicode, variation-selector, or Private Use Area codepoints. A single character is only LOW signal, but a contiguous run is CRITICAL because it can hide payload text from reviewers and rendered source views; the scanner works over original packaged bytes rather than normalized text.",
+      "The source contains invisible Unicode, variation-selector, or Private Use Area codepoints. Runs shorter than 16 remain INFO because localization and generated Unicode tables legitimately contain them; 16+ contiguous codepoints are CRITICAL source-hiding evidence. The scanner works over original packaged bytes.",
   },
   {
     ruleId: "extrace.s13.native_node_loader",

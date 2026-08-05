@@ -3,6 +3,7 @@
 from appcore.contracts.schema_defs.activation_reports import (
     ActivationReportMetadata,
     ActivationReportResponse,
+    StaticReportArtifactResponse,
 )
 from appcore.contracts.schema_defs.analysis_bundle import AnalysisBundle
 from appcore.contracts.schema_defs.catalog import (
@@ -87,6 +88,7 @@ __all__ = [
     "SearchAllExtensionsInfo",
     "SearchRequest",
     "StaticAnalysisReport",
+    "StaticReportArtifactResponse",
     "SystemHealthResponse",
     "SystemInventoryItem",
     "SystemMetric",

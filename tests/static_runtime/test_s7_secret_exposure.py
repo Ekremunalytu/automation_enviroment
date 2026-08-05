@@ -43,3 +43,17 @@ def test_fires_on_github_token(make_context: MakeContext) -> None:
 def test_silent_for_clean_source(make_context: MakeContext) -> None:
     ctx = make_context(files={"a.js": "const apiBase = 'https://api.example.com';"})
     assert HardcodedSecretRule().evaluate(ctx) == []
+
+
+def test_paired_certificate_private_key_is_informational(
+    make_context: MakeContext,
+) -> None:
+    key_header = " ".join(("-----BEGIN", "PRIVATE", "KEY-----"))
+    key_footer = " ".join(("-----END", "PRIVATE", "KEY-----"))
+    src = (
+        "const cert = `-----BEGIN CERTIFICATE-----\\nMIIB\\n-----END CERTIFICATE-----`;"
+        f"const key = `{key_header}\\nMIIB\\n{key_footer}`;"
+    )
+    findings = HardcodedSecretRule().evaluate(make_context(files={"local-tls.js": src}))
+    assert len(findings) == 1
+    assert findings[0].severity.value == "info"

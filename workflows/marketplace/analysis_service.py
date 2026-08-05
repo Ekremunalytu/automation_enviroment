@@ -207,9 +207,10 @@ def _apply_static_gate_decision(
 ) -> StaticAnalysisReport:
     """Run the ``decision_gate`` step over the folded gate outcome.
 
-    ALLOW/WARN -> persist the static-only combined bundle, emit ``completed``, and
-    return the report so the dynamic stage proceeds and ES-5 can record
-    ``static_report_path`` at completion + fold the report into the response.
+    ALLOW/WARN/INCONCLUSIVE -> persist the static-only combined bundle, emit
+    ``completed``, and return the report so the dynamic stage proceeds and ES-5
+    can record ``static_report_path`` at completion + fold the report into the
+    response.
     BLOCK -> persist the combined bundle, then raise ``StaticAnalysisBlockedError``
     while ``decision_gate`` is still ``running`` (the reject transition marks it
     completed); the worker routes to ``reject_static_job``.
@@ -223,13 +224,20 @@ def _apply_static_gate_decision(
             f"({', '.join(outcome.blocked_by)}).",
             static_report=static_report,
         )
-    # ES-5 (ADR 0016): ALLOW/WARN persist the same static-only combined bundle
+    # ES-5 (ADR 0016): non-terminal outcomes persist the same static-only bundle
     # (``dynamic_bundle`` stays None — the dynamic report is surfaced separately
     # through ``report_path``). The completion path records the path in
     # ``static_report_path`` and ``GET /analyze/{job_id}`` folds the static report
     # into the response, so an ALLOW/WARN job's static findings are no longer lost.
     _persist_combined_bundle(static_report, host_report_path)
-    if outcome.decision is StaticGateDecision.WARN:
+    if outcome.decision is StaticGateDecision.INCONCLUSIVE:
+        reporter.emit(
+            "decision_gate",
+            "completed",
+            "Static coverage is inconclusive: "
+            f"{', '.join(outcome.inconclusive_reasons)}.",
+        )
+    elif outcome.decision is StaticGateDecision.WARN:
         reporter.emit(
             "decision_gate",
             "completed",

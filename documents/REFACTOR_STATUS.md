@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-07-27 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82. W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa. Prior close-outs: W20 PR #29 week20 -> main 64a3c3d · W19 PR #28 week19 -> main c879603 · W18 PR #26 week18 -> main 9874e79 · W17 PR #25 week17 -> main bff565d · W16 PR #23 week16 -> main 1b6d43f · W15 PR #22 week15 -> main 6161472 · W14 PR #21 week14 -> main 4e03c8d · W13 PR #20 week13 -> main 772deb3. Latest merged named stream: verdict-provenance-reproducibility (Stream 3 — B5+B6 spine; week label W26), merged via PR #38 week26 -> main bfb2d2d on 2026-07-27. ADR 0017 is Accepted + Implemented; no successor stream is open. Next execution gate: containment safety from active-work/v1-roadmap.md §4. Tracker: active-work/W26-verdict-provenance-reproducibility.md.`
+`Last Updated: 2026-08-05 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82. W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa. Prior close-outs: W20 PR #29 week20 -> main 64a3c3d · W19 PR #28 week19 -> main c879603 · W18 PR #26 week18 -> main 9874e79 · W17 PR #25 week17 -> main bff565d · W16 PR #23 week16 -> main 1b6d43f · W15 PR #22 week15 -> main 6161472 · W14 PR #21 week14 -> main 4e03c8d · W13 PR #20 week13 -> main 772deb3. Latest fully closed named stream: verdict-provenance-reproducibility (W26), PR #38 bfb2d2d. Active named stream: static-analysis-artifact-precision (SAP-0..SAP-6), tracker active-work/static-analysis-artifact-precision.md; the SMF foundation plus SAP-0..SAP-4 baseline merged via PR #40 and SAP-5 is next. Containment safety remains the next product/release gate from active-work/v1-roadmap.md §4.`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -15,6 +15,14 @@ phase evidence is frozen under dated snapshots:
   [`archive/status/REFACTOR_STATUS_full_2026-04-29.md`](archive/status/REFACTOR_STATUS_full_2026-04-29.md)
 
 ## Current State
+
+`static-analysis-artifact-precision` is ACTIVE. It is an offline/static SAR-2
+stream; it does not advance the W22 weekly pointer or displace the
+containment-first product execution order. The SMF foundation plus SAP-0
+through SAP-4 baseline merged to `main` via PR #40 after full host, database,
+security, rebuilt-executor, and rebuilt-static-analyzer validation. SAP-5
+reachability and deduplication is next; the stream remains active until SAP-6
+close-out.
 
 All weekly phases **W0-W22 are CLOSED and merged**. Per-phase PR/SHA close facts
 are in the `Last Updated:` banner above; full per-iter evidence is frozen in the

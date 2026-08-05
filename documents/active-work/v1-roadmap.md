@@ -1,10 +1,10 @@
 # ExTrace v1.0 Roadmap — From Finished Prototype To A Tool An Analyst Trusts Daily
 
-`Last Updated: 2026-07-29`
+`Last Updated: 2026-08-05`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Latest merged named stream: verdict-provenance-reproducibility (Stream 3 — B5+B6, the spine) — merged to main via PR #38 (week26 -> main, bfb2d2d) on 2026-07-27. It binds the verdict to vsix_sha256 and makes run_quality reproducible (ADR 0017 Accepted + Implemented; ADR 0016 additive --vsix-sha256 flag accepted). No successor stream is open. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
+`Active named stream: static-analysis-artifact-precision (SAP-0..SAP-6), limited to offline/static analysis; the SMF foundation plus SAP-0..SAP-4 baseline merged via PR #40 and SAP-5 is next. Latest fully closed named stream: verdict-provenance-reproducibility (W26), PR #38 bfb2d2d. Containment safety remains the next product/release gate.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + optional active stream; null when none is open).`
 
@@ -143,11 +143,11 @@ now **static-primary, dynamic-evidence**:
 5. **Release identity and operations (Stream 5 / B10)** — finish version,
    health, backup, and restore mechanics; then declare v1.0.
 
-The detailed non-active implementation proposal for the measured/static-primary
-slice is
+The detailed implementation roadmap for the measured/static-primary slice is
 [`static-analysis-improvement-roadmap.md`](static-analysis-improvement-roadmap.md).
-Its stable `SAR-0` through `SAR-7` packages refine Stream 6 without opening a
-successor stream or changing the containment-first execution order.
+Its stable `SAR-0` through `SAR-7` packages refine Stream 6. Increment A is open
+as `static-analysis-measurement-foundation` (`SMF-0`–`SMF-8`), an offline/static
+stream that does not change the containment-first product execution order.
 
 The numeric stream IDs remain frozen so ADRs, tests, and backlog references do
 not churn. This section controls execution order. Product positioning is
@@ -414,7 +414,7 @@ detail + stable IDs in `POST_POC_BACKLOG.md` "Newly Captured (extrace-audit
 - **Stream 3** — `[GOAL vsix-content-sha256-provenance]`, `[GOAL verdict-reproducibility-anchor]`.
 - **Stream 4** — `[GOAL report-export-artifact]`, `[FOLLOWUP vsix-entry-log-sanitization]` (existing), offline skip-reason UX.
 - **Stream 5** — `[CLEANUP version-identity-coherence]`, `[GOAL api-health-db-probe]`, `[GOAL podman-backup-restore]`.
-- **Stream 6** — `[GOAL measured-catch-rate-corpus]`, `[GOAL benign-false-positive-gate]`, `[GOAL platform-blind-verdict-annotation]`, `[GOAL adr-0015-e1-e2-evasion-detection]`, `[GOAL measured-layer-contribution]`, `[GOAL static-primary-threat-directed-dynamic]`; detailed non-active implementation packages: [`SAR-0`–`SAR-7`](static-analysis-improvement-roadmap.md).
+- **Stream 6** — `[GOAL measured-catch-rate-corpus]`, `[GOAL benign-false-positive-gate]`, `[GOAL platform-blind-verdict-annotation]`, `[GOAL adr-0015-e1-e2-evasion-detection]`, `[GOAL measured-layer-contribution]`, `[GOAL static-primary-threat-directed-dynamic]`; detailed packages: [`SAR-0`–`SAR-7`](static-analysis-improvement-roadmap.md); active Increment A tracker: [`SMF-0`–`SMF-8`](static-analysis-measurement-foundation.md).
 - **Stream 7** (post-v1.0) — `[GOAL sequential-batch-corpus]`.
 - **Stream 8** — `[GOAL per-analysis-disposable-sandbox]` (pre-v1 safety
   slice), `[GOAL container-hardening-ratchet-down]` (ADR 0013 §Deferred;

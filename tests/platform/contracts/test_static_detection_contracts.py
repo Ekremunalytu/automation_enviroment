@@ -10,7 +10,7 @@ ES-1b audit-fix invariants):
 4. v2 tool Literal pre-ship (yara / trivy slots land at ES-1)
 5. ``StaticDetectionReport`` wrapper composition
 6. severity-counts <-> ``Severity`` tier parity
-7. gate decision three-way (allow / warn / block)
+7. gate decision four-way (allow / warn / inconclusive / block)
 8. ``StaticGateOutcome`` shape + allow_reason-None-on-block invariant
 9. ``StaticToolExecutionRecord`` shape (db_freshness_days optional, v2 Trivy)
 10. ``CombinedAnalysisBundle`` composition (dynamic bundle optional on BLOCK)
@@ -37,13 +37,19 @@ from packages.analysis_contracts.detection.enums import (
 )
 from packages.analysis_contracts.detection.finding import DetectionFinding
 from packages.analysis_contracts.static_detection import (
+    STATIC_ANALYSIS_DEFAULT_TIMEOUT_BUDGET_S,
+    STATIC_ANALYSIS_MAX_TIMEOUT_BUDGET_S,
+    STATIC_ANALYSIS_MIN_TIMEOUT_BUDGET_S,
+    StaticArtifactInventoryEntry,
     StaticDetectionFinding,
     StaticDetectionReport,
     StaticEvidenceRef,
     StaticGateDecision,
     StaticGateOutcome,
+    StaticScanCoverage,
     StaticSeverityCounts,
     StaticToolExecutionRecord,
+    parse_static_analysis_timeout_budget,
 )
 
 
@@ -60,6 +66,33 @@ def _valid_finding(**overrides: object) -> StaticDetectionFinding:
     }
     payload.update(overrides)
     return StaticDetectionFinding(**payload)
+
+
+def test_static_analysis_timeout_budget_contract_is_bounded_to_ten_minutes() -> None:
+    assert STATIC_ANALYSIS_MIN_TIMEOUT_BUDGET_S == 5
+    assert STATIC_ANALYSIS_DEFAULT_TIMEOUT_BUDGET_S == 600
+    assert STATIC_ANALYSIS_MAX_TIMEOUT_BUDGET_S == 600
+    assert parse_static_analysis_timeout_budget("600") == 600
+
+    for invalid in ("4", "601", "unbounded"):
+        with pytest.raises(ValueError):
+            parse_static_analysis_timeout_budget(invalid)
+
+
+def test_static_coverage_records_bounded_structural_fallback_paths() -> None:
+    coverage = StaticScanCoverage(
+        structural_fallback_files=1,
+        structural_fallback_paths=["node_modules/vendor/bundle.js"],
+    )
+
+    assert coverage.structural_fallback_files == 1
+    assert coverage.structural_fallback_paths == ["node_modules/vendor/bundle.js"]
+
+    with pytest.raises(ValueError):
+        StaticScanCoverage(
+            structural_fallback_files=1,
+            structural_fallback_paths=["../outside.js"],
+        )
 
 
 def test_finding_field_set_parity_with_dynamic() -> None:
@@ -170,6 +203,104 @@ def test_report_schema_v2_and_partial_flag() -> None:
         StaticDetectionReport.model_validate({"schema_version": "2", "bogus": 1})
 
 
+def test_artifact_inventory_is_additive_bounded_and_deterministic() -> None:
+    first = StaticArtifactInventoryEntry(
+        relative_path=r"node_modules\pkg\index.js",
+        role="dependency_runtime",
+        format="text",
+        size_bytes=12,
+        header_sha256="a" * 64,
+        header_bytes_read=12,
+        extension_header_match=True,
+        dependency_owner="pkg",
+        is_vendor=True,
+        disposition="inventory_only",
+        disposition_reasons=["dependency_inventory_only"],
+    )
+    second = StaticArtifactInventoryEntry(
+        relative_path="dist/main.js",
+        role="first_party_runtime",
+        format="text",
+        size_bytes=4,
+        header_sha256="b" * 64,
+        header_bytes_read=4,
+        extension_header_match=True,
+        entrypoint_reachability="direct",
+        disposition="deep_scan",
+        disposition_reasons=["first_party_runtime", "direct_manifest_entrypoint"],
+    )
+    report = StaticDetectionReport(artifact_inventory=[first, second])
+    assert [entry.relative_path for entry in report.artifact_inventory] == [
+        "dist/main.js",
+        "node_modules/pkg/index.js",
+    ]
+    assert (
+        StaticDetectionReport.model_validate({"schema_version": "2"}).artifact_inventory
+        == []
+    )
+
+
+def test_artifact_inventory_normalizes_safe_relative_paths() -> None:
+    entry = StaticArtifactInventoryEntry(
+        relative_path="./dist//main.js",
+        role="first_party_runtime",
+        format="text",
+        size_bytes=4,
+        disposition="deep_scan",
+        disposition_reasons=["first_party_runtime"],
+    )
+    assert entry.relative_path == "dist/main.js"
+
+
+def test_artifact_inventory_rejects_duplicate_normalized_paths() -> None:
+    entry = StaticArtifactInventoryEntry(
+        relative_path="dist/main.js",
+        role="first_party_runtime",
+        format="text",
+        size_bytes=4,
+        disposition="deep_scan",
+        disposition_reasons=["first_party_runtime"],
+    )
+    duplicate = StaticArtifactInventoryEntry(
+        relative_path=r"dist\main.js",
+        role="first_party_runtime",
+        format="text",
+        size_bytes=4,
+        disposition="deep_scan",
+        disposition_reasons=["first_party_runtime"],
+    )
+
+    with pytest.raises(ValidationError, match="paths must be unique"):
+        StaticDetectionReport(artifact_inventory=[entry, duplicate])
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"relative_path": "../escape.js"},
+        {"size_bytes": -1},
+        {"header_sha256": "ABC"},
+        {"disposition_reasons": ["first_party_runtime"] * 9},
+    ],
+)
+def test_artifact_inventory_rejects_unsafe_or_unbounded_values(
+    overrides: dict[str, object],
+) -> None:
+    payload: dict[str, object] = {
+        "relative_path": "dist/main.js",
+        "role": "first_party_runtime",
+        "format": "text",
+        "size_bytes": 4,
+        "header_sha256": "a" * 64,
+        "header_bytes_read": 4,
+        "disposition": "deep_scan",
+        "disposition_reasons": ["first_party_runtime"],
+    }
+    payload.update(overrides)
+    with pytest.raises(ValidationError):
+        StaticArtifactInventoryEntry(**payload)
+
+
 def test_severity_counts_parity_with_severity_enum() -> None:
     """StaticSeverityCounts has exactly one field per Severity tier."""
     assert set(StaticSeverityCounts.model_fields) == {s.value for s in Severity}
@@ -197,8 +328,13 @@ def test_detection_report_wrapper_composition() -> None:
     assert report.generated_at is not None
 
 
-def test_gate_decision_is_three_way() -> None:
-    assert {d.value for d in StaticGateDecision} == {"allow", "warn", "block"}
+def test_gate_decision_includes_inconclusive() -> None:
+    assert {d.value for d in StaticGateDecision} == {
+        "allow",
+        "warn",
+        "block",
+        "inconclusive",
+    }
 
 
 def test_gate_outcome_shape_and_allow_reason_invariant() -> None:
@@ -209,6 +345,10 @@ def test_gate_outcome_shape_and_allow_reason_invariant() -> None:
     assert blocked.allow_reason is None
     assert blocked.decided_at is not None
     StaticGateOutcome(decision=StaticGateDecision.ALLOW, allow_reason="no findings")
+    StaticGateOutcome(
+        decision=StaticGateDecision.INCONCLUSIVE,
+        inconclusive_reasons=["manifest_malformed"],
+    )
     with pytest.raises(ValidationError):
         StaticGateOutcome(decision=StaticGateDecision.BLOCK, allow_reason="nope")
 
@@ -270,6 +410,8 @@ def test_gate_outcome_requires_machine_readable_cause() -> None:
         warned_by=["01J0000000000000000000000B"],
     )
     StaticGateOutcome(decision=StaticGateDecision.ALLOW)
+    with pytest.raises(ValidationError):
+        StaticGateOutcome(decision=StaticGateDecision.INCONCLUSIVE)
 
 
 def test_evidence_ref_rejects_unsafe_relative_path() -> None:
@@ -291,3 +433,34 @@ def test_evidence_ref_rejects_unsafe_relative_path() -> None:
     for bad in ("a\nb", "a\x00b", "tab\tx"):
         with pytest.raises(ValidationError):
             StaticEvidenceRef(type="manifest", relative_path=bad, tool="inhouse")
+
+
+def test_static_coverage_rejects_unsafe_or_unbounded_path_details() -> None:
+    with pytest.raises(ValidationError, match="safe and relative"):
+        StaticScanCoverage(skipped_paths_by_reason={"parser_error": ["../outside.js"]})
+    with pytest.raises(ValidationError, match="safe and relative"):
+        StaticScanCoverage(skipped_paths_by_reason={"parser_error": ["C:\\outside.js"]})
+    with pytest.raises(ValidationError, match="must be bounded"):
+        StaticScanCoverage(
+            skipped_paths_by_reason={
+                "parser_error": [f"file-{index}.js" for index in range(21)]
+            }
+        )
+
+
+def test_static_coverage_normalizes_relative_paths_deterministically() -> None:
+    coverage = StaticScanCoverage(
+        skipped_paths_by_reason={
+            "parser_error": ["src\\extension.js", "src/extension.js"]
+        },
+        critical_entrypoints=["dist\\extension.js", "dist/extension.js"],
+        critical_entrypoints_parsed=["dist\\extension.js"],
+    )
+
+    assert coverage.skipped_paths_by_reason == {"parser_error": ["src/extension.js"]}
+    assert coverage.critical_entrypoints == ["dist/extension.js"]
+    assert coverage.critical_entrypoints_parsed == ["dist/extension.js"]
+
+    for unsafe in ("C:\\outside.js", "\\absolute.js", "src\nentry.js"):
+        with pytest.raises(ValidationError, match="safe and relative"):
+            StaticScanCoverage(critical_entrypoints=[unsafe])

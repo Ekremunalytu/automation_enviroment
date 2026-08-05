@@ -297,8 +297,9 @@ girer.
 - **S2 crypto-awareness** — `extrace.s9.crypto_address_scan`
   ([rule](../../static_runtime/rules/s9_crypto_address_scan.py) ·
   [test](../../tests/static_runtime/test_s9_crypto_address_scan.py)), Base58 / ETH
-  (`0x`+40-hex, SHA-1 FP-guard'lı) / bech32 regex presence, severity **MEDIUM**
-  (WARN; capability indicator — meşru kripto eklentisinde de fire eder, kasıtlı).
+  (`0x`+40-hex, SHA-1 FP-guard'lı) / quantified bech32 regex presence, severity
+  **INFO** (capability inventory; WARN ancak clipboard/file-write korelasyonuna
+  aittir).
 - **S6/B3 clipper (dynamic)** — `extrace.a5.workspace_file_tamper`
   ([rule](../../packages/analysis_engine/rules/a5_workspace_file_tamper.py) ·
   [test](../../tests/security/rules/test_a5_workspace_file_tamper.py) · synthetic

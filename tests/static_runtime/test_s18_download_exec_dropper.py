@@ -92,3 +92,16 @@ def test_silent_for_non_exec_chmod_mode(make_context: MakeContext) -> None:
     )
     ctx = make_context(files={"x.js": src})
     assert DownloadExecDropperRule().evaluate(ctx) == []
+
+
+def test_silent_when_chmod_and_exec_are_unrelated_bundle_regions(
+    make_context: MakeContext,
+) -> None:
+    padding = "const bundledData = '" + ("x" * 9000) + "';"
+    src = (
+        "fs.chmodSync(localTool, 0o755);"
+        + padding
+        + 'child_process.spawn("git", ["status"]);'
+    )
+    ctx = make_context(files={"bundle.js": src})
+    assert DownloadExecDropperRule().evaluate(ctx) == []

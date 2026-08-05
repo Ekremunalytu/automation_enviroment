@@ -18,10 +18,17 @@ Stack:
 
 Routes:
 
-- `/reports?report=latest&tab=overview` — report selector, evidence search,
-  summary rail, Risk Radar, verdict decision band, and finding breakdowns
+- `/reports?report=latest&tab=overview` — current report workspace. With
+  dynamic analysis enabled it shows activation evidence, Risk Radar, verdict,
+  and findings. With dynamic analysis disabled it resolves the newest static
+  artifact independently and shows its decision, findings, gate reasons,
+  coverage, and tool status instead
 - `/reports?report=latest&tab=matrix` — dynamic/static rule activation matrix;
-  static tool status is shown with the static band
+  static tool status is shown with the static band. In static-only mode the
+  matrix remains available while dynamic rule cells are explicitly disabled
+- `/reports?report=latest&tab=inspection` — latest static artifact inspection;
+  gate decision, severity distribution, coverage field, tool performance,
+  filterable findings, source footprint, and exact evidence locations
 - `/simulation?job=<jobId>&tab=live`
 - `/marketplace?q=<query>` and `/marketplace?mode=offline` — online/offline
   intake; download/ingest stays available while dynamic analysis is off
@@ -39,6 +46,11 @@ Key behavior:
   `GET|PUT /api/settings/executor/preferences`; when disabled, synchronous and
   background marketplace analysis still run the static pre-check and explicitly
   skip the five dynamic sandbox stages
+- when dynamic analysis is disabled, `report=latest` never falls back to or
+  merges an unrelated activation report: Overview and Rule matrix consume
+  `GET /api/reports/static/latest`; evidence search, filters, Interactions,
+  Timeline, Event ledger, and Audit are disabled. Explicitly selected
+  historical activation reports remain inspectable as historical evidence
 - Marketplace download/ingest starts the applicable analysis pipeline; ready
   packages expose `Run static scan` while dynamic analysis is off and `Analyze`
   when both static and dynamic stages are available
@@ -91,6 +103,13 @@ make ui-boundaries
 
 ## Recent Changes
 
+- 2026-07-31: added Static analysis inspection beside Rule matrix in Reports
+  for the newest static artifact, with measured coverage/severity/tool
+  visualizations and filterable source-level evidence.
+- 2026-07-31: Reports `latest` now presents the newest independent static
+  artifact when dynamic analysis is disabled. Overview exposes the static gate
+  decision, findings, coverage, and tool health; dynamic-only controls and tabs
+  are visibly disabled, while historical activation reports remain available.
 - 2026-07-29: dynamic-analysis off no longer blocks marketplace analysis.
   Static pre-checks run to completion, dynamic sandbox steps are marked skipped,
   and the simulation view reports a truthful static-only completion.

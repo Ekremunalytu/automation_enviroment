@@ -545,6 +545,12 @@ export interface ActivationReportDto {
   _metadata?: ActivationReportMetadataDto | null;
 }
 
+export interface StaticReportArtifactDto {
+  filename: string;
+  modified: number;
+  static_report: StaticAnalysisReportDto;
+}
+
 export interface MarketplaceExtensionDto {
   publisher: string;
   name: string;
@@ -688,12 +694,13 @@ export interface AnalyzeJobStatusDto {
   static_report?: StaticAnalysisReportDto | null;
 }
 
-export type StaticGateDecisionDto = "allow" | "warn" | "block";
+export type StaticGateDecisionDto = "allow" | "warn" | "block" | "inconclusive";
 
 export interface StaticGateOutcomeDto {
   decision: StaticGateDecisionDto;
   blocked_by?: string[];
   warned_by?: string[];
+  inconclusive_reasons?: string[];
   allow_reason?: string | null;
   decided_at?: string;
 }
@@ -705,6 +712,22 @@ export interface StaticEvidenceRefDto {
   snippet?: string | null;
   tool: string;
   rule_match_id?: string | null;
+}
+
+export interface StaticArtifactInventoryEntryDto {
+  relative_path: string;
+  role: "manifest" | "first_party_runtime" | "dependency_runtime" | "documentation" | "license" | "test" | "asset" | "source_map" | "configuration" | "native" | "wasm" | "archive" | "unknown";
+  format: "text" | "png" | "jpeg" | "gif" | "webp" | "font" | "sqlite" | "zip" | "gzip" | "7z" | "rar" | "tar" | "pe" | "elf" | "mach_o" | "wasm" | "opaque_binary" | "unknown";
+  size_bytes: number;
+  header_sha256?: string | null;
+  header_bytes_read?: number;
+  extension_header_match?: boolean | null;
+  dependency_owner?: string | null;
+  is_vendor?: boolean;
+  is_minified?: boolean;
+  entrypoint_reachability?: "direct" | "none" | "unknown";
+  disposition: "deep_scan" | "inventory_only" | "skipped";
+  disposition_reasons: ("first_party_runtime" | "direct_manifest_entrypoint" | "inhouse_finding_evidence" | "format_extension_mismatch" | "dependency_inventory_only" | "vendor_inventory_only" | "minified_inventory_only" | "non_runtime_artifact" | "unsupported_format" | "target_too_large" | "read_error" | "deep_scan_target_cap")[];
 }
 
 export interface StaticDetectionFindingDto {
@@ -731,7 +754,29 @@ export interface StaticToolExecutionRecordDto {
   status?: "ok" | "partial" | "error" | "timeout";
   error_count?: number;
   errored_rule_ids?: string[];
+  coverage?: StaticScanCoverageDto;
   db_freshness_days?: number | null;
+}
+
+export interface StaticScanCoverageDto {
+  files_discovered?: number;
+  files_selected?: number;
+  files_eligible?: number;
+  files_scanned?: number;
+  files_parsed?: number;
+  files_skipped_by_reason?: Record<string, number>;
+  skipped_paths_by_reason?: Record<string, string[]>;
+  bytes_considered?: number;
+  bytes_read?: number;
+  manifest_status?: "parsed" | "missing" | "malformed" | "too_large" | "unreadable" | "non_object";
+  critical_entrypoints?: string[];
+  critical_entrypoints_parsed?: string[];
+  file_cap_reached?: boolean;
+  finding_cap_reached?: boolean;
+  unsupported_formats?: Record<string, number>;
+  structural_fallback_files?: number;
+  structural_fallback_paths?: string[];
+  coverage_reasons?: ("file_cap" | "target_too_large" | "text_truncated" | "undecodable" | "unsupported_suffix" | "parser_error" | "manifest_missing" | "manifest_malformed" | "manifest_too_large" | "critical_entrypoint_missing" | "critical_entrypoint_unparsed" | "rule_timeout" | "tool_timeout" | "tool_error" | "finding_cap" | "budget_stop" | "excluded_inventory_only" | "deep_scan_target_cap")[];
 }
 
 export interface StaticSeverityCountsDto {
@@ -748,6 +793,8 @@ export interface StaticDetectionReportDto {
   tool_executions?: StaticToolExecutionRecordDto[];
   severity_counts?: StaticSeverityCountsDto;
   partial?: boolean;
+  coverage?: StaticScanCoverageDto;
+  artifact_inventory?: StaticArtifactInventoryEntryDto[];
   generated_at?: string;
   vsix_sha256?: string;
 }

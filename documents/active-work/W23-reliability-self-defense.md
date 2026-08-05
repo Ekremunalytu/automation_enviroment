@@ -6,7 +6,7 @@
 
 `Owner: ekrem`
 
-`Status: MERGED — closed via PR #35 (week23 -> main) 2026-06-12, merge commit 653d807. All sub-items S0-S7 landed (S6 = the close-out PR #35 itself, merged 653d807); v1.0 bars B1/B3/B4 + F-2/F-3 closed; migration c3f8a1d7e9b2 on main. Named stream — last_merged_weekly stays W22. phase.json.active_stream named reliability-self-defense while this stream was open; it is now null because no successor to closed W26 is open. Codex review 2026-06-12 dispositions in the pre-close checklist below; pre-existing ui-boundaries/SettingsPage-ESLint waived (not W23).`
+`Status: MERGED — closed via PR #35 (week23 -> main) 2026-06-12, merge commit 653d807. All sub-items S0-S7 landed (S6 = the close-out PR #35 itself, merged 653d807); v1.0 bars B1/B3/B4 + F-2/F-3 closed; migration c3f8a1d7e9b2 on main. Named stream — last_merged_weekly stays W22. phase.json.active_stream named reliability-self-defense while this stream was open and later returned to null after W26; the current pointer names static-analysis-artifact-precision. Codex review 2026-06-12 dispositions in the pre-close checklist below; pre-existing ui-boundaries/SettingsPage-ESLint waived (not W23).`
 
 > Scope locked to **tight Stream 1** (per the 2026-06-08 planning session):
 > reliability/self-defense only. The broader "Week24 trust floor" addendum

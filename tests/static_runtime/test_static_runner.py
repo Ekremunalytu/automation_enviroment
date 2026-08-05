@@ -16,9 +16,10 @@ from packages.analysis_contracts.detection.enums import (
 from packages.analysis_contracts.static_detection import (
     StaticDetectionFinding,
     StaticDetectionReport,
+    StaticScanCoverage,
     StaticToolExecutionRecord,
 )
-from static_runtime import static_runner
+from static_runtime import artifact_inventory, static_runner
 from static_runtime.semgrep_runner import SemgrepRunResult
 from static_runtime.static_runner import run_static_detection_engine
 
@@ -47,8 +48,9 @@ def test_runner_emits_inhouse_tool_record_for_empty_tree(tmp_path: Path) -> None
     assert record.version == "1.0.0"
     assert record.rules_loaded == 26
     assert record.findings_emitted == 0
-    assert record.status == "ok"
-    assert report.partial is False
+    assert record.status == "partial"
+    assert report.partial is True
+    assert "manifest_missing" in report.coverage.coverage_reasons
     assert report.severity_counts.model_dump() == {
         "critical": 0,
         "high": 0,
@@ -66,6 +68,7 @@ def test_runner_rolls_up_findings_for_malicious_tree(tmp_path: Path) -> None:
                 "name": "thing",
                 "activationEvents": ["*"],
                 "scripts": {"postinstall": "node steal.js"},
+                "capabilities": {"untrustedWorkspaces": {"supported": True}},
             }
         ),
         encoding="utf-8",
@@ -99,7 +102,45 @@ def test_runner_report_round_trips_through_contract(tmp_path: Path) -> None:
     doc = json.loads(report.model_dump_json())
     StaticDetectionReport.model_validate(doc)
     assert doc["schema_version"] == "2"
+    assert [entry["relative_path"] for entry in doc["artifact_inventory"]] == [
+        "package.json"
+    ]
     assert any(f["rule_id"] == "extrace.s2.typosquat" for f in doc["findings"])
+
+
+def test_runner_accounts_for_all_106_supported_files(tmp_path: Path) -> None:
+    """The Copilot-sized supported-text shape has no hidden coverage gap."""
+
+    (tmp_path / "package.json").write_text(
+        json.dumps(
+            {
+                "publisher": "trusted-publisher",
+                "name": "complete-tree",
+                "main": "src/file-000.js",
+            }
+        ),
+        encoding="utf-8",
+    )
+    source_dir = tmp_path / "src"
+    source_dir.mkdir()
+    for index in range(105):
+        (source_dir / f"file-{index:03d}.js").write_text(
+            "module.exports = {};\n",
+            encoding="utf-8",
+        )
+
+    report = _inhouse_only(
+        vsix_dir=str(tmp_path), rules_version="1.0.0", timeout_budget_s=600
+    )
+
+    assert report.partial is False
+    assert report.coverage.files_discovered == 106
+    assert report.coverage.files_selected == 106
+    assert report.coverage.files_scanned == 106
+    assert report.coverage.files_parsed == 106
+    assert report.coverage.files_skipped_by_reason == {}
+    assert report.coverage.coverage_reasons == []
+    assert len(report.artifact_inventory) == 106
 
 
 def test_runner_zero_budget_runs_all_rules(tmp_path: Path) -> None:
@@ -168,6 +209,7 @@ def test_inhouse_rule_error_degrades_to_partial_and_is_recorded(
     assert record.status == "partial"
     assert record.error_count == 1
     assert record.errored_rule_ids == ["extrace.test.bad"]
+    assert "tool_error" in record.coverage.coverage_reasons
     assert report.partial is True
     assert record.findings_emitted == 1
     assert [f.rule_id for f in report.findings] == ["extrace.test.good"]
@@ -205,6 +247,7 @@ def test_inhouse_budget_trip_marks_partial_and_stops_early(
     assert report.partial is True
     assert record.error_count == 0
     assert record.errored_rule_ids == []
+    assert "budget_stop" in record.coverage.coverage_reasons
     # Only the first rule ran before the budget tripped.
     assert record.findings_emitted == 1
     assert [f.rule_id for f in report.findings] == ["extrace.test.first"]
@@ -219,6 +262,7 @@ def _fake_semgrep_result(
     findings: list[StaticDetectionFinding] | None = None,
     *,
     status: Literal["ok", "partial", "error", "timeout"] = "ok",
+    coverage: StaticScanCoverage | None = None,
 ) -> SemgrepRunResult:
     findings = findings or []
     return SemgrepRunResult(
@@ -230,6 +274,7 @@ def _fake_semgrep_result(
             findings_emitted=len(findings),
             duration_ms=1,
             status=status,
+            coverage=coverage or StaticScanCoverage(),
         ),
     )
 
@@ -250,6 +295,11 @@ def _semgrep_finding() -> StaticDetectionFinding:
 def test_runner_combines_inhouse_and_semgrep(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    (tmp_path / "package.json").write_text(
+        json.dumps({"publisher": "trusted", "main": "extension.js"}),
+        encoding="utf-8",
+    )
+    (tmp_path / "extension.js").write_text("module.exports = {};", encoding="utf-8")
     monkeypatch.setattr(
         static_runner,
         "run_semgrep",
@@ -266,6 +316,29 @@ def test_runner_combines_inhouse_and_semgrep(
     assert report.partial is False
 
 
+def test_runner_merges_semgrep_structural_fallback_observability(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fallback_coverage = StaticScanCoverage(
+        structural_fallback_files=1,
+        structural_fallback_paths=["node_modules/vendor/bundle.js"],
+    )
+    monkeypatch.setattr(
+        static_runner,
+        "run_semgrep",
+        lambda **_kw: _fake_semgrep_result(coverage=fallback_coverage),
+    )
+
+    report = run_static_detection_engine(
+        vsix_dir=str(tmp_path), rules_version="1.0.0", timeout_budget_s=30
+    )
+
+    assert report.coverage.structural_fallback_files == 1
+    assert report.coverage.structural_fallback_paths == [
+        "node_modules/vendor/bundle.js"
+    ]
+
+
 def test_runner_partial_when_semgrep_times_out(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -280,3 +353,44 @@ def test_runner_partial_when_semgrep_times_out(
     assert report.partial is True
     assert report.tool_executions[1].tool == "semgrep"
     assert report.tool_executions[1].status == "timeout"
+
+
+def test_runner_forwards_bounded_inventory_selection_to_semgrep(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "package.json").write_text(
+        json.dumps(
+            {
+                "publisher": "trusted",
+                "main": "dist/a.min.js",
+                "browser": "dist/b.min.js",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "dist").mkdir()
+    for name in ("a.min.js", "b.min.js"):
+        (tmp_path / "dist" / name).write_text("module.exports = {};", encoding="utf-8")
+
+    monkeypatch.setattr(artifact_inventory, "MAX_EXTRA_DEEP_SCAN_TARGETS", 1)
+    captured: dict[str, object] = {}
+
+    def fake_semgrep(**kwargs: object) -> SemgrepRunResult:
+        captured.update(kwargs)
+        return _fake_semgrep_result(status="partial")
+
+    monkeypatch.setattr(static_runner, "run_semgrep", fake_semgrep)
+    report = run_static_detection_engine(
+        vsix_dir=str(tmp_path), rules_version="1.0.0", timeout_budget_s=30
+    )
+
+    targets = captured["deep_scan_targets"]
+    assert isinstance(targets, tuple)
+    assert [Path(path).name for path in targets] == ["a.min.js"]
+    assert captured["deep_scan_target_cap_reached"] is True
+    inventory_by_path = {
+        entry.relative_path: entry for entry in report.artifact_inventory
+    }
+    assert inventory_by_path["dist/a.min.js"].disposition == "deep_scan"
+    assert inventory_by_path["dist/b.min.js"].disposition == "skipped"
+    assert report.partial is True

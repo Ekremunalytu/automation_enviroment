@@ -83,7 +83,7 @@ flowchart LR
   - `packages/analysis_engine/rules/` currently ships A1-A8 dynamic
     production rules plus the demo canary (A5/A7/A8 landed after the W7
     acceptance window; allow-list at
-    `packages/analysis_engine/allowlists/popular_extensions.txt`)
+    `packages/analysis_contracts/data/popular_extensions.txt`)
   - `extensions/malicious/` T1 canary manifests for the PoC classes and
     post-W22 security-development additions
   - `tests/security/` plus local `make test-security` and break-glass

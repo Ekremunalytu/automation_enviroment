@@ -25,13 +25,13 @@ belong to campaign context unless the scanned VSIX itself exposes evidence.
 
 | Signal | Rule layer | Rule id | Status |
 |---|---|---|---|
-| UC2 invisible Unicode / PUA run in original source bytes | in-house static | `extrace.s12.invisible_unicode_run` | shipped - CRITICAL when run >= 3 |
+| UC2 invisible Unicode / PUA run in original source bytes | in-house static | `extrace.s12.invisible_unicode_run` | shipped - CRITICAL when run >= 16; shorter runs INFO |
 | NL bundled `.node` native load with platform dispatch and host context | in-house static | `extrace.s13.native_node_loader` | shipped - CRITICAL for GlassWorm-strength conjunction |
 | AA globalState timestamp dormancy / throttle | in-house static | `extrace.s14.globalstate_dormancy` | shipped - MEDIUM telemetry/warn |
 | Raw public-IP / cleartext C2 endpoint | in-house static | `extrace.s5.suspicious_network_endpoint` | pre-existing - MEDIUM |
 | Curated known-bad C2 host/IP in source | in-house static | `extrace.s4.blacklisted_domain` | pre-existing - HIGH |
 | Observed outbound C2 host/IP | dynamic | `extrace.a7.blacklisted_domain` | pre-existing - HIGH |
-| Embedded native binary in package tree | in-house static | `extrace.s3.embedded_native_binary` | pre-existing - MEDIUM |
+| Embedded native binary in package tree | in-house static | `extrace.s3.embedded_native_binary` | pre-existing - INFO inventory; S13 owns conviction |
 
 The durable detection is behavior-first: source steganography, native-loader
 shape, platform gate, host-context invoke, and stateful dormancy. IOCs enrich the

@@ -117,3 +117,30 @@ def test_silent_for_reading_another_extension_without_write(
     )
     ctx = make_context(files={"extension.js": src})
     assert CrossExtensionTamperRule().evaluate(ctx) == []
+
+
+def test_silent_for_unproven_extension_uri_receiver(
+    make_context: MakeContext,
+) -> None:
+    src = (
+        "function cache(extension) {"
+        "const dst = path.join(extension.extensionUri.fsPath, 'cache.json');"
+        "fs.writeFileSync(dst, '{}');"
+        "}"
+    )
+    ctx = make_context(files={"extension.js": src})
+    assert CrossExtensionTamperRule().evaluate(ctx) == []
+
+
+def test_silent_for_minified_variable_collision_across_bundle_regions(
+    make_context: MakeContext,
+) -> None:
+    padding = "const bundledData = '" + ("x" * 9000) + "';"
+    src = (
+        'const target = vscode.extensions.getExtension("other.ext");'
+        "const f = path.join(target.extensionPath, 'main.js');"
+        + padding
+        + "function unrelated(f) { fs.writeFileSync(f, '{}'); }"
+    )
+    ctx = make_context(files={"bundle.js": src})
+    assert CrossExtensionTamperRule().evaluate(ctx) == []

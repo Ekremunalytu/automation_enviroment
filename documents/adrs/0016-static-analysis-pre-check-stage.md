@@ -7,7 +7,8 @@
   the live Docker smoke evidence passed (in-house `s3.*` + Semgrep
   `sg.*` rules fire in the hardened container; gate WARN/ALLOW threads
   into the API/UI).
-- Date: 2026-05-29 (Proposed) · 2026-06-01 (Accepted + Implemented)
+- Date: 2026-05-29 (Proposed) · 2026-06-01 (Accepted + Implemented) ·
+  2026-07-30 (SMF conclusion-quality amendment)
 - Authors: ekrem + Claude
 - Driving stream: Static Analysis Pre-Check Stream — ES-0 doc-reconcile
 - Related: ADR 0002 (threat model), ADR 0003 (detection taxonomy), ADR
@@ -58,6 +59,10 @@ The static stage gates the dynamic stage:
   dynamic stage is skipped and downstream steps are marked `skipped`.
 - **LOW / MEDIUM findings → warn.** The dynamic stage proceeds and the
   warnings ride along in the combined bundle.
+- **Schema-valid partial/error/timeout without a blocker → INCONCLUSIVE.**
+  The dynamic stage proceeds, real warning rule IDs remain in `warned_by`,
+  and bounded coverage/tool causes live in `inconclusive_reasons`. No clean
+  `allow_reason` is permitted.
 - One curated HIGH-severity blocker is promoted to BLOCK via a
   frozenset, not config: `_PROMOTED_HIGH_BLOCKERS =
   frozenset({"extrace.s2.typosquat"})`. Changes to this set require an
@@ -68,6 +73,10 @@ The static stage gates the dynamic stage:
 `ACTIVE_ANALYSIS_JOB_STATUSES`; the partial unique index
 `uq_analysis_jobs_single_active` is not widened to include it.
 
+Decision precedence is `BLOCK > INCONCLUSIVE > WARN > ALLOW`. An unreadable or
+schema-invalid report still fails closed as a tool error; `INCONCLUSIVE` is for
+schema-valid reports whose measured coverage is incomplete.
+
 ### 2. Separate hardened container `automation_static_analyzer`
 
 Static analysis runs in a dedicated Docker service — NOT inline in
@@ -76,7 +85,8 @@ envelope:
 
 - `network_mode: "none"`, `cap_drop: [ALL]`, `no-new-privileges: true`
 - non-root user, no `cap_add`, no `docker.sock` mount
-- `mem_limit: 1g`, `cpus: 1.0`
+- initial `mem_limit: 1g`, `cpus: 1.0` envelope, superseded by amendment A3
+  to `mem_limit: 2g`, `cpus: 1.0`
 - read-only mount of the extensions input
   (`/extensions-input:ro`); read-write mount of results (`/results:rw`)
 
@@ -106,6 +116,11 @@ The MVP ships two tools writing into one `StaticDetectionReport`:
   from the handoff's `packages/analysis_engine/static_rules/`; see the tracker).
 - **Semgrep** — 4 custom YAML rules for the JS patterns above, run with
   `--metrics=off` and no external network.
+
+The historical MVP counts above remain the ES-4 decision record. Current
+production has 26 in-house rules and 16 Semgrep advisory echoes. The SMF
+amendment keeps both tools bounded to 32 MiB per text target under the unchanged
+outer timeout; targets above the cap remain visibly incomplete.
 
 Deferred to v2, each via a separate amendment to this ADR + its own
 sub-iter: YARA (embedded-artifact + base64-decoder co-occurrence), Trivy
@@ -154,6 +169,9 @@ regression documented in the handoff.
   scan now runs the static gate ahead of the sandbox; a swallowed tool
   error / timeout surfaces through `StaticToolExecutionRecord.status` +
   `StaticDetectionReport.partial` (observability v2), never a silent ALLOW.
+  Common webpack/esbuild bundles are read up to the shared 32 MiB per-file
+  ceiling; larger files remain bounded and conclude `INCONCLUSIVE` unless a
+  blocker takes precedence.
 - New security-lane tests must be enrolled into the explicit file list in
   the `test-security` Makefile target; it does not auto-discover.
 
@@ -229,6 +247,42 @@ report, marks all five dynamic steps `skipped`, and does not create or advertise
 a dynamic activation report. The preference is snapshotted when the request is
 accepted so a mid-run setting change cannot silently alter the selected
 pipeline. Implemented 2026-07-29.
+
+### A3 — measurement foundation and conclusion quality
+
+The 2026-07-30 SMF amendment adds additive `StaticScanCoverage`, the
+`INCONCLUSIVE` gate value, bounded `inconclusive_reasons`, deterministic
+rule/corpus fingerprints, and a container-only evaluator that invokes the
+production runner and policy. Schema-valid partial, timeout, or tool-error
+reports without blockers cannot carry a clean allow reason; real blockers keep
+precedence and dynamic analysis continues for `INCONCLUSIVE`.
+
+Production-bundle tuning keeps the resource boundary explicit: in-house text
+rules and Semgrep accept targets up to 32 MiB under the existing container
+memory/CPU limits. The 2026-08-03 SAP-4 operational amendment raises the shared
+default timeout from 30 to 600 seconds and enforces 600 seconds as the hard
+configuration/CLI maximum; the Docker exec bound is the validated budget plus
+a five-second report-write grace. The same amendment raises the isolated static
+container from 1 GiB to 2 GiB (retaining 1 CPU) and gives Semgrep a 1536 MiB per-file
+ceiling, retaining headroom inside the cgroup for the runner and report writer.
+Node-style extensionless `main` and `browser` paths resolve relative to the
+manifest. Intentional Semgrep
+`node_modules`/minified exclusions remain in inventory accounting but do not
+alone degrade the result because in-house production rules retain bounded text
+coverage. Targets above the cap, invalid entrypoints, parser errors, timeouts,
+and other real coverage loss remain inconclusive. When Semgrep's structural
+JavaScript pass rejects or reaches its per-rule timeout on an otherwise eligible
+bounded target, the runner retries that exact path under the same deadline with
+a generic-language mirror of all 16 logical rule IDs. The retry set is capped at
+20 eligible paths of at most 32 MiB each. A successful fallback records its file
+count and paths and resolves that structural gap; excess paths, oversized paths,
+budget exhaustion, or fallback failure stay inconclusive.
+
+Coverage counters do not collapse unlike layers into a universal code-execution
+claim. Aggregate `files_discovered` / `files_scanned` account for retained
+artifacts, in-house `files_parsed` covers supported bounded text, and Semgrep
+reports its JavaScript/TypeScript scope independently. A displayed `106/106` is
+conclusive only when supported-path skips and coverage reasons are empty.
 
 ## References
 
