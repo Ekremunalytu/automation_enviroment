@@ -2,7 +2,7 @@
 
 `Last Updated: 2026-08-05`
 
-`Status: MERGED FOUNDATION — SMF-0..SMF-8 implementation and acceptance merged to main with the successor's SAP-0..SAP-4 baseline via PR #40. The static-analysis-artifact-precision successor remains active; SAP-5 is complete and published on codex/static-analysis-artifact-precision but is not merged, and SAP-6 is next.`
+`Status: MERGED FOUNDATION — SMF-0..SMF-8 implementation and acceptance merged to main with the successor's SAP-0..SAP-4 baseline via PR #40. The static-analysis-artifact-precision successor remains active; SAP-5 is branch-published and SAP-6 is implementation-complete locally. The successor stream is branch-ready and unmerged.`
 
 `Parent: static-analysis-improvement-roadmap.md Increment A / SAR-0 + SAR-1 measurement foundation.`
 

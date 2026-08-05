@@ -1,9 +1,8 @@
 # Static Analysis Pre-Check Lane
 
-**Last Updated:** 2026-08-05 (active artifact-precision stream consumes the
-completed SMF measurement foundation and now includes SAP-5's bounded
-reachability graph, reachability-prioritized dependency/minified deep-scan
-selection, and exact echo deduplication; SAP-6 is next. SMF added
+**Last Updated:** 2026-08-05 (artifact precision includes SAP-5's bounded
+reachability/deep-scan/deduplication and SAP-6's measured close-out. The stream
+is branch-ready but unmerged. SMF added
 coverage-aware `INCONCLUSIVE`, deterministic rule/corpus fingerprints, the
 container-only `make static-eval` evaluator, 32 MiB bounded production-bundle
 coverage, and Node-style entrypoint resolution). Historical base: 2026-06-01
@@ -99,14 +98,14 @@ decision gate that fronts the dynamic sandbox.
   SMF-0..SMF-8 acceptance. `packages/analysis_contracts/static_evaluation/`
   defines the safe corpus/evaluation contracts; `static_runtime/evaluation.py`
   invokes the production runner and policy in the same networkless container.
-- **Artifact-precision expansion (active):**
+- **Artifact-precision expansion (implementation complete; unmerged):**
   `documents/active-work/static-analysis-artifact-precision.md` owns
   SAP-0..SAP-6 acceptance. `static_runtime/artifacts.py` provides bounded role
   and magic/header classification consumed first by S3/S5;
   `static_runtime/artifact_inventory.py` emits the bounded report inventory and
   selects at most 256 justified dependency/minified Semgrep targets under the
-  shared deadline. Transitive reachability and source-map/vendor echo
-  deduplication landed locally in SAP-5; SAP-6 owns full delta and close-out.
+  shared deadline. SAP-5 reachability/deduplication and SAP-6's three-run delta
+  plus handoff gates are complete locally; the branch remains unmerged.
 
 ## Invariants
 

@@ -7,12 +7,13 @@ import hashlib
 import json
 import math
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 
 from packages.analysis_contracts.static_detection import (
     STATIC_ANALYSIS_DEFAULT_TIMEOUT_BUDGET_S,
+    StaticReachabilitySummary,
     StaticScanCoverage,
     parse_static_analysis_timeout_budget,
 )
@@ -20,6 +21,8 @@ from packages.analysis_contracts.static_detection.policy import evaluate_static_
 from packages.analysis_contracts.static_evaluation import (
     CorpusManifest,
     CorpusSample,
+    EvaluationArtifactSummary,
+    EvaluationCapability,
     EvaluationResult,
     FindingFingerprint,
     SampleEvaluation,
@@ -137,6 +140,36 @@ def _fingerprints(report: object) -> list[FindingFingerprint]:
     )
 
 
+def _artifact_summary(report: object) -> EvaluationArtifactSummary:
+    findings = list(getattr(report, "findings", []))
+    inventory = list(getattr(report, "artifact_inventory", []))
+    deduplications = list(getattr(report, "finding_deduplications", []))
+    reachability = getattr(report, "reachability", None)
+    capabilities: list[EvaluationCapability] = []
+    if hasattr(report, "artifact_inventory"):
+        capabilities.append("artifact_inventory")
+    if hasattr(report, "finding_deduplications"):
+        capabilities.append("finding_deduplication")
+    if hasattr(report, "reachability"):
+        capabilities.append("reachability")
+    return EvaluationArtifactSummary(
+        retained_finding_count=len(findings),
+        suppressed_findings_by_reason=dict(
+            Counter(record.reason for record in deduplications)
+        ),
+        artifact_dispositions=dict(Counter(entry.disposition for entry in inventory)),
+        artifact_reachability=dict(
+            Counter(entry.entrypoint_reachability for entry in inventory)
+        ),
+        reachability=(
+            reachability
+            if isinstance(reachability, StaticReachabilitySummary)
+            else StaticReachabilitySummary()
+        ),
+        capabilities=capabilities,
+    )
+
+
 def _evaluate_sample(
     sample: CorpusSample,
     *,
@@ -195,6 +228,7 @@ def _evaluate_sample(
         missing_rule_ids=missing,
         unexpected_rule_ids=unexpected,
         finding_fingerprints=_fingerprints(report),
+        artifact_summary=_artifact_summary(report),
         coverage=report.coverage,
         tool_duration_ms={
             record.tool: record.duration_ms for record in report.tool_executions
@@ -424,6 +458,23 @@ def render_markdown(result: EvaluationResult) -> str:
                 ", ".join(result.coverage_summary.coverage_reasons)
                 if result.coverage_summary.coverage_reasons
                 else "none"
+            ),
+            "",
+            "## Artifact evidence",
+            "",
+            "- Retained findings: "
+            + str(
+                sum(
+                    item.artifact_summary.retained_finding_count
+                    for item in result.sample_results
+                )
+            ),
+            "- Suppressed findings: "
+            + str(
+                sum(
+                    sum(item.artifact_summary.suppressed_findings_by_reason.values())
+                    for item in result.sample_results
+                )
             ),
             "",
         ]

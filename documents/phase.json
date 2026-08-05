@@ -20,9 +20,9 @@
   "active_stream": {
     "id": "static-analysis-artifact-precision",
     "tracker": "documents/active-work/static-analysis-artifact-precision.md",
-    "completed_through": "SAP-5",
-    "next": "SAP-6",
-    "delivery_state": "branch_published"
+    "completed_through": "SAP-6",
+    "next": null,
+    "delivery_state": "branch_ready"
   },
   "updated": "2026-08-05"
 }

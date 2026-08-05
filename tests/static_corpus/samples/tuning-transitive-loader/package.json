@@ -1,0 +1,6 @@
+{
+  "name": "tuning-transitive-loader",
+  "publisher": "trusted-publisher",
+  "version": "1.0.0",
+  "main": "extension.js"
+}

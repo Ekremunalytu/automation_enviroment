@@ -22,7 +22,7 @@ endif
         dev dev-lan run build rebuild up up-debug down logs ps restart status \
         migrate migrate-create venv-check \
         exec-build exec-up exec-down exec-shell exec-test exec-run \
-        static-build static-up static-down static-shell static-run-fixture \
+        static-build static-up static-down static-shell static-run-fixture static-eval static-eval-delta \
         ui-build ui-up ui-down ui-types ui-types-check ui-boundaries \
         demo-canary demo-canary-offline
 
@@ -592,6 +592,17 @@ static-eval: static-up
 	$(VENV)/python scripts/static_eval.py \
 		--split "$(if $(SPLIT),$(SPLIT),tuning)" \
 		--timeout-budget-s "$(if $(BUDGET),$(BUDGET),600)"
+
+# Compare SAP-6 baseline/candidate evaluation directories. Full artifacts stay
+# under ignored output/; JSON is canonical and Markdown is derived from it.
+static-eval-delta:
+	$(VENV)/python scripts/static_eval_delta.py \
+		--baseline-dir "$(if $(BASELINE_DIR),$(BASELINE_DIR),output/static-evaluation/sap6/baseline-7b8b4b2)" \
+		--candidate-dir "$(if $(CANDIDATE_DIR),$(CANDIDATE_DIR),output/static-evaluation/sap6/candidate)" \
+		--baseline-ref "$(if $(BASELINE_REF),$(BASELINE_REF),7b8b4b2)" \
+		--candidate-ref "$(if $(CANDIDATE_REF),$(CANDIDATE_REF),SAP-6-candidate)" \
+		--output-json "output/static-evaluation/sap6/delta.json" \
+		--output-markdown "output/static-evaluation/sap6/delta.md"
 
 # =============================================================================
 # SIMULATION / AUTOMATION

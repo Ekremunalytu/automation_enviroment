@@ -1,0 +1,6 @@
+{
+  "name": "tuning-echo-deduplication",
+  "publisher": "trusted-publisher",
+  "version": "1.0.0",
+  "main": "src/main.js"
+}

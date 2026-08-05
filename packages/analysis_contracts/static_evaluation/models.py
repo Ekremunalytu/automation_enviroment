@@ -11,6 +11,7 @@ from pydantic import Field, field_validator, model_validator
 from packages.analysis_contracts.contracts import StrictContractModel
 from packages.analysis_contracts.static_detection import (
     StaticGateDecision,
+    StaticReachabilitySummary,
     StaticScanCoverage,
 )
 
@@ -25,6 +26,11 @@ CorpusLabel = Literal[
 ]
 SafetyState = Literal["declawed", "benign_control"]
 NonNegativeMillis = Annotated[int, Field(ge=0)]
+EvaluationCapability = Literal[
+    "artifact_inventory",
+    "finding_deduplication",
+    "reachability",
+]
 
 
 def _validate_relative_path(value: str) -> str:
@@ -148,6 +154,39 @@ class FindingFingerprint(StrictContractModel):
         return _validate_relative_path(value)
 
 
+class EvaluationArtifactSummary(StrictContractModel):
+    """Bounded SAP-6 measurement extracted from one production static report."""
+
+    retained_finding_count: int = Field(default=0, ge=0)
+    suppressed_findings_by_reason: dict[str, int] = Field(default_factory=dict)
+    artifact_dispositions: dict[str, int] = Field(default_factory=dict)
+    artifact_reachability: dict[str, int] = Field(default_factory=dict)
+    reachability: StaticReachabilitySummary = Field(
+        default_factory=StaticReachabilitySummary
+    )
+    capabilities: list[EvaluationCapability] = Field(default_factory=list)
+
+    @field_validator(
+        "suppressed_findings_by_reason",
+        "artifact_dispositions",
+        "artifact_reachability",
+    )
+    @classmethod
+    def validate_bounded_count_maps(cls, value: dict[str, int]) -> dict[str, int]:
+        if len(value) > 32:
+            raise ValueError("evaluation count maps are limited to 32 keys")
+        if any(not key or len(key) > 80 or count < 0 for key, count in value.items()):
+            raise ValueError("evaluation count maps require bounded keys and counts")
+        return dict(sorted(value.items()))
+
+    @field_validator("capabilities")
+    @classmethod
+    def normalize_capabilities(
+        cls, value: list[EvaluationCapability]
+    ) -> list[EvaluationCapability]:
+        return sorted(set(value))
+
+
 class SampleEvaluation(StrictContractModel):
     sample_id: str
     split: CorpusSplit
@@ -158,6 +197,9 @@ class SampleEvaluation(StrictContractModel):
     missing_rule_ids: list[str] = Field(default_factory=list)
     unexpected_rule_ids: list[str] = Field(default_factory=list)
     finding_fingerprints: list[FindingFingerprint] = Field(default_factory=list)
+    artifact_summary: EvaluationArtifactSummary = Field(
+        default_factory=EvaluationArtifactSummary
+    )
     coverage: StaticScanCoverage = Field(default_factory=StaticScanCoverage)
     tool_duration_ms: dict[str, NonNegativeMillis] = Field(default_factory=dict)
     duration_ms: int = Field(ge=0)
@@ -182,6 +224,116 @@ class RuleMetric(StrictContractModel):
     recall: MetricValue
     false_positive_rate: MetricValue
     noise: MetricValue
+
+
+class IntegerDelta(StrictContractModel):
+    baseline: int
+    candidate: int
+    delta: int
+
+    @model_validator(mode="after")
+    def validate_delta(self) -> IntegerDelta:
+        if self.delta != self.candidate - self.baseline:
+            raise ValueError("integer delta must equal candidate minus baseline")
+        return self
+
+
+class RuntimeDelta(StrictContractModel):
+    baseline_median_ms: int = Field(ge=0)
+    candidate_median_ms: int = Field(ge=0)
+    delta_ms: int
+
+    @model_validator(mode="after")
+    def validate_delta(self) -> RuntimeDelta:
+        if self.delta_ms != self.candidate_median_ms - self.baseline_median_ms:
+            raise ValueError("runtime delta must equal candidate minus baseline")
+        return self
+
+
+class SampleEvaluationDelta(StrictContractModel):
+    sample_id: str
+    split: CorpusSplit
+    baseline_label: CorpusLabel
+    candidate_label: CorpusLabel
+    baseline_expected_gate: StaticGateDecision
+    candidate_expected_gate: StaticGateDecision
+    baseline_observed_gate: StaticGateDecision
+    candidate_observed_gate: StaticGateDecision
+    added_rule_ids: list[str] = Field(default_factory=list)
+    removed_rule_ids: list[str] = Field(default_factory=list)
+    retained_findings: IntegerDelta
+    suppressed_findings: IntegerDelta
+    candidate_passed: bool
+
+    @field_validator("added_rule_ids", "removed_rule_ids")
+    @classmethod
+    def normalize_rule_ids(cls, value: list[str]) -> list[str]:
+        return sorted(set(value))
+
+
+class SplitEvaluationDelta(StrictContractModel):
+    split: Literal["tuning", "holdout", "all"]
+    sample_count: int = Field(ge=1)
+    baseline_sample_metric: RuleMetric
+    candidate_sample_metric: RuleMetric
+    coverage_counts: dict[str, IntegerDelta] = Field(default_factory=dict)
+    artifact_dispositions: dict[str, IntegerDelta] = Field(default_factory=dict)
+    artifact_reachability: dict[str, IntegerDelta] = Field(default_factory=dict)
+    suppression_counts: dict[str, IntegerDelta] = Field(default_factory=dict)
+    runtime: dict[str, RuntimeDelta] = Field(default_factory=dict)
+    sample_deltas: list[SampleEvaluationDelta]
+
+
+class EvaluationDeltaResult(StrictContractModel):
+    schema_version: Literal["1"] = "1"
+    baseline_ref: str = Field(min_length=1, max_length=120)
+    candidate_ref: str = Field(min_length=1, max_length=120)
+    baseline_rules_bundle_fingerprint: str
+    candidate_rules_bundle_fingerprint: str
+    baseline_corpus_manifest_sha256: str
+    candidate_corpus_manifest_sha256: str
+    baseline_capabilities: list[EvaluationCapability] = Field(default_factory=list)
+    candidate_capabilities: list[EvaluationCapability] = Field(default_factory=list)
+    splits: list[SplitEvaluationDelta] = Field(min_length=3, max_length=3)
+    acceptance_checks: dict[str, bool]
+    errors: list[str] = Field(default_factory=list, max_length=128)
+    passed: bool
+
+    @field_validator(
+        "baseline_rules_bundle_fingerprint",
+        "candidate_rules_bundle_fingerprint",
+        "baseline_corpus_manifest_sha256",
+        "candidate_corpus_manifest_sha256",
+    )
+    @classmethod
+    def validate_fingerprint(cls, value: str) -> str:
+        if not _SHA256.fullmatch(value):
+            raise ValueError("evaluation delta fingerprints must be lowercase SHA-256")
+        return value
+
+    @field_validator("acceptance_checks")
+    @classmethod
+    def normalize_acceptance_checks(cls, value: dict[str, bool]) -> dict[str, bool]:
+        if not value or len(value) > 64 or any(not key for key in value):
+            raise ValueError("evaluation delta requires bounded acceptance checks")
+        return dict(sorted(value.items()))
+
+    @field_validator("baseline_capabilities", "candidate_capabilities")
+    @classmethod
+    def normalize_capabilities(
+        cls, value: list[EvaluationCapability]
+    ) -> list[EvaluationCapability]:
+        return sorted(set(value))
+
+    @model_validator(mode="after")
+    def validate_result(self) -> EvaluationDeltaResult:
+        if self.passed != (not self.errors and all(self.acceptance_checks.values())):
+            raise ValueError("delta passed state must agree with errors and checks")
+        if {item.split for item in self.splits} != {"tuning", "holdout", "all"}:
+            raise ValueError(
+                "evaluation delta requires tuning, holdout, and all splits"
+            )
+        return self
 
 
 class EvaluationResult(StrictContractModel):

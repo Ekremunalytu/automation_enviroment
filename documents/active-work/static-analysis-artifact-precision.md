@@ -2,18 +2,18 @@
 
 `Last Updated: 2026-08-05`
 
-`Status: ACTIVE — the SMF foundation plus SAP-0 through SAP-4 and the
-production-bundle precision follow-up merged to main via PR #40. The merged
-baseline includes the static-only Reports presentation correction described in
-section 3, the Reports-integrated Static analysis inspection tab, and the Rules
-whitelist visibility/normalization follow-up. SAP-5 is complete and published
-on codex/static-analysis-artifact-precision but is not merged; SAP-6 is next.`
+`Status: ACTIVE — implementation complete, unmerged. The SMF foundation plus
+SAP-0 through SAP-4 and the production-bundle precision follow-up merged to
+main via PR #40. SAP-5 is published on
+codex/static-analysis-artifact-precision; SAP-6 is complete locally and the
+stream is branch-ready. Publication, PR, merge, and containment activation are
+outside this close-out.`
 
 `Parent: static-analysis-improvement-roadmap.md Increment B / SAR-2.`
 
 `Merge boundary: PR #40 carried the committed SMF foundation and SAP-0..SAP-4
-baseline into main. SAP-5 is complete and published on the feature branch but
-is not merged. The stream remains active for SAP-6 full delta and close-out.`
+baseline into main. SAP-5 is published and SAP-6 is complete locally on the
+feature branch. The branch-ready stream remains active and unmerged.`
 
 `Product-order boundary: containment safety remains the next mandatory
 product/release gate. This stream is offline/static and does not claim safe
@@ -43,7 +43,7 @@ Gate policy stays unchanged: `BLOCK > INCONCLUSIVE > WARN > ALLOW`.
 | SAP-3 | S5 and production-bundle context | docs/license/source-map/test and manifest metadata URLs silent; runtime literal remains visible; unrelated bundle regions cannot form attack chains | DONE |
 | SAP-4 | Inventory and deep-scan selection | dependency/minified inventory plus explicit selection reasons | DONE |
 | SAP-5 | Reachability and deduplication | entrypoint/loader selection; source-map/vendor dedupe | DONE |
-| SAP-6 | Full delta and close-out | tuning/holdout report, runtime budget, full gates, handoff | NEXT |
+| SAP-6 | Full delta and close-out | tuning/holdout report, runtime budget, full gates, handoff | DONE |
 
 ## 3. Implemented Initial Slice
 
@@ -258,11 +258,58 @@ artifacts selected by recorded evidence. No blanket `node_modules` scan is
 allowed. Lockfile resolution, real provenance comparison, and version diff stay
 in SAR-4 rather than being inferred in SAP-5.
 
-## 6. Next Slice — SAP-6
+## 6. Completed Slice — SAP-6
 
-Produce the full measured tuning/holdout delta, record the shared runtime
-budget and retained/suppressed evidence changes, rerun all handoff gates, and
-close the named stream without changing containment product ordering.
+SAP-6 closes Increment B / SAR-2 with measurement rather than new detector
+behavior:
+
+- the final corpus contains 10 tuning and four untouched holdout samples; the
+  two added harmless controls prove transitive dependency deep-scan selection
+  and exact first-party/vendor/source-map echo handling;
+- evaluation-only additive contracts record retained findings,
+  `vendor_echo` / `source_map_echo` suppression counts, artifact disposition,
+  reachability, and the measurement capabilities available at each revision;
+- `make static-eval-delta` validates baseline/candidate tuning, holdout, and
+  three `all` runs with Pydantic, rejects corpus/split/fingerprint drift, and
+  derives canonical JSON plus Markdown under ignored `output/`;
+- normalized content was identical across all three runs for both revisions;
+  baseline expectation-only exit differences were native WARN -> ALLOW,
+  documentation URL WARN -> ALLOW, and transitive loader ALLOW -> WARN with
+  `extrace.sg.eval` recovered;
+- candidate results are tuning 10/10, holdout 4/4, and all 14/14. The final
+  confusion matrix moved from baseline TP 5 / FP 1 / FN 1 / TN 4 to candidate
+  TP 6 / FP 0 / FN 0 / TN 5; recall improved 0.8333 -> 1.0 and false-positive
+  rate/noise fell 0.2/0.1667 -> 0/0;
+- aggregate coverage stayed identical at 36 discovered/scanned, 34 supported
+  text artifacts parsed, and 4,148 bytes read. The only coverage reason is the
+  expected malformed-manifest control;
+- candidate evidence retains 14 findings, records one exact `vendor_echo`
+  suppression and zero `source_map_echo` suppressions, and reports 20
+  deep-scan / 16 inventory-only dispositions plus reachability 13 direct / 4
+  transitive / 17 none / 2 unknown. The SMF baseline correctly advertises that
+  these additive measurement capabilities are unavailable;
+- three-run `all` runtime medians are baseline/candidate p50 1,385/1,399 ms,
+  p95 1,640/3,249 ms, and total 19,633/23,236 ms. Every sample and tool stayed
+  inside the existing 600-second limit; no percentage regression threshold was
+  inferred from local environment noise;
+- corpus fingerprint is
+  `251f49ddbf9ebdfef8fc5c541edee61e71a957b0b417fd6b8d6c7ffe69c7442b`;
+  rules fingerprints are baseline
+  `d57ee07849d9a5755d401bf54385367502e5f928c6df54d5fff1280b3e1cf62c`
+  and candidate
+  `6496cf0ff536854d8cf36677e61141880a1bac87a741fd58a47802203ff3c1b5`.
+
+Close-out gates on 2026-08-05: focused evaluation/delta 23/23, focused SAP
+contract/reachability/dedup/inventory/runner 73/73, `make check-all` and
+`make test-local` 2969 passed / 11 skipped / 14 deselected,
+`make test-security` 536/536, rebuilt static analyzer, and container smoke 13
+passed / one unavailable fixture skipped. `make static-eval-delta` passed all
+19 acceptance checks. Executor code did not change, so `make test-ci` was not
+added.
+
+The stream is implementation-complete and branch-ready but remains under
+`active_stream` because it is not merged. Containment safety retains its
+separate product/release position.
 
 ## 7. Risks And Assumptions
 
@@ -280,6 +327,6 @@ close the named stream without changing containment product ordering.
   targets; SAR-3 still owns full taint semantics.
 - Native suffixes remain evidence for declared ABI inventory, while S13 owns the
   suspicious native-loader conjunction and its blocker semantics.
-- The 12-sample corpus proves the pinned regression cases, not universal
+- The 14-sample corpus proves the pinned regression cases, not universal
   precision. Counts and holdout results must remain visible in later deltas.
 - No database schema change is in scope.

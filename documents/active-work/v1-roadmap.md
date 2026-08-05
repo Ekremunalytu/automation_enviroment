@@ -4,7 +4,7 @@
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active named stream: static-analysis-artifact-precision (SAP-0..SAP-6), limited to offline/static analysis; the SMF foundation plus SAP-0..SAP-4 baseline merged via PR #40, SAP-5 is complete and published on codex/static-analysis-artifact-precision but is not merged, and SAP-6 is next. Latest fully closed named stream: verdict-provenance-reproducibility (W26), PR #38 bfb2d2d. Containment safety remains the next product/release gate.`
+`Active named stream: static-analysis-artifact-precision (SAP-0..SAP-6), limited to offline/static analysis; the SMF foundation plus SAP-0..SAP-4 baseline merged via PR #40, SAP-5 is branch-published, and SAP-6 is implementation-complete locally. The unmerged stream is branch-ready. Latest fully closed named stream: verdict-provenance-reproducibility (W26), PR #38 bfb2d2d. Containment safety remains the next product/release gate.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + optional active stream; null when none is open).`
 
