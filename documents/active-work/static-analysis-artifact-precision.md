@@ -6,13 +6,14 @@
 production-bundle precision follow-up merged to main via PR #40. The merged
 baseline includes the static-only Reports presentation correction described in
 section 3, the Reports-integrated Static analysis inspection tab, and the Rules
-whitelist visibility/normalization follow-up. SAP-5 is next.`
+whitelist visibility/normalization follow-up. SAP-5 is complete locally but not
+pushed or merged; SAP-6 is next.`
 
 `Parent: static-analysis-improvement-roadmap.md Increment B / SAR-2.`
 
 `Merge boundary: PR #40 carried the committed SMF foundation and SAP-0..SAP-4
-baseline into main. The stream remains active for SAP-5 reachability and
-deduplication followed by SAP-6 full delta and close-out.`
+baseline into main. SAP-5 is complete on the local feature branch and remains
+unpublished. The stream remains active for SAP-6 full delta and close-out.`
 
 `Product-order boundary: containment safety remains the next mandatory
 product/release gate. This stream is offline/static and does not claim safe
@@ -41,8 +42,8 @@ Gate policy stays unchanged: `BLOCK > INCONCLUSIVE > WARN > ALLOW`.
 | SAP-2 | S3 native precision | PNG/font/database/archive/WASM/opaque distinctions; renamed PE/ELF still fire | DONE |
 | SAP-3 | S5 and production-bundle context | docs/license/source-map/test and manifest metadata URLs silent; runtime literal remains visible; unrelated bundle regions cannot form attack chains | DONE |
 | SAP-4 | Inventory and deep-scan selection | dependency/minified inventory plus explicit selection reasons | DONE |
-| SAP-5 | Reachability and deduplication | entrypoint/loader selection; source-map/vendor dedupe | NEXT |
-| SAP-6 | Full delta and close-out | tuning/holdout report, runtime budget, full gates, handoff | PENDING |
+| SAP-5 | Reachability and deduplication | entrypoint/loader selection; source-map/vendor dedupe | DONE |
+| SAP-6 | Full delta and close-out | tuning/holdout report, runtime budget, full gates, handoff | NEXT |
 
 ## 3. Implemented Initial Slice
 
@@ -224,21 +225,43 @@ esbenp.prettier-vscode-12.4.0          WARN 3   -> ALLOW 2 INFO
 ms-python.python-2026.5.2026070801      BLOCK 8  -> ALLOW 4 INFO
 ```
 
-## 5. Next Slice — SAP-5
+## 5. Completed Slice — SAP-5
 
-Extend the bounded selection model with:
+The bounded selection model now includes:
 
 - transitive import and loader-graph reachability beyond direct manifest
   entrypoints;
 - source-map and vendor-echo deduplication without suppressing unique evidence;
 - deterministic provenance for each reachability and deduplication decision.
 
+Acceptance evidence:
+
+- lexical-tie-break BFS resolves bounded relative/bare Node-style imports,
+  literal and folded loader references, native/WASM loaders, and source maps;
+- node/edge/byte/depth/read/parse loss remains visible and coverage-degrading,
+  while ordinary unresolved references remain bounded diagnostics;
+- exact vendor/minified bytes and exact bounded `sourcesContent` echoes are the
+  only suppression paths; unique, partial, malformed, or oversized evidence is
+  retained;
+- generated TypeScript contracts and the Reports Static Inspection UI surface
+  reachability provenance, unresolved references, and deterministic
+  canonical-to-duplicate records;
+- focused backend `62/62`, UI `192/192`, `make check-all` and `make test-local`
+  `2951 passed / 11 skipped`, security `536/536`, smoke `13 passed / 1 skipped`,
+  and tuning/holdout/all static-eval splits passed on 2026-08-05.
+
 Deep analysis remains bounded to first-party code plus dependency/minified
 artifacts selected by recorded evidence. No blanket `node_modules` scan is
 allowed. Lockfile resolution, real provenance comparison, and version diff stay
 in SAR-4 rather than being inferred in SAP-5.
 
-## 6. Risks And Assumptions
+## 6. Next Slice — SAP-6
+
+Produce the full measured tuning/holdout delta, record the shared runtime
+budget and retained/suppressed evidence changes, rerun all handoff gates, and
+close the named stream without changing containment product ordering.
+
+## 7. Risks And Assumptions
 
 - Artifact inventory can materially enlarge a report, so path/reason bounds,
   the shared 50,000-file cap, and deterministic ordering remain mandatory.
@@ -250,7 +273,8 @@ in SAR-4 rather than being inferred in SAP-5.
   path, and a path reached after budget exhaustion to remain visibly partial;
   there is no universal or unbounded "all files" claim.
 - S5 currently proves runtime binding with bounded lexical context, not full
-  URL-to-sink taint. Full reachability remains part of SAP-5/SAR-3 preparation.
+  URL-to-sink taint. SAP-5 reachability only selects additional deep-scan
+  targets; SAR-3 still owns full taint semantics.
 - Native suffixes remain evidence for declared ABI inventory, while S13 owns the
   suspicious native-loader conjunction and its blocker semantics.
 - The 12-sample corpus proves the pinned regression cases, not universal

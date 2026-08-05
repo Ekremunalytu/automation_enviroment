@@ -714,6 +714,34 @@ export interface StaticEvidenceRefDto {
   rule_match_id?: string | null;
 }
 
+export interface StaticReachabilityUnresolvedReferenceDto {
+  source_path: string;
+  line_number: number;
+  edge_kind: "manifest" | "import" | "export" | "require" | "dynamic_import" | "require_resolve" | "source_map" | "path_loader" | "native_loader";
+  expression: string;
+}
+
+export interface StaticReachabilitySummaryDto {
+  roots?: string[];
+  nodes_reached?: number;
+  edges_resolved?: number;
+  bytes_read?: number;
+  unresolved_count?: number;
+  unresolved_references?: StaticReachabilityUnresolvedReferenceDto[];
+  limit_reasons?: ("node_cap" | "edge_cap" | "byte_cap" | "depth_cap" | "read_error" | "parse_error")[];
+}
+
+export interface StaticFindingDeduplicationRecordDto {
+  rule_id: string;
+  rule_version: string;
+  reason: "vendor_echo" | "source_map_echo";
+  canonical_path: string;
+  canonical_line_number?: number | null;
+  duplicate_path: string;
+  duplicate_line_number?: number | null;
+  evidence_fingerprint: string;
+}
+
 export interface StaticArtifactInventoryEntryDto {
   relative_path: string;
   role: "manifest" | "first_party_runtime" | "dependency_runtime" | "documentation" | "license" | "test" | "asset" | "source_map" | "configuration" | "native" | "wasm" | "archive" | "unknown";

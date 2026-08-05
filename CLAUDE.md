@@ -4,7 +4,7 @@
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active named stream: static-analysis-artifact-precision; the SMF foundation plus SAP-0..SAP-4 baseline merged via PR #40, and SAP-5 is next. Containment safety remains the next product/release gate.`
+`Active named stream: static-analysis-artifact-precision; the SMF foundation plus SAP-0..SAP-4 baseline merged via PR #40, SAP-5 is complete locally but not pushed or merged, and SAP-6 is next. Containment safety remains the next product/release gate.`
 
 Compatibility pointer for Claude-based agents. The authoritative rules are in
 `AGENTS.md`; after reading them, use `documents/AGENT_CONTEXT.md` and exactly one

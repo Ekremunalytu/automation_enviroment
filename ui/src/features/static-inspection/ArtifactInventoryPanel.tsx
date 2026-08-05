@@ -1,7 +1,10 @@
 import { useDeferredValue, useMemo, useState } from "react";
 
 import { Badge, Eyebrow, Field, FONT_MONO, V3 } from "../../components/v3";
-import type { StaticArtifactInventoryEntryDto } from "../../lib/types/contracts";
+import type {
+  StaticArtifactInventoryEntryDto,
+  StaticReachabilitySummaryDto,
+} from "../../lib/types/contracts";
 
 const PAGE_SIZE = 50;
 
@@ -20,8 +23,10 @@ function formatBytes(value: number): string {
 
 export function ArtifactInventoryPanel({
   entries,
+  reachability,
 }: {
   entries: StaticArtifactInventoryEntryDto[];
+  reachability?: StaticReachabilitySummaryDto;
 }) {
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("all");
@@ -30,7 +35,16 @@ export function ArtifactInventoryPanel({
   const deferredSearch = useDeferredValue(search.trim().toLowerCase());
   const { counts, roles } = useMemo(() => {
     const roleSet = new Set<StaticArtifactInventoryEntryDto["role"]>();
-    const nextCounts = { deep: 0, inventory: 0, skipped: 0, vendor: 0, minified: 0 };
+    const nextCounts = {
+      deep: 0,
+      inventory: 0,
+      skipped: 0,
+      vendor: 0,
+      minified: 0,
+      direct: 0,
+      transitive: 0,
+      heuristic: 0,
+    };
     for (const entry of entries) {
       roleSet.add(entry.role);
       if (entry.disposition === "deep_scan") nextCounts.deep += 1;
@@ -38,6 +52,9 @@ export function ArtifactInventoryPanel({
       if (entry.disposition === "skipped") nextCounts.skipped += 1;
       if (entry.is_vendor) nextCounts.vendor += 1;
       if (entry.is_minified) nextCounts.minified += 1;
+      if (entry.entrypoint_reachability === "direct") nextCounts.direct += 1;
+      if (entry.entrypoint_reachability === "transitive") nextCounts.transitive += 1;
+      if (entry.reachability_confidence === "heuristic") nextCounts.heuristic += 1;
     }
     return { counts: nextCounts, roles: [...roleSet].sort() };
   }, [entries]);
@@ -54,6 +71,9 @@ export function ArtifactInventoryPanel({
           entry.format,
           entry.disposition,
           entry.disposition_reasons.join(" "),
+          entry.reachability_parent ?? "",
+          entry.reachability_edge_kind ?? "",
+          entry.reachability_confidence ?? "",
         ]
           .join(" ")
           .toLowerCase()
@@ -105,7 +125,62 @@ export function ArtifactInventoryPanel({
         <Badge tone={counts.skipped ? "warn" : "neutral"}>Skipped {counts.skipped}</Badge>
         <Badge tone="neutral">Vendor {counts.vendor}</Badge>
         <Badge tone="neutral">Minified {counts.minified}</Badge>
+        <Badge tone="neutral">Direct {counts.direct}</Badge>
+        <Badge tone="neutral">Transitive {counts.transitive}</Badge>
+        <Badge tone={counts.heuristic ? "warn" : "neutral"}>
+          Heuristic {counts.heuristic}
+        </Badge>
+        <Badge tone={(reachability?.unresolved_count ?? 0) ? "warn" : "neutral"}>
+          Unresolved {reachability?.unresolved_count ?? 0}
+        </Badge>
       </div>
+
+      {reachability ? (
+        <div
+          aria-label="Reachability graph summary"
+          style={{
+            display: "grid",
+            gap: 10,
+            marginTop: 12,
+            padding: 14,
+            border: `1px solid ${V3.rule}`,
+            background: V3.paper2,
+          }}
+        >
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <Badge tone="neutral">Roots {(reachability.roots ?? []).length}</Badge>
+            <Badge tone="neutral">Nodes {reachability.nodes_reached ?? 0}</Badge>
+            <Badge tone="neutral">Edges {reachability.edges_resolved ?? 0}</Badge>
+            <Badge tone="neutral">Read {formatBytes(reachability.bytes_read ?? 0)}</Badge>
+            {(reachability.limit_reasons ?? []).map((reason) => (
+              <Badge key={reason} tone="warn">
+                {titleCase(reason)}
+              </Badge>
+            ))}
+          </div>
+          {(reachability.unresolved_references ?? []).length ? (
+            <div role="list" aria-label="Unresolved reachability references">
+              {(reachability.unresolved_references ?? []).map((reference) => (
+                <div
+                  key={`${reference.source_path}:${reference.line_number}:${reference.edge_kind}:${reference.expression}`}
+                  role="listitem"
+                  style={{ color: V3.ink3, fontFamily: FONT_MONO, fontSize: 10 }}
+                >
+                  <code>{reference.source_path}:{reference.line_number}</code>
+                  {" · "}
+                  {titleCase(reference.edge_kind)}
+                  {" · "}
+                  <code>{reference.expression}</code>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <span role="status" style={{ color: V3.ink3, fontSize: 11 }}>
+              No unresolved import or loader reference was recorded.
+            </span>
+          )}
+        </div>
+      ) : null}
 
       <div
         style={{
@@ -211,7 +286,25 @@ export function ArtifactInventoryPanel({
                 </td>
                 <td style={cellStyle}>{formatBytes(entry.size_bytes)}</td>
                 <td style={cellStyle}>{entry.dependency_owner ?? "—"}</td>
-                <td style={cellStyle}>{titleCase(entry.entrypoint_reachability ?? "unknown")}</td>
+                <td style={cellStyle}>
+                  {titleCase(entry.entrypoint_reachability ?? "unknown")}
+                  {entry.reachability_confidence ? (
+                    <div style={{ marginTop: 4, color: V3.ink3 }}>
+                      {titleCase(entry.reachability_confidence)}
+                      {entry.reachability_edge_kind
+                        ? ` · ${titleCase(entry.reachability_edge_kind)}`
+                        : ""}
+                    </div>
+                  ) : null}
+                  {entry.reachability_parent ? (
+                    <code
+                      title={entry.reachability_parent}
+                      style={{ ...pathStyle, display: "block", marginTop: 4 }}
+                    >
+                      from {entry.reachability_parent}
+                    </code>
+                  ) : null}
+                </td>
                 <td style={cellStyle}>
                   <strong>{titleCase(entry.disposition)}</strong>
                   <div style={{ marginTop: 4, color: V3.ink3 }}>

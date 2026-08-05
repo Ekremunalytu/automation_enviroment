@@ -18,7 +18,10 @@ const artifactInventory: StaticArtifactInventoryEntryDto[] = Array.from(
         dependency_owner: "@scope/pkg",
         is_vendor: true,
         is_minified: true,
-        entrypoint_reachability: "none",
+        entrypoint_reachability: "transitive",
+        reachability_parent: "dist/extension.js",
+        reachability_edge_kind: "require",
+        reachability_confidence: "heuristic",
         disposition: "deep_scan",
         disposition_reasons: ["inhouse_finding_evidence"],
       };
@@ -96,6 +99,33 @@ const artifact: StaticReportArtifactDto = {
         },
       ],
       artifact_inventory: artifactInventory,
+      reachability: {
+        roots: ["dist/extension.js"],
+        nodes_reached: 2,
+        edges_resolved: 1,
+        bytes_read: 4096,
+        unresolved_count: 1,
+        unresolved_references: [
+          {
+            source_path: "dist/extension.js",
+            line_number: 18,
+            edge_kind: "dynamic_import",
+            expression: "target",
+          },
+        ],
+      },
+      finding_deduplications: [
+        {
+          rule_id: "extrace.s5.network_indicators",
+          rule_version: "1.2.0",
+          reason: "vendor_echo",
+          canonical_path: "src/client.ts",
+          canonical_line_number: 12,
+          duplicate_path: "node_modules/@scope/pkg/index.js",
+          duplicate_line_number: 12,
+          evidence_fingerprint: "a".repeat(64),
+        },
+      ],
       findings: [
         {
           id: "finding-reverse-shell",
@@ -256,6 +286,18 @@ describe("StaticAnalysisInspectionSection", () => {
     expect(screen.getByLabelText("Artifact inventory summary")).toHaveTextContent(
       "Deep scan 1",
     );
+    expect(screen.getByLabelText("Artifact inventory summary")).toHaveTextContent(
+      "Transitive 1",
+    );
+    expect(screen.getByLabelText("Artifact inventory summary")).toHaveTextContent(
+      "Heuristic 1",
+    );
+    expect(screen.getByLabelText("Reachability graph summary")).toHaveTextContent(
+      "Nodes 2",
+    );
+    expect(
+      screen.getByRole("list", { name: "Unresolved reachability references" }),
+    ).toHaveTextContent("target");
     expect(within(inventory).getByText("node_modules/@scope/pkg/index.js")).toBeInTheDocument();
     expect(within(inventory).queryByText(/file-51-/u)).not.toBeInTheDocument();
 
@@ -293,6 +335,35 @@ describe("StaticAnalysisInspectionSection", () => {
     expect(within(inventory).queryByText(/file-02-/u)).not.toBeInTheDocument();
   });
 
+  it("shows exact finding deduplication provenance", async () => {
+    renderPage();
+
+    expect(
+      await screen.findByRole("heading", { name: "Finding deduplication" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Finding deduplication summary")).toHaveTextContent(
+      "Retained 3",
+    );
+    expect(screen.getByLabelText("Finding deduplication summary")).toHaveTextContent(
+      "Suppressed 1",
+    );
+    const evidence = screen.getByRole("table", {
+      name: "Finding deduplication evidence",
+    });
+    expect(within(evidence).getByText("src/client.ts:12")).toBeInTheDocument();
+    expect(
+      within(evidence).getByText("node_modules/@scope/pkg/index.js:12"),
+    ).toBeInTheDocument();
+    expect(within(evidence).getByText("Vendor Echo")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Search deduplication evidence"), {
+      target: { value: "source_map_echo" },
+    });
+    expect(
+      await screen.findByText("No deduplication evidence matches the current search."),
+    ).toBeInTheDocument();
+  });
+
   it("renders a legacy static report with no artifact inventory", async () => {
     render(
       <StaticAnalysisInspectionSection
@@ -303,6 +374,8 @@ describe("StaticAnalysisInspectionSection", () => {
             detection_report: {
               ...artifact.static_report.detection_report,
               artifact_inventory: undefined,
+              reachability: undefined,
+              finding_deduplications: undefined,
             },
           },
         }}

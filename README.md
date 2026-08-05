@@ -2,7 +2,7 @@
 
 `Last Updated: 2026-08-05 — Last merged weekly: W22 via PR #31 (week22 -> main, 1399f82). Frozen tracker: documents/active-work/W22-coverage-promotion-hard-tier.md.`
 
-`Active named stream: static-analysis-artifact-precision; the SMF foundation plus SAP-0..SAP-4 baseline merged via PR #40, and SAP-5 is next. Containment safety remains the next product/release gate.`
+`Active named stream: static-analysis-artifact-precision; the SMF foundation plus SAP-0..SAP-4 baseline merged via PR #40, SAP-5 is complete locally but not pushed or merged, and SAP-6 is next. Containment safety remains the next product/release gate.`
 
 ExTrace is a sandboxed analysis platform for suspicious VS Code extensions. It
 combines manifest inspection, static rules, isolated runtime observation, and
@@ -130,7 +130,8 @@ W22 is the last merged weekly close-out. Later work uses named streams without
 advancing that pointer. The latest merged named stream is
 `verdict-provenance-reproducibility` (W26), merged via PR #38 at `bfb2d2d`;
 `static-analysis-artifact-precision` is the active offline/static stream;
-SAP-0 through SAP-4 are complete and SAP-5 is next.
+SAP-0 through SAP-5 are complete on the active local branch and SAP-6 is next;
+SAP-5 has not been pushed or merged.
 Containment safety remains the next product/release execution gate in
 [documents/active-work/v1-roadmap.md](documents/active-work/v1-roadmap.md) §4;
 the measurement stream does not displace it.

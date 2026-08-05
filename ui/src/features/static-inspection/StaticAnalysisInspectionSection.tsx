@@ -22,6 +22,7 @@ import {
   filterStaticFindings,
 } from "./buildStaticInspection";
 import { ArtifactInventoryPanel } from "./ArtifactInventoryPanel";
+import { FindingDeduplicationPanel } from "./FindingDeduplicationPanel";
 import {
   EvidenceFootprint,
   FileInspectionField,
@@ -333,7 +334,12 @@ function InspectionWorkspace({
             style={{ display: "grid", gap: 6 }}
           >
             {structuralFallbackPaths.map((path) => (
-              <code key={path} role="listitem" className="mono-path">
+              <code
+                key={path}
+                role="listitem"
+                className="mono-path"
+                style={{ maxWidth: "100%", overflowWrap: "anywhere", whiteSpace: "pre-wrap" }}
+              >
                 {path}
               </code>
             ))}
@@ -367,7 +373,15 @@ function InspectionWorkspace({
         </Panel>
       ) : null}
 
-      <ArtifactInventoryPanel entries={detection.artifact_inventory ?? []} />
+      <ArtifactInventoryPanel
+        entries={detection.artifact_inventory ?? []}
+        reachability={detection.reachability}
+      />
+
+      <FindingDeduplicationPanel
+        records={detection.finding_deduplications ?? []}
+        retainedFindings={(detection.findings ?? []).length}
+      />
 
       <section aria-labelledby="static-findings-title">
         <div
