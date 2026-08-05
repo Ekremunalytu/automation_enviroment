@@ -4,7 +4,7 @@
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active named stream: static-analysis-artifact-precision (SAP-0..SAP-6). The SMF foundation plus SAP-0..SAP-4 baseline merged via PR #40; SAP-5 is branch-published and SAP-6 is implementation-complete locally. The stream is branch-ready and unmerged. Latest fully closed named stream: verdict-provenance-reproducibility (W26), PR #38 bfb2d2d. Containment safety remains the next product/release gate.`
+`Active named stream: static-analysis-artifact-precision (SAP-0..SAP-6). The SMF foundation plus SAP-0..SAP-4 baseline merged via PR #40; SAP-5 and SAP-6 are branch-published, implementation complete, and unmerged. Latest fully closed named stream: verdict-provenance-reproducibility (W26), PR #38 bfb2d2d. Containment safety remains the next product/release gate.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + optional active stream; null when none is open).`
 
@@ -51,13 +51,13 @@ points to it.
     track. `phase.json.active_stream` points to the Increment B SAP tracker;
     containment safety remains the next product execution gate.
 - `static-analysis-artifact-precision.md`
-  - **ACTIVE static-analysis iteration; SAP-0..SAP-6 implementation-complete,
-    branch-ready, and unmerged.**
+  - **ACTIVE static-analysis iteration; SAP-0..SAP-6 branch-published,
+    implementation complete, and unmerged.**
     Adds bounded per-file artifact inventory, deterministic reachability-based
     dependency/minified deep-scan selection, exact echo deduplication,
     partial-coverage honesty, and the Reports-integrated inspection surface.
-    Its SMF + SAP-0..SAP-4 baseline merged via PR #40; SAP-5 is published and
-    SAP-6 is implementation-complete locally on the unmerged feature branch.
+    Its SMF + SAP-0..SAP-4 baseline merged via PR #40; SAP-5 and SAP-6 are
+    published on the unmerged feature branch.
 - `static-analysis-measurement-foundation.md`
   - **MERGED FOUNDATION; implementation and acceptance complete via PR #40.**
     Turns Increment A into the SMF-0–SMF-8 execution slate:

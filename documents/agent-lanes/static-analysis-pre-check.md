@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-08-05 (artifact precision includes SAP-5's bounded
 reachability/deep-scan/deduplication and SAP-6's measured close-out. The stream
-is branch-ready but unmerged. SMF added
+is branch-published but unmerged. SMF added
 coverage-aware `INCONCLUSIVE`, deterministic rule/corpus fingerprints, the
 container-only `make static-eval` evaluator, 32 MiB bounded production-bundle
 coverage, and Node-style entrypoint resolution). Historical base: 2026-06-01

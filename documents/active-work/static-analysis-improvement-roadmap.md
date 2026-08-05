@@ -2,7 +2,7 @@
 
 `Last Updated: 2026-08-05`
 
-`Status: ACTIVE ROADMAP — Increment A (SMF-0..SMF-8) plus the Increment B SAP-0..SAP-4 baseline merged via PR #40. SAP-5 is branch-published and SAP-6 is implementation-complete locally; Increment B remains active, branch-ready, and unmerged. Later increments, dependencies, detector/blocker changes, and AI work still require their normal owner decision and ADR process.`
+`Status: ACTIVE ROADMAP — Increment A (SMF-0..SMF-8) plus the Increment B SAP-0..SAP-4 baseline merged via PR #40. SAP-5 and SAP-6 are branch-published; Increment B remains active, implementation complete, and unmerged. Later increments, dependencies, detector/blocker changes, and AI work still require their normal owner decision and ADR process.`
 
 `Scope: Stream 6 measured-catch-rate and static-primary/threat-directed-dynamic strategy. Product execution order remains containment safety first, then measured detection.`
 
@@ -915,9 +915,9 @@ Increment B is active as
 `documents/phase.json.active_stream = static-analysis-artifact-precision`,
 with Increment A plus SAP-0 through SAP-4 merged via PR #40. SAP-5 reachability
 and exact source-map/vendor deduplication is complete and published on the
-feature branch but is not merged. SAP-6 full delta and close-out is
-implementation-complete locally; the unmerged Increment B stream is
-branch-ready. Containment safety remains the next product/release gate. Increment C
+feature branch but is not merged. SAP-6 full delta and close-out is also
+published on that branch; the implementation-complete Increment B stream is
+unmerged. Containment safety remains the next product/release gate. Increment C
 stays separately reviewable and requires its own activation. AI-0 may be
 planned as a provider-free contract exercise, but AI-1 does not begin without
 an explicit owner/ADR/data-policy decision.

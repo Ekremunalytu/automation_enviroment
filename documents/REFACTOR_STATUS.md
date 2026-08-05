@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-08-05 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82. W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa. Prior close-outs: W20 PR #29 week20 -> main 64a3c3d · W19 PR #28 week19 -> main c879603 · W18 PR #26 week18 -> main 9874e79 · W17 PR #25 week17 -> main bff565d · W16 PR #23 week16 -> main 1b6d43f · W15 PR #22 week15 -> main 6161472 · W14 PR #21 week14 -> main 4e03c8d · W13 PR #20 week13 -> main 772deb3. Latest fully closed named stream: verdict-provenance-reproducibility (W26), PR #38 bfb2d2d. Active named stream: static-analysis-artifact-precision (SAP-0..SAP-6), tracker active-work/static-analysis-artifact-precision.md; the SMF foundation plus SAP-0..SAP-4 baseline merged via PR #40, SAP-5 is published, and SAP-6 is implementation-complete locally. The unmerged stream is branch-ready. Containment safety remains the next product/release gate from active-work/v1-roadmap.md §4.`
+`Last Updated: 2026-08-05 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82. W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa. Prior close-outs: W20 PR #29 week20 -> main 64a3c3d · W19 PR #28 week19 -> main c879603 · W18 PR #26 week18 -> main 9874e79 · W17 PR #25 week17 -> main bff565d · W16 PR #23 week16 -> main 1b6d43f · W15 PR #22 week15 -> main 6161472 · W14 PR #21 week14 -> main 4e03c8d · W13 PR #20 week13 -> main 772deb3. Latest fully closed named stream: verdict-provenance-reproducibility (W26), PR #38 bfb2d2d. Active named stream: static-analysis-artifact-precision (SAP-0..SAP-6), tracker active-work/static-analysis-artifact-precision.md; the SMF foundation plus SAP-0..SAP-4 baseline merged via PR #40, while SAP-5 and SAP-6 are branch-published, implementation complete, and unmerged. Containment safety remains the next product/release gate from active-work/v1-roadmap.md §4.`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -24,8 +24,8 @@ security, rebuilt-executor, and rebuilt-static-analyzer validation. SAP-5
 reachability and exact echo deduplication is published on
 `codex/static-analysis-artifact-precision`. SAP-6's 14-sample, three-run delta
 and full host, database, security, rebuilt-static-analyzer, and smoke gates are
-complete locally. The implementation-complete stream is branch-ready but stays
-active and unmerged until a separately authorized publication/merge handoff.
+also published on that branch. The implementation-complete stream stays active
+and unmerged until a separately authorized PR/merge handoff.
 
 All weekly phases **W0-W22 are CLOSED and merged**. Per-phase PR/SHA close facts
 are in the `Last Updated:` banner above; full per-iter evidence is frozen in the

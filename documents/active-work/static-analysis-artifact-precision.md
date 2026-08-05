@@ -2,18 +2,17 @@
 
 `Last Updated: 2026-08-05`
 
-`Status: ACTIVE — implementation complete, unmerged. The SMF foundation plus
+`Status: ACTIVE — implementation complete, branch-published, and unmerged. The SMF foundation plus
 SAP-0 through SAP-4 and the production-bundle precision follow-up merged to
-main via PR #40. SAP-5 is published on
-codex/static-analysis-artifact-precision; SAP-6 is complete locally and the
-stream is branch-ready. Publication, PR, merge, and containment activation are
-outside this close-out.`
+main via PR #40. SAP-5 and SAP-6 are published on
+codex/static-analysis-artifact-precision. PR, merge, and containment activation
+remain outside this close-out.`
 
 `Parent: static-analysis-improvement-roadmap.md Increment B / SAR-2.`
 
 `Merge boundary: PR #40 carried the committed SMF foundation and SAP-0..SAP-4
-baseline into main. SAP-5 is published and SAP-6 is complete locally on the
-feature branch. The branch-ready stream remains active and unmerged.`
+baseline into main. SAP-5 and SAP-6 are published on the feature branch. The
+implementation-complete stream remains active and unmerged.`
 
 `Product-order boundary: containment safety remains the next mandatory
 product/release gate. This stream is offline/static and does not claim safe
@@ -307,7 +306,7 @@ passed / one unavailable fixture skipped. `make static-eval-delta` passed all
 19 acceptance checks. Executor code did not change, so `make test-ci` was not
 added.
 
-The stream is implementation-complete and branch-ready but remains under
+The stream is implementation-complete and branch-published but remains under
 `active_stream` because it is not merged. Containment safety retains its
 separate product/release position.
 
