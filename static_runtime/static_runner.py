@@ -26,6 +26,7 @@ from packages.analysis_contracts.static_detection import (
 )
 from static_runtime.artifact_inventory import build_artifact_inventory
 from static_runtime.context import StaticAnalysisContext
+from static_runtime.finding_deduplication import deduplicate_findings
 from static_runtime.rules._common import MAX_TEXT_BYTES, TEXT_SUFFIXES
 from static_runtime.rules.registry import get_production_rules
 from static_runtime.semgrep_runner import run_semgrep
@@ -215,14 +216,23 @@ def run_static_detection_engine(
         tool_executions.append(semgrep_result.record)
         partial = partial or semgrep_result.record.status != "ok"
 
-    return StaticDetectionReport(
+    deduplication = deduplicate_findings(
+        context,
         findings=findings,
+        artifact_inventory=inventory.entries,
+        max_file_bytes=MAX_TEXT_BYTES,
+    )
+    retained_findings = list(deduplication.findings)
+
+    return StaticDetectionReport(
+        findings=retained_findings,
         tool_executions=tool_executions,
-        severity_counts=_rollup_severity(findings),
+        severity_counts=_rollup_severity(retained_findings),
         partial=partial,
         coverage=_merge_coverage(tool_executions),
         artifact_inventory=list(inventory.entries),
         reachability=inventory.reachability,
+        finding_deduplications=list(deduplication.records),
         # W26 / Stream 3 (B5): bind the static report to the analyzed bytes.
         vsix_sha256=vsix_sha256,
     )

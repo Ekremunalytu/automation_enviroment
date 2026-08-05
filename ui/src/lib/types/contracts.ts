@@ -799,6 +799,7 @@ export interface StaticDetectionReportDto {
   coverage?: StaticScanCoverageDto;
   artifact_inventory?: StaticArtifactInventoryEntryDto[];
   reachability?: StaticReachabilitySummaryDto;
+  finding_deduplications?: StaticFindingDeduplicationRecordDto[];
   generated_at?: string;
   vsix_sha256?: string;
 }

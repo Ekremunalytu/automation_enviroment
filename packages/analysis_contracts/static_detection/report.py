@@ -12,6 +12,9 @@ from packages.analysis_contracts.contracts import StrictContractModel
 from packages.analysis_contracts.static_detection.artifact import (
     StaticArtifactInventoryEntry,
 )
+from packages.analysis_contracts.static_detection.deduplication import (
+    StaticFindingDeduplicationRecord,
+)
 from packages.analysis_contracts.static_detection.finding import StaticDetectionFinding
 from packages.analysis_contracts.static_detection.reachability import (
     StaticReachabilitySummary,
@@ -204,6 +207,9 @@ class StaticDetectionReport(StrictContractModel):
     )
     reachability: StaticReachabilitySummary = Field(
         default_factory=StaticReachabilitySummary
+    )
+    finding_deduplications: list[StaticFindingDeduplicationRecord] = Field(
+        default_factory=list, max_length=10_000
     )
     generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     # W26 / Stream 3 (B5 `[GOAL vsix-content-sha256-provenance]`): SHA-256 of the

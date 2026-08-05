@@ -24,6 +24,10 @@ from packages.analysis_contracts.static_detection.budget import (
     parse_static_analysis_timeout_budget,
     validate_static_analysis_timeout_budget,
 )
+from packages.analysis_contracts.static_detection.deduplication import (
+    StaticFindingDeduplicationReason,
+    StaticFindingDeduplicationRecord,
+)
 from packages.analysis_contracts.static_detection.finding import (
     StaticDetectionFinding,
     StaticEvidenceRef,
@@ -66,6 +70,8 @@ __all__ = [
     "StaticDetectionReport",
     "StaticEvidenceRef",
     "StaticEvidenceType",
+    "StaticFindingDeduplicationReason",
+    "StaticFindingDeduplicationRecord",
     "StaticGateDecision",
     "StaticGateOutcome",
     "StaticManifestStatus",

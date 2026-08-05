@@ -16,6 +16,7 @@ from packages.analysis_contracts.detection.enums import (
 from packages.analysis_contracts.static_detection import (
     StaticDetectionFinding,
     StaticDetectionReport,
+    StaticEvidenceRef,
     StaticScanCoverage,
     StaticToolExecutionRecord,
 )
@@ -279,7 +280,7 @@ def _fake_semgrep_result(
     )
 
 
-def _semgrep_finding() -> StaticDetectionFinding:
+def _semgrep_finding(path: str | None = None) -> StaticDetectionFinding:
     return StaticDetectionFinding(
         rule_id="extrace.sg.eval",
         rule_version="1.0.0",
@@ -289,6 +290,20 @@ def _semgrep_finding() -> StaticDetectionFinding:
         confidence=Confidence.MEDIUM,
         title="t",
         description="d",
+        evidence=(
+            [
+                StaticEvidenceRef(
+                    type="source_file",
+                    relative_path=path,
+                    line_number=1,
+                    snippet="eval(payload)",
+                    tool="semgrep",
+                    rule_match_id="eval",
+                )
+            ]
+            if path is not None
+            else []
+        ),
     )
 
 
@@ -314,6 +329,37 @@ def test_runner_combines_inhouse_and_semgrep(
     # The rollup sums findings across both tools.
     assert sum(report.severity_counts.model_dump().values()) == len(report.findings)
     assert report.partial is False
+
+
+def test_runner_keeps_tool_raw_count_and_reports_deduplicated_findings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "package.json").write_text(
+        json.dumps({"publisher": "trusted", "main": "src/main.js"}),
+        encoding="utf-8",
+    )
+    (tmp_path / "src").mkdir()
+    (tmp_path / "vendor").mkdir()
+    for path in (tmp_path / "src/main.js", tmp_path / "vendor/main.js"):
+        path.write_text("eval(payload)\n", encoding="utf-8")
+    monkeypatch.setattr(
+        static_runner,
+        "run_semgrep",
+        lambda **_kw: _fake_semgrep_result(
+            [_semgrep_finding("vendor/main.js"), _semgrep_finding("src/main.js")]
+        ),
+    )
+
+    report = run_static_detection_engine(
+        vsix_dir=str(tmp_path), rules_version="1.0.0", timeout_budget_s=30
+    )
+
+    assert report.tool_executions[1].findings_emitted == 2
+    assert [finding.evidence[0].relative_path for finding in report.findings] == [
+        "src/main.js"
+    ]
+    assert report.severity_counts.medium == 1
+    assert report.finding_deduplications[0].duplicate_path == "vendor/main.js"
 
 
 def test_runner_merges_semgrep_structural_fallback_observability(

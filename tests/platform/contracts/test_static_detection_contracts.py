@@ -44,6 +44,7 @@ from packages.analysis_contracts.static_detection import (
     StaticDetectionFinding,
     StaticDetectionReport,
     StaticEvidenceRef,
+    StaticFindingDeduplicationRecord,
     StaticGateDecision,
     StaticGateOutcome,
     StaticReachabilitySummary,
@@ -244,6 +245,12 @@ def test_artifact_inventory_is_additive_bounded_and_deterministic() -> None:
         StaticDetectionReport.model_validate({"schema_version": "2"}).reachability
         == StaticReachabilitySummary()
     )
+    assert (
+        StaticDetectionReport.model_validate(
+            {"schema_version": "2"}
+        ).finding_deduplications
+        == []
+    )
 
 
 def test_reachability_provenance_is_bounded_and_path_safe() -> None:
@@ -285,6 +292,30 @@ def test_reachability_provenance_is_bounded_and_path_safe() -> None:
             line_number=1,
             edge_kind="import",
             expression="./target",
+        )
+
+
+def test_finding_deduplication_record_rejects_unsafe_provenance() -> None:
+    record = StaticFindingDeduplicationRecord(
+        rule_id="extrace.test.echo",
+        rule_version="1.0.0",
+        reason="vendor_echo",
+        canonical_path="src/main.js",
+        canonical_line_number=1,
+        duplicate_path="vendor/main.js",
+        duplicate_line_number=1,
+        evidence_fingerprint="a" * 64,
+    )
+    assert StaticDetectionReport(finding_deduplications=[record])
+
+    with pytest.raises(ValidationError):
+        StaticFindingDeduplicationRecord(
+            rule_id="extrace.test.echo",
+            rule_version="1.0.0",
+            reason="vendor_echo",
+            canonical_path="src/main.js",
+            duplicate_path="../escape.js",
+            evidence_fingerprint="a" * 64,
         )
 
 
