@@ -46,6 +46,8 @@ from packages.analysis_contracts.static_detection import (
     StaticEvidenceRef,
     StaticGateDecision,
     StaticGateOutcome,
+    StaticReachabilitySummary,
+    StaticReachabilityUnresolvedReference,
     StaticScanCoverage,
     StaticSeverityCounts,
     StaticToolExecutionRecord,
@@ -238,6 +240,52 @@ def test_artifact_inventory_is_additive_bounded_and_deterministic() -> None:
         StaticDetectionReport.model_validate({"schema_version": "2"}).artifact_inventory
         == []
     )
+    assert (
+        StaticDetectionReport.model_validate({"schema_version": "2"}).reachability
+        == StaticReachabilitySummary()
+    )
+
+
+def test_reachability_provenance_is_bounded_and_path_safe() -> None:
+    summary = StaticReachabilitySummary(
+        roots=["dist/main.js"],
+        nodes_reached=2,
+        edges_resolved=1,
+        bytes_read=12,
+        unresolved_count=1,
+        unresolved_references=[
+            StaticReachabilityUnresolvedReference(
+                source_path="dist/main.js",
+                line_number=4,
+                edge_kind="dynamic_import",
+                expression="target",
+            )
+        ],
+    )
+    entry = StaticArtifactInventoryEntry(
+        relative_path="node_modules/pkg/index.js",
+        role="dependency_runtime",
+        format="text",
+        size_bytes=12,
+        entrypoint_reachability="transitive",
+        reachability_parent="dist/main.js",
+        reachability_edge_kind="require",
+        reachability_confidence="literal",
+        disposition="deep_scan",
+        disposition_reasons=["transitive_entrypoint_reachable"],
+    )
+
+    report = StaticDetectionReport(artifact_inventory=[entry], reachability=summary)
+    assert report.reachability.unresolved_count == 1
+    assert report.artifact_inventory[0].reachability_parent == "dist/main.js"
+
+    with pytest.raises(ValidationError):
+        StaticReachabilityUnresolvedReference(
+            source_path="../escape.js",
+            line_number=1,
+            edge_kind="import",
+            expression="./target",
+        )
 
 
 def test_artifact_inventory_normalizes_safe_relative_paths() -> None:

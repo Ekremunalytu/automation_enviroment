@@ -194,6 +194,15 @@ def run_static_detection_engine(
         findings=inhouse_findings,
         max_target_bytes=MAX_TEXT_BYTES,
     )
+    if inventory.coverage_reasons:
+        inhouse_record.coverage.coverage_reasons = sorted(
+            {
+                *inhouse_record.coverage.coverage_reasons,
+                *inventory.coverage_reasons,
+            }
+        )
+        inhouse_record.status = "partial"
+        partial = True
 
     if semgrep_enabled:
         semgrep_result = run_semgrep(
@@ -213,6 +222,7 @@ def run_static_detection_engine(
         partial=partial,
         coverage=_merge_coverage(tool_executions),
         artifact_inventory=list(inventory.entries),
+        reachability=inventory.reachability,
         # W26 / Stream 3 (B5): bind the static report to the analyzed bytes.
         vsix_sha256=vsix_sha256,
     )

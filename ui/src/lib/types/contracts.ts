@@ -725,9 +725,12 @@ export interface StaticArtifactInventoryEntryDto {
   dependency_owner?: string | null;
   is_vendor?: boolean;
   is_minified?: boolean;
-  entrypoint_reachability?: "direct" | "none" | "unknown";
+  entrypoint_reachability?: "direct" | "transitive" | "none" | "unknown";
+  reachability_parent?: string | null;
+  reachability_edge_kind?: "manifest" | "import" | "export" | "require" | "dynamic_import" | "require_resolve" | "source_map" | "path_loader" | "native_loader" | null;
+  reachability_confidence?: "literal" | "heuristic" | null;
   disposition: "deep_scan" | "inventory_only" | "skipped";
-  disposition_reasons: ("first_party_runtime" | "direct_manifest_entrypoint" | "inhouse_finding_evidence" | "format_extension_mismatch" | "dependency_inventory_only" | "vendor_inventory_only" | "minified_inventory_only" | "non_runtime_artifact" | "unsupported_format" | "target_too_large" | "read_error" | "deep_scan_target_cap")[];
+  disposition_reasons: ("first_party_runtime" | "direct_manifest_entrypoint" | "transitive_entrypoint_reachable" | "heuristic_loader_reachable" | "inhouse_finding_evidence" | "format_extension_mismatch" | "dependency_inventory_only" | "vendor_inventory_only" | "minified_inventory_only" | "non_runtime_artifact" | "unsupported_format" | "target_too_large" | "read_error" | "deep_scan_target_cap")[];
 }
 
 export interface StaticDetectionFindingDto {
@@ -776,7 +779,7 @@ export interface StaticScanCoverageDto {
   unsupported_formats?: Record<string, number>;
   structural_fallback_files?: number;
   structural_fallback_paths?: string[];
-  coverage_reasons?: ("file_cap" | "target_too_large" | "text_truncated" | "undecodable" | "unsupported_suffix" | "parser_error" | "manifest_missing" | "manifest_malformed" | "manifest_too_large" | "critical_entrypoint_missing" | "critical_entrypoint_unparsed" | "rule_timeout" | "tool_timeout" | "tool_error" | "finding_cap" | "budget_stop" | "excluded_inventory_only" | "deep_scan_target_cap")[];
+  coverage_reasons?: ("file_cap" | "target_too_large" | "text_truncated" | "undecodable" | "unsupported_suffix" | "parser_error" | "manifest_missing" | "manifest_malformed" | "manifest_too_large" | "critical_entrypoint_missing" | "critical_entrypoint_unparsed" | "rule_timeout" | "tool_timeout" | "tool_error" | "finding_cap" | "budget_stop" | "excluded_inventory_only" | "deep_scan_target_cap" | "reachability_node_cap" | "reachability_edge_cap" | "reachability_byte_cap" | "reachability_depth_cap" | "reachability_read_error" | "reachability_parse_error")[];
 }
 
 export interface StaticSeverityCountsDto {
@@ -795,6 +798,7 @@ export interface StaticDetectionReportDto {
   partial?: boolean;
   coverage?: StaticScanCoverageDto;
   artifact_inventory?: StaticArtifactInventoryEntryDto[];
+  reachability?: StaticReachabilitySummaryDto;
   generated_at?: string;
   vsix_sha256?: string;
 }

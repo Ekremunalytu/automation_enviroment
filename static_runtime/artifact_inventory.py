@@ -9,7 +9,9 @@ from packages.analysis_contracts.static_detection import (
     StaticArtifactDisposition,
     StaticArtifactDispositionReason,
     StaticArtifactInventoryEntry,
+    StaticCoverageReason,
     StaticDetectionFinding,
+    StaticReachabilitySummary,
 )
 from static_runtime.artifacts import (
     DEEP_SCAN_SOURCE_SUFFIXES,
@@ -19,6 +21,7 @@ from static_runtime.artifacts import (
     is_vendor_path,
 )
 from static_runtime.context import StaticAnalysisContext
+from static_runtime.reachability import build_reachability_graph
 
 MAX_EXTRA_DEEP_SCAN_TARGETS = 256
 
@@ -28,6 +31,8 @@ class ArtifactInventoryResult:
     entries: tuple[StaticArtifactInventoryEntry, ...]
     extra_deep_scan_targets: tuple[str, ...]
     target_cap_reached: bool
+    reachability: StaticReachabilitySummary
+    coverage_reasons: tuple[StaticCoverageReason, ...]
 
 
 def _inhouse_evidence_paths(
@@ -64,6 +69,10 @@ def build_artifact_inventory(
     """Classify every retained file and select bounded extra Semgrep targets."""
 
     evidence_paths = _inhouse_evidence_paths(findings)
+    reachability = build_reachability_graph(
+        context,
+        max_file_bytes=max_target_bytes,
+    )
     entrypoints = frozenset(context.resolved_entrypoints())
     manifest_parsed = context.manifest_status == "parsed"
     entries: list[StaticArtifactInventoryEntry] = []
@@ -75,6 +84,13 @@ def build_artifact_inventory(
         minified = is_minified_path(relative_path)
         vendor = is_vendor_path(relative_path)
         direct_entrypoint = relative_path in entrypoints
+        reachability_provenance = reachability.provenance.get(relative_path)
+        transitive_entrypoint = (
+            reachability_provenance is not None and reachability_provenance.depth > 0
+        )
+        transitive_provenance = (
+            reachability_provenance if transitive_entrypoint else None
+        )
         runtime_supported = classification.suffix in DEEP_SCAN_SOURCE_SUFFIXES
         disposition: StaticArtifactDisposition
         reasons: list[StaticArtifactDispositionReason]
@@ -89,6 +105,10 @@ def build_artifact_inventory(
             deep_reasons: list[StaticArtifactDispositionReason] = []
             if direct_entrypoint:
                 deep_reasons.append("direct_manifest_entrypoint")
+            if transitive_provenance is not None:
+                deep_reasons.append("transitive_entrypoint_reachable")
+                if transitive_provenance.confidence == "heuristic":
+                    deep_reasons.append("heuristic_loader_reachable")
             if (
                 classification.role == "first_party_runtime"
                 and runtime_supported
@@ -131,9 +151,26 @@ def build_artifact_inventory(
                 entrypoint_reachability=(
                     "direct"
                     if direct_entrypoint
+                    else "transitive"
+                    if transitive_entrypoint
                     else "none"
                     if manifest_parsed
                     else "unknown"
+                ),
+                reachability_parent=(
+                    reachability_provenance.parent
+                    if reachability_provenance is not None
+                    else None
+                ),
+                reachability_edge_kind=(
+                    reachability_provenance.edge_kind
+                    if reachability_provenance is not None
+                    else None
+                ),
+                reachability_confidence=(
+                    reachability_provenance.confidence
+                    if reachability_provenance is not None
+                    else None
                 ),
                 disposition=disposition,
                 disposition_reasons=reasons,
@@ -151,6 +188,8 @@ def build_artifact_inventory(
     extra_candidates.sort(
         key=lambda entry: (
             "direct_manifest_entrypoint" not in entry.disposition_reasons,
+            "transitive_entrypoint_reachable" not in entry.disposition_reasons,
+            entry.reachability_confidence == "heuristic",
             "inhouse_finding_evidence" not in entry.disposition_reasons,
             "format_extension_mismatch" not in entry.disposition_reasons,
             entry.relative_path,
@@ -183,6 +222,8 @@ def build_artifact_inventory(
             str(absolute_paths[path].absolute()) for path in sorted(selected_paths)
         ),
         target_cap_reached=bool(capped_paths),
+        reachability=reachability.summary,
+        coverage_reasons=reachability.coverage_reasons,
     )
 
 

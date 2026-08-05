@@ -234,3 +234,41 @@ def test_inventory_distinguishes_missing_and_malformed_entrypoints(
     )
     by_path = {entry.relative_path: entry for entry in result.entries}
     assert by_path["extension.js"].entrypoint_reachability == expected
+
+
+def test_transitively_reachable_dependency_is_selected_with_provenance(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "package.json").write_text(
+        json.dumps({"publisher": "trusted", "main": "main.js"}),
+        encoding="utf-8",
+    )
+    (tmp_path / "main.js").write_text("require('pkg');", encoding="utf-8")
+    dependency = tmp_path / "node_modules/pkg"
+    dependency.mkdir(parents=True)
+    (dependency / "package.json").write_text(
+        json.dumps({"main": "index.js"}), encoding="utf-8"
+    )
+    (dependency / "index.js").write_text("module.exports = {};", encoding="utf-8")
+
+    result = build_artifact_inventory(
+        StaticAnalysisContext.from_vsix_dir(tmp_path),
+        findings=[],
+        max_target_bytes=1024,
+    )
+    entry = next(
+        item
+        for item in result.entries
+        if item.relative_path == "node_modules/pkg/index.js"
+    )
+
+    assert entry.entrypoint_reachability == "transitive"
+    assert entry.reachability_parent == "main.js"
+    assert entry.reachability_edge_kind == "require"
+    assert entry.reachability_confidence == "literal"
+    assert entry.disposition == "deep_scan"
+    assert entry.disposition_reasons == ["transitive_entrypoint_reachable"]
+    assert [
+        Path(path).relative_to(tmp_path).as_posix()
+        for path in result.extra_deep_scan_targets
+    ] == ["node_modules/pkg/index.js"]

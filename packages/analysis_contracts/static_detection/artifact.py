@@ -46,10 +46,26 @@ StaticArtifactFormat = Literal[
     "unknown",
 ]
 StaticArtifactDisposition = Literal["deep_scan", "inventory_only", "skipped"]
-StaticArtifactEntrypointReachability = Literal["direct", "none", "unknown"]
+StaticArtifactEntrypointReachability = Literal[
+    "direct", "transitive", "none", "unknown"
+]
+StaticArtifactReachabilityEdgeKind = Literal[
+    "manifest",
+    "import",
+    "export",
+    "require",
+    "dynamic_import",
+    "require_resolve",
+    "source_map",
+    "path_loader",
+    "native_loader",
+]
+StaticArtifactReachabilityConfidence = Literal["literal", "heuristic"]
 StaticArtifactDispositionReason = Literal[
     "first_party_runtime",
     "direct_manifest_entrypoint",
+    "transitive_entrypoint_reachable",
+    "heuristic_loader_reachable",
     "inhouse_finding_evidence",
     "format_extension_mismatch",
     "dependency_inventory_only",
@@ -96,6 +112,9 @@ class StaticArtifactInventoryEntry(StrictContractModel):
     is_vendor: bool = False
     is_minified: bool = False
     entrypoint_reachability: StaticArtifactEntrypointReachability = "unknown"
+    reachability_parent: str | None = None
+    reachability_edge_kind: StaticArtifactReachabilityEdgeKind | None = None
+    reachability_confidence: StaticArtifactReachabilityConfidence | None = None
     disposition: StaticArtifactDisposition
     disposition_reasons: list[StaticArtifactDispositionReason] = Field(
         min_length=1, max_length=8
@@ -105,6 +124,11 @@ class StaticArtifactInventoryEntry(StrictContractModel):
     @classmethod
     def validate_relative_path(cls, value: str) -> str:
         return _normalize_relative_path(value)
+
+    @field_validator("reachability_parent")
+    @classmethod
+    def validate_reachability_parent(cls, value: str | None) -> str | None:
+        return None if value is None else _normalize_relative_path(value)
 
     @field_validator("header_sha256")
     @classmethod
@@ -137,5 +161,7 @@ __all__ = [
     "StaticArtifactEntrypointReachability",
     "StaticArtifactFormat",
     "StaticArtifactInventoryEntry",
+    "StaticArtifactReachabilityConfidence",
+    "StaticArtifactReachabilityEdgeKind",
     "StaticArtifactRole",
 ]

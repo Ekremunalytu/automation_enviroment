@@ -13,6 +13,9 @@ from packages.analysis_contracts.static_detection.artifact import (
     StaticArtifactInventoryEntry,
 )
 from packages.analysis_contracts.static_detection.finding import StaticDetectionFinding
+from packages.analysis_contracts.static_detection.reachability import (
+    StaticReachabilitySummary,
+)
 
 _UTC_FALLBACK = timezone.utc  # noqa: UP017
 UTC = cast(tzinfo, getattr(datetime, "UTC", _UTC_FALLBACK))
@@ -39,6 +42,12 @@ StaticCoverageReason = Literal[
     "budget_stop",
     "excluded_inventory_only",
     "deep_scan_target_cap",
+    "reachability_node_cap",
+    "reachability_edge_cap",
+    "reachability_byte_cap",
+    "reachability_depth_cap",
+    "reachability_read_error",
+    "reachability_parse_error",
 ]
 StaticManifestStatus = Literal[
     "parsed",
@@ -192,6 +201,9 @@ class StaticDetectionReport(StrictContractModel):
     coverage: StaticScanCoverage = Field(default_factory=StaticScanCoverage)
     artifact_inventory: list[StaticArtifactInventoryEntry] = Field(
         default_factory=list, max_length=50_000
+    )
+    reachability: StaticReachabilitySummary = Field(
+        default_factory=StaticReachabilitySummary
     )
     generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     # W26 / Stream 3 (B5 `[GOAL vsix-content-sha256-provenance]`): SHA-256 of the

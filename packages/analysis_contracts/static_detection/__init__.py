@@ -12,6 +12,8 @@ from packages.analysis_contracts.static_detection.artifact import (
     StaticArtifactEntrypointReachability,
     StaticArtifactFormat,
     StaticArtifactInventoryEntry,
+    StaticArtifactReachabilityConfidence,
+    StaticArtifactReachabilityEdgeKind,
     StaticArtifactRole,
 )
 from packages.analysis_contracts.static_detection.budget import (
@@ -30,6 +32,11 @@ from packages.analysis_contracts.static_detection.finding import (
 from packages.analysis_contracts.static_detection.gate import (
     StaticGateDecision,
     StaticGateOutcome,
+)
+from packages.analysis_contracts.static_detection.reachability import (
+    StaticReachabilityLimitReason,
+    StaticReachabilitySummary,
+    StaticReachabilityUnresolvedReference,
 )
 from packages.analysis_contracts.static_detection.report import (
     StaticCoverageReason,
@@ -51,6 +58,8 @@ __all__ = [
     "StaticArtifactEntrypointReachability",
     "StaticArtifactFormat",
     "StaticArtifactInventoryEntry",
+    "StaticArtifactReachabilityConfidence",
+    "StaticArtifactReachabilityEdgeKind",
     "StaticArtifactRole",
     "StaticCoverageReason",
     "StaticDetectionFinding",
@@ -60,6 +69,9 @@ __all__ = [
     "StaticGateDecision",
     "StaticGateOutcome",
     "StaticManifestStatus",
+    "StaticReachabilityLimitReason",
+    "StaticReachabilitySummary",
+    "StaticReachabilityUnresolvedReference",
     "StaticScanCoverage",
     "StaticSeverityCounts",
     "StaticTool",
