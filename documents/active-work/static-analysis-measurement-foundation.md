@@ -2,7 +2,7 @@
 
 `Last Updated: 2026-08-05`
 
-`Status: MERGED FOUNDATION — SMF-0..SMF-8 implementation and acceptance merged to main with the successor's SAP-0..SAP-4 baseline via PR #40. The static-analysis-artifact-precision successor remains active; SAP-5 is complete locally but not pushed or merged, and SAP-6 is next.`
+`Status: MERGED FOUNDATION — SMF-0..SMF-8 implementation and acceptance merged to main with the successor's SAP-0..SAP-4 baseline via PR #40. The static-analysis-artifact-precision successor remains active; SAP-5 is complete and published on codex/static-analysis-artifact-precision but is not merged, and SAP-6 is next.`
 
 `Parent: static-analysis-improvement-roadmap.md Increment A / SAR-0 + SAR-1 measurement foundation.`
 
@@ -691,16 +691,16 @@ on 2026-07-30. Implementation is complete and the successor
 `static-analysis-artifact-precision` was activated locally on 2026-07-31 as a
 stacked branch. Containment safety remains the release/product execution gate.
 Keep this tracker as the SMF-0..SMF-8 acceptance source. The foundation and the
-successor's SAP-0..SAP-4 baseline merged via PR #40; SAP-5 is complete locally
-but not pushed or merged, and the successor remains
-active for SAP-5 and SAP-6.
+successor's SAP-0..SAP-4 baseline merged via PR #40; SAP-5 is complete and
+published on the feature branch but is not merged, and the successor remains
+active for SAP-6.
 
 ## 20. Implementation And Baseline Evidence
 
 SMF-0 through SMF-8 implementation work is complete for the named branch.
 The implementation merged via PR #40. This foundation is complete, while the
 successor remains active and retains `phase.json.active_stream` through its
-SAP-5/SAP-6 work.
+SAP-6 work.
 
 - rule inventory: 26 in-house plus 16 Semgrep production rules, each with
   capability, artifact role, positive/negative test ownership, gate effect,

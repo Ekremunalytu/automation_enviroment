@@ -324,6 +324,13 @@ describe("StaticAnalysisInspectionSection", () => {
     expect(within(inventory).queryByText("dist/oversized.js")).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Search artifact inventory"), {
+      target: { value: "heuristic" },
+    });
+    await waitFor(() => {
+      expect(within(inventory).getByText("node_modules/@scope/pkg/index.js")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("Search artifact inventory"), {
       target: { value: "" },
     });
     fireEvent.change(screen.getByLabelText("Artifact role"), {

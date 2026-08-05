@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from packages.analysis_contracts.detection.enums import (
     Confidence,
     RuleLifecycle,
@@ -58,6 +60,7 @@ def _entry(
     vendor: bool = False,
     minified: bool = False,
     reachability: str = "none",
+    confidence: str | None = None,
 ) -> StaticArtifactInventoryEntry:
     return StaticArtifactInventoryEntry(
         relative_path=path,
@@ -67,6 +70,9 @@ def _entry(
         is_vendor=vendor,
         is_minified=minified,
         entrypoint_reachability=reachability,
+        reachability_parent="main.js" if reachability == "transitive" else None,
+        reachability_edge_kind="require" if reachability == "transitive" else None,
+        reachability_confidence=confidence,
         disposition="deep_scan",
         disposition_reasons=["first_party_runtime"],
     )
@@ -114,6 +120,103 @@ def test_exact_vendor_copy_is_suppressed_with_deterministic_provenance(
     assert result.records[0].reason == "vendor_echo"
     assert result.records[0].canonical_path == "src/main.js"
     assert result.records[0].duplicate_path == "vendor/main.js"
+
+    reversed_result = _dedupe(
+        tmp_path,
+        [canonical, duplicate],
+        [
+            _entry("src/main.js", reachability="direct", confidence="literal"),
+            _entry("vendor/main.js", vendor=True),
+        ],
+    )
+    assert reversed_result.records == result.records
+
+
+def test_exact_minified_copy_is_suppressed(tmp_path: Path) -> None:
+    content = "eval(payload)\n"
+    (tmp_path / "src").mkdir()
+    (tmp_path / "dist").mkdir()
+    (tmp_path / "src/main.js").write_text(content, encoding="utf-8")
+    (tmp_path / "dist/main.min.js").write_text(content, encoding="utf-8")
+
+    result = _dedupe(
+        tmp_path,
+        [_finding("dist/main.min.js"), _finding("src/main.js")],
+        [
+            _entry("src/main.js", reachability="direct", confidence="literal"),
+            _entry("dist/main.min.js", minified=True),
+        ],
+    )
+
+    assert len(result.findings) == 1
+    assert result.records[0].reason == "vendor_echo"
+
+
+@pytest.mark.parametrize(
+    (
+        "first_reachability",
+        "first_confidence",
+        "second_reachability",
+        "second_confidence",
+    ),
+    [
+        ("direct", "literal", "transitive", "literal"),
+        ("transitive", "literal", "transitive", "heuristic"),
+        ("transitive", "heuristic", "none", None),
+    ],
+)
+def test_canonical_reachability_priority_is_stable(
+    tmp_path: Path,
+    first_reachability: str,
+    first_confidence: str | None,
+    second_reachability: str,
+    second_confidence: str | None,
+) -> None:
+    content = "eval(payload)\n"
+    for directory in ("preferred", "secondary", "vendor"):
+        (tmp_path / directory).mkdir()
+        (tmp_path / directory / "main.js").write_text(content, encoding="utf-8")
+    findings = [
+        _finding("vendor/main.js"),
+        _finding("secondary/main.js"),
+        _finding("preferred/main.js"),
+    ]
+    entries = [
+        _entry(
+            "preferred/main.js",
+            reachability=first_reachability,
+            confidence=first_confidence,
+        ),
+        _entry(
+            "secondary/main.js",
+            reachability=second_reachability,
+            confidence=second_confidence,
+        ),
+        _entry("vendor/main.js", vendor=True),
+    ]
+
+    result = _dedupe(tmp_path, findings, entries)
+
+    assert result.records[0].canonical_path == "preferred/main.js"
+    assert result.records[0].duplicate_path == "vendor/main.js"
+
+
+def test_first_party_is_canonical_over_vendor_when_reachability_is_equal(
+    tmp_path: Path,
+) -> None:
+    content = "eval(payload)\n"
+    (tmp_path / "src").mkdir()
+    (tmp_path / "vendor").mkdir()
+    (tmp_path / "src/main.js").write_text(content, encoding="utf-8")
+    (tmp_path / "vendor/main.js").write_text(content, encoding="utf-8")
+
+    result = _dedupe(
+        tmp_path,
+        [_finding("vendor/main.js"), _finding("src/main.js")],
+        [_entry("src/main.js"), _entry("vendor/main.js", vendor=True)],
+    )
+
+    assert result.records[0].canonical_path == "src/main.js"
 
 
 def test_source_map_sources_content_echo_is_suppressed(tmp_path: Path) -> None:
@@ -165,6 +268,35 @@ def test_different_rule_snippet_or_line_preserves_unique_vendor_evidence(
     )
 
     assert len(result.findings) == 3
+    assert result.records == ()
+
+
+def test_version_severity_and_confidence_changes_preserve_unique_evidence(
+    tmp_path: Path,
+) -> None:
+    content = "eval(payload)\n"
+    (tmp_path / "src").mkdir()
+    (tmp_path / "vendor").mkdir()
+    (tmp_path / "src/main.js").write_text(content, encoding="utf-8")
+    (tmp_path / "vendor/main.js").write_text(content, encoding="utf-8")
+    base = _finding("src/main.js")
+    duplicate = _finding("vendor/main.js")
+
+    variants = [
+        duplicate.model_copy(update={"rule_version": "2.0.0"}),
+        duplicate.model_copy(update={"severity": Severity.HIGH}),
+        duplicate.model_copy(update={"confidence": Confidence.HIGH}),
+    ]
+    result = _dedupe(
+        tmp_path,
+        [base, *variants],
+        [
+            _entry("src/main.js", reachability="direct"),
+            _entry("vendor/main.js", vendor=True),
+        ],
+    )
+
+    assert len(result.findings) == 4
     assert result.records == ()
 
 

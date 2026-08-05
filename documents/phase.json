@@ -22,7 +22,7 @@
     "tracker": "documents/active-work/static-analysis-artifact-precision.md",
     "completed_through": "SAP-5",
     "next": "SAP-6",
-    "delivery_state": "local_only"
+    "delivery_state": "branch_published"
   },
   "updated": "2026-08-05"
 }

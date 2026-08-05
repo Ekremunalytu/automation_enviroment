@@ -319,12 +319,15 @@ def _references(text: str, importer: str) -> list[_Reference]:
             )
         )
     for match in _SOURCE_MAP_RE.finditer(text):
+        specifier = match.group("spec")
+        if not specifier.startswith((".", "/", "data:", "http:", "https:")):
+            specifier = f"./{specifier}"
         refs.append(
             _Reference(
                 line_number=_line_number(text, match.start()),
                 kind="source_map",
                 expression=match.group("spec")[:200],
-                specifier=match.group("spec"),
+                specifier=specifier,
                 confidence="literal",
             )
         )

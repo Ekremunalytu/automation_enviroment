@@ -294,6 +294,23 @@ def test_reachability_provenance_is_bounded_and_path_safe() -> None:
             expression="./target",
         )
 
+    with pytest.raises(ValidationError):
+        StaticReachabilitySummary(roots=["../escape.js"])
+
+    with pytest.raises(ValidationError):
+        StaticArtifactInventoryEntry(
+            relative_path="node_modules/pkg/index.js",
+            role="dependency_runtime",
+            format="text",
+            size_bytes=12,
+            entrypoint_reachability="transitive",
+            reachability_parent="../escape.js",
+            reachability_edge_kind="require",
+            reachability_confidence="literal",
+            disposition="deep_scan",
+            disposition_reasons=["transitive_entrypoint_reachable"],
+        )
+
 
 def test_finding_deduplication_record_rejects_unsafe_provenance() -> None:
     record = StaticFindingDeduplicationRecord(
@@ -316,6 +333,16 @@ def test_finding_deduplication_record_rejects_unsafe_provenance() -> None:
             canonical_path="src/main.js",
             duplicate_path="../escape.js",
             evidence_fingerprint="a" * 64,
+        )
+
+    with pytest.raises(ValidationError):
+        StaticFindingDeduplicationRecord(
+            rule_id="extrace.test.echo",
+            rule_version="1.0.0",
+            reason="vendor_echo",
+            canonical_path="src/main.js",
+            duplicate_path="vendor/main.js",
+            evidence_fingerprint="A" * 64,
         )
 
 

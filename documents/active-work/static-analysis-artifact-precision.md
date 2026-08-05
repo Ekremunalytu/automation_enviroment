@@ -6,14 +6,14 @@
 production-bundle precision follow-up merged to main via PR #40. The merged
 baseline includes the static-only Reports presentation correction described in
 section 3, the Reports-integrated Static analysis inspection tab, and the Rules
-whitelist visibility/normalization follow-up. SAP-5 is complete locally but not
-pushed or merged; SAP-6 is next.`
+whitelist visibility/normalization follow-up. SAP-5 is complete and published
+on codex/static-analysis-artifact-precision but is not merged; SAP-6 is next.`
 
 `Parent: static-analysis-improvement-roadmap.md Increment B / SAR-2.`
 
 `Merge boundary: PR #40 carried the committed SMF foundation and SAP-0..SAP-4
-baseline into main. SAP-5 is complete on the local feature branch and remains
-unpublished. The stream remains active for SAP-6 full delta and close-out.`
+baseline into main. SAP-5 is complete and published on the feature branch but
+is not merged. The stream remains active for SAP-6 full delta and close-out.`
 
 `Product-order boundary: containment safety remains the next mandatory
 product/release gate. This stream is offline/static and does not claim safe
@@ -238,6 +238,9 @@ Acceptance evidence:
 
 - lexical-tie-break BFS resolves bounded relative/bare Node-style imports,
   literal and folded loader references, native/WASM loaders, and source maps;
+- standard relative `sourceMappingURL` values, extensionless/index targets,
+  nested dependencies, and string-only package `browser`/`main` entrypoints
+  have direct regression coverage;
 - node/edge/byte/depth/read/parse loss remains visible and coverage-degrading,
   while ordinary unresolved references remain bounded diagnostics;
 - exact vendor/minified bytes and exact bounded `sourcesContent` echoes are the
@@ -246,8 +249,8 @@ Acceptance evidence:
 - generated TypeScript contracts and the Reports Static Inspection UI surface
   reachability provenance, unresolved references, and deterministic
   canonical-to-duplicate records;
-- focused backend `62/62`, UI `192/192`, `make check-all` and `make test-local`
-  `2951 passed / 11 skipped`, security `536/536`, smoke `13 passed / 1 skipped`,
+- focused backend `73/73`, UI `192/192`, `make check-all` and `make test-local`
+  `2962 passed / 11 skipped`, security `536/536`, smoke `13 passed / 1 skipped`,
   and tuning/holdout/all static-eval splits passed on 2026-08-05.
 
 Deep analysis remains bounded to first-party code plus dependency/minified

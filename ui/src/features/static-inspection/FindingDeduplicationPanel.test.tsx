@@ -27,11 +27,17 @@ describe("FindingDeduplicationPanel", () => {
     });
     expect(within(table).getByText("src/canonical-1.js:1")).toBeInTheDocument();
     expect(within(table).queryByText("src/canonical-26.js:26")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Previous deduplication page" }),
+    ).toBeDisabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Next deduplication page" }));
     expect(
       await within(table).findByText("src/canonical-26.js:26"),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Next deduplication page" }),
+    ).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText("Search deduplication evidence"), {
       target: { value: "source_map_echo" },
